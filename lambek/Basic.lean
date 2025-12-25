@@ -1,5 +1,4 @@
 import Lean.LibrarySuggestions.Default
-import Aesop
 import Mathlib.Data.Nat.Basic
 import Mathlib.Data.List.Basic
 
@@ -51,18 +50,11 @@ def list_degree : List Tp → Nat
 
 @[grind =]
 theorem list_degree_traversible : list_degree (X ++ Y) = list_degree X + list_degree Y := by
-  induction X
-  · grind
-  · grind
+  induction X <;> grind
 
 @[grind =>]
 theorem nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
-  induction h
-  · grind
-  · grind
-  · grind
-  · aesop
-  · aesop
+  induction h <;> grind [List.append_eq_nil_iff]
 
 @[grind =>]
 theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
@@ -78,7 +70,8 @@ theorem list_split_2_cases
   (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R) := by
   simp only [List.append_assoc, List.cons_append, List.nil_append] at h
   rcases List.append_eq_append_iff.mp h with ⟨m, rfl, hm⟩ | ⟨m, rfl, hm⟩
-  · cases m <;> grind
+  · simp [List.cons_eq_append_iff] at hm
+    grind
   · grind
 
 theorem list_split_3_cases
@@ -89,9 +82,7 @@ theorem list_split_3_cases
   rcases list_split_2_cases (by simpa using h)
     with ⟨R, h1, h2⟩ | ⟨L, R, h1, h2, h3⟩
   · grind
-  · rcases list_split_2_cases h1.symm with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩
-    · grind
-    · grind
+  · rcases list_split_2_cases h1.symm with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
 
 theorem list_split_4_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃ ++ Δ₄) :
@@ -103,10 +94,7 @@ theorem list_split_4_cases
     with ⟨R, h1, h2⟩ | ⟨L, R, h1, h2, h3⟩
   · grind
   · rcases list_split_3_cases (by simpa using h1.symm)
-      with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ | ⟨L', R', h4, h5, h6⟩
-    · grind
-    · grind
-    · grind
+      with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
 
 set_option maxHeartbeats 4000000 in
   --
