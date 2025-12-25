@@ -108,6 +108,7 @@ theorem list_split_4_cases
     · grind
     · grind
 
+
 @[grind =>]
 theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   induction Δ
@@ -115,7 +116,8 @@ theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   · grind
   · simp
   grind
-
+set_option maxHeartbeats 4000000 in
+  --
 theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
   (d_left : Γ ⇒ A)
   (d_right : Δ ++ [A] ++ Λ ⇒ B) :
@@ -153,6 +155,7 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
         | rdiv_l x y => sorry
       | rdiv_r a b =>
         rename_i A' B'
+        have c: Γ ⇒ B' ⧸ A' := by grind
         generalize d_right_eq_x : Δ ++ [B' ⧸ A'] ++ Λ = X at d_right
         cases d_right with
         | ax => grind only [nonempty_append, List.cons_eq_cons, List.append_assoc, List.append_cons,
@@ -162,7 +165,6 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
           let m := list_degree ([C'] ++ Δ ++ Γ ++ Λ) + tp_degree (B' ⧸ A') + tp_degree D'
           have mn : m < deg := by
             grind only [list_degree, tp_degree, list_degree_traversible]
-          have e_r : Γ ⇒ B' ⧸ A' := by grind
           have e_l : [C'] ++ Δ ++ [ B' ⧸ A' ] ++ Λ ⇒ D' := by grind
           have e_c : [C'] ++ Δ ++ Γ ++ Λ ⇒ D' := by grind
           grind
@@ -171,7 +173,6 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
           let m := list_degree (Δ ++ Γ ++ Λ ++ [C']) + tp_degree ( B' ⧸ A' ) + tp_degree D'
           have mn : m < deg := by
             grind only [list_degree, tp_degree, list_degree_traversible]
-          have e_r : Γ ⇒ (B' ⧸ A') := by grind
           have e_l : Δ ++ [ B' ⧸ A' ] ++ Λ ++ [C'] ⇒ D' := by grind
           have e_c : Δ ++ Γ ++ Λ ++ [C'] ⇒ D' := by grind
           grind
@@ -185,14 +186,12 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
           · let m := list_degree (Δ ++ Γ ++ (R ++ [V] ++ W)) + tp_degree (B' ⧸ A') + tp_degree B
             have mn : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have c: Γ ⇒ B' ⧸ A' := by grind
             have e: Δ ++ Γ ++ R ++ [V] ++ W ⇒ B := by grind
             have f: Δ ++ Γ ++ R ++ S ++ [T ⧹ V] ++ W ⇒ B := by grind
             grind
           · let m := list_degree (L ++ Γ ++ R) + tp_degree T + tp_degree B
             have mn : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have c: Γ ⇒ B' ⧸ A' := by grind
             have d: L ++ Γ ++ R ⇒ T := by grind
             have e: U ++ (L ++ Γ ++ R) ++ [T ⧹ V] ++ W ⇒ B := by grind
             grind
@@ -205,7 +204,6 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
           · let m := list_degree (U ++ [V] ++ L ++ Γ ++ Λ) + tp_degree (B' ⧸ A') + tp_degree B
             have mn : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have c: Γ ⇒ B' ⧸ A' := by grind
             have d: U ++ [V] ++ L ++ Γ ++ Λ ⇒ B := by grind
             have e: U ++ S ++ [T ⧹ V] ++ (L ++ Γ ++ Λ) ⇒ B := by grind
             grind
@@ -219,7 +217,6 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
           · let m := list_degree (Δ ++ Γ ++ R ++ [V] ++ W) + tp_degree (B' ⧸ A') + tp_degree B
             have mn : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have c: Γ ⇒ B' ⧸ A' := by grind
             have d: Δ ++ Γ ++ (R ++ [V] ++ W) ⇒ B := by grind
             have e: (Δ ++ Γ ++ R) ++ [V ⧸ T] ++ S ++ W ⇒ B := by grind
             grind
@@ -236,17 +233,16 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
             grind
           · let m := list_degree (L ++ Γ ++ R) + tp_degree (B' ⧸ A') + tp_degree T
             have mn : m < deg := by
-              subst deg m
-              simp [list_degree_traversible, list_degree, tp_degree]
-              grind
-            have c: Γ ⇒ B' ⧸ A' := by
-              apply Derive.rdiv_r
-              · grind
-              · apply b <;> grind
-            have d: L ++ [B' ⧸ A'] ++ R ⇒ T := sorry
-            have d: L ++ Γ ++ R ⇒ T := sorry
-            sorry
-          · sorry
+              grind only [list_degree_traversible, list_degree, tp_degree]
+            have d: L ++ Γ ++ R ⇒ T := by grind
+            have e: U ++ [V ⧸ T] ++ (L ++ Γ ++ R) ++ W ⇒ B := by grind
+            grind
+          · let m := list_degree (U ++ [V] ++ L ++ Γ ++ Λ) + tp_degree (B' ⧸ A') + tp_degree B
+            have mn : m < deg := by
+              grind only [list_degree_traversible, list_degree, tp_degree]
+            have d: U ++ [V] ++ L ++ [B' ⧸ A'] ++ Λ ⇒ B := by grind
+            have e: U ++ [V] ++ L ++ Γ ++ Λ ⇒ B := by grind
+            grind
       | rdiv_l a b =>
         rename_i A' B' C' D' E'
         cases d_right with
