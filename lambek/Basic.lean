@@ -50,9 +50,6 @@ def list_degree : List Tp → Nat
   | A :: Γ    => tp_degree A + list_degree Γ
 
 @[grind =]
-theorem list_degree_tp_degree : list_degree [X] = tp_degree X := by grind
-
-@[grind =]
 theorem list_degree_traversible : list_degree (X ++ Y) = list_degree X + list_degree Y := by
   induction X
   · grind
@@ -66,6 +63,14 @@ theorem nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
   · grind
   · aesop
   · aesop
+
+@[grind =>]
+theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
+  induction Δ
+  induction Λ
+  · grind
+  · simp
+  grind
 
 theorem list_split_2_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂) :
@@ -104,14 +109,6 @@ theorem list_split_4_cases
     · grind
     · grind
     · grind
-
-@[grind =>]
-theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
-  induction Δ
-  induction Λ
-  · grind
-  · simp
-  grind
 
 set_option maxHeartbeats 4000000 in
   --
@@ -304,22 +301,18 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
             have e: U ++ [V] ++ L ++ Γ ++ Λ ⇒ B := by grind
             grind
       | rdiv_l a b =>
-        rename_i A' B' C' D' E'
-        cases d_right with
-        | ax => sorry
-        | rdiv_r _ _ => sorry
-        | ldiv_r _ _ => sorry
-        | rdiv_l _ _ => sorry
-        | ldiv_l _ _ => sorry
-        sorry
-      | ldiv_l =>
-        rename_i A' B' C' D' E'
-        cases d_right with
-        | ax => sorry
-        | rdiv_r _ _ => sorry
-        | ldiv_r _ _ => sorry
-        | rdiv_l _ _ => sorry
-        | ldiv_l _ _ => sorry
-        sorry
+        rename_i W X Y Z V
+        let m := list_degree (Δ ++ (Y ++ [Z] ++ V) ++ Λ) + tp_degree A + tp_degree B
+        have mn : m < deg := by grind
+        have c: Δ ++ Y ++ [Z] ++ V ++ Λ ⇒ B := by grind
+        have d: Δ ++ Y ++ [Z ⧸ X] ++ W ++ V ++ Λ ⇒ B := by grind
+        grind
+      | ldiv_l a b =>
+        rename_i W X Y Z V
+        let m := list_degree (Δ ++ (Y ++ [Z] ++ V) ++ Λ) + tp_degree A + tp_degree B
+        have mn : m < deg := by grind
+        have c: Δ ++ Y ++ [Z] ++ V ++ Λ ⇒ B := by grind
+        have d: Δ ++ Y ++ W ++ [X ⧹ Z] ++ V ++ Λ ⇒ B := by grind
+        grind
 
 end Lambek
