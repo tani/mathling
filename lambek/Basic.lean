@@ -6,9 +6,9 @@ namespace Lambek
 
 @[grind cases]
 inductive Tp where
-  | atom (s : String) : Tp
-  | ldiv (a b : Tp)   : Tp
-  | rdiv (a b : Tp)   : Tp
+  | atom (name : String) : Tp
+  | ldiv (A B : Tp)      : Tp
+  | rdiv (A B : Tp)      : Tp
   deriving Repr, DecidableEq
 
 prefix:50 "#" => Tp.atom
@@ -49,8 +49,8 @@ def list_degree : List Tp → Nat
   | A :: Γ    => tp_degree A + list_degree Γ
 
 @[grind =]
-theorem list_degree_traversible : list_degree (X ++ Y) = list_degree X + list_degree Y := by
-  induction X <;> grind
+theorem list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
+  induction Γ <;> grind
 
 @[grind =>]
 theorem nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
@@ -97,7 +97,7 @@ theorem list_split_4_cases
       with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
 
 set_option maxHeartbeats 4000000 in
-  --
+--
 theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
   (d_left : Γ ⇒ A)
   (d_right : Δ ++ [A] ++ Λ ⇒ B) :
@@ -109,180 +109,185 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
       subst h_n
       cases d_left with
       | ax => grind
-      | ldiv_r a b =>
-        rename_i A' B'
-        have c : Γ ⇒ A' ⧹ B' := by grind
-        generalize d_right_eq_x : Δ ++ [A' ⧹ B'] ++ Λ = X at d_right
+      | ldiv_r h_ne_L d_inner_L =>
+        rename_i A₁ A₂
+        have h_der_A : Γ ⇒ A₁ ⧹ A₂ := by grind
+        generalize d_right_eq_x : Δ ++ [A₁ ⧹ A₂] ++ Λ = ContextRight at d_right
         cases d_right with
-        | ax => grind only [List.cons_eq_cons, List.append_assoc, List.append_cons,
+        | ax =>
+          grind only [List.cons_eq_cons, List.append_assoc, List.append_cons,
           List.append_eq_nil_iff, List.append_eq_singleton_iff, Derive.ldiv_r]
-        | ldiv_r x y =>
-          rename_i C' D'
-          let m := list_degree ([C'] ++ Δ ++ Γ ++ Λ) + tp_degree (A' ⧹ B') + tp_degree D'
-          have mn : m < deg := by grind
-          have e_l : [C'] ++ Δ ++ [ A' ⧹ B' ] ++ Λ ⇒ D' := by grind
-          have e_c : [C'] ++ Δ ++ Γ ++ Λ ⇒ D' := by grind
+        | ldiv_r h_ne_R d_inner_R =>
+          rename_i C D
+          let m := list_degree ([C] ++ Δ ++ Γ ++ Λ) + tp_degree (A₁ ⧹ A₂) + tp_degree D
+          have h_deg_lt : m < deg := by grind
+          have d_permuted_inner : [C] ++ Δ ++ [ A₁ ⧹ A₂ ] ++ Λ ⇒ D := by grind
+          have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by grind
           grind
-        | rdiv_r x y =>
-          rename_i C' D'
-          let m := list_degree (Δ ++ Γ ++ Λ ++ [C']) + tp_degree (A' ⧹ B') + tp_degree D'
-          have mn : m < deg := by grind
-          have e_l : Δ ++ [ A' ⧹ B' ] ++ Λ ++ [C'] ⇒ D' := by grind
-          have e_c : Δ ++ Γ ++ Λ ++ [C'] ⇒ D' := by grind
+        | rdiv_r h_ne_R d_inner_R =>
+          rename_i C D
+          let m := list_degree (Δ ++ Γ ++ Λ ++ [C]) + tp_degree (A₁ ⧹ A₂) + tp_degree D
+          have h_deg_lt : m < deg := by grind
+          have d_permuted_inner : Δ ++ [ A₁ ⧹ A₂ ] ++ Λ ++ [C] ⇒ D := by grind
+          have d_cut_result : Δ ++ Γ ++ Λ ++ [C] ⇒ D := by grind
           grind
-        | ldiv_l x y =>
-          rename_i S T U V W
+        | ldiv_l d_arg d_main =>
+          rename_i Δ_arg A_arg Γ_L B_res Γ_R
           rcases list_split_4_cases d_right_eq_x
             with ⟨R, rfl, rfl⟩
                | ⟨L, R, rfl, rfl, rfl⟩
-               | ⟨L, R, h, rfl, rfl⟩
+               | ⟨L, R, h_princ, rfl, rfl⟩
                | ⟨L, R, rfl, rfl, rfl⟩
-          · let m := list_degree (Δ ++ Γ ++ (R ++ [V] ++ W)) + tp_degree (A' ⧹ B') + tp_degree B
-            have mn : m < deg := by grind
-            have e: Δ ++ Γ ++ R ++ [V] ++ W ⇒ B := by grind
-            have f: Δ ++ Γ ++ R ++ S ++ [T ⧹ V] ++ W ⇒ B := by grind
+          · let m := list_degree (Δ ++ Γ ++ (R ++ [B_res] ++ Γ_R))
+                   + tp_degree (A₁ ⧹ A₂) + tp_degree B
+            have h_deg_lt : m < deg := by grind
+            have d_cut_main : Δ ++ Γ ++ R ++ [B_res] ++ Γ_R ⇒ B := by grind
+            have d_reconstructed : Δ ++ Γ ++ R ++ Δ_arg ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
             grind
-          · let m := list_degree (L ++ Γ ++ R) + tp_degree T + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (L ++ Γ ++ R) + tp_degree A_arg + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have d: L ++ Γ ++ R ⇒ T := by grind
-            have e: U ++ (L ++ Γ ++ R) ++ [T ⧹ V] ++ W ⇒ B := by grind
+            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
+            have d_reconstructed : Γ_L ++ (L ++ Γ ++ R) ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
             grind
-          · have he: [T ⧹ V] = L ++ [A' ⧹ B'] ++ R → L = [] ∧ R = [] ∧ T = A' ∧ V = B' := by
+          · have h_eq_decomp: [A_arg ⧹ B_res] = L ++ [A₁ ⧹ A₂] ++ R
+                              → L = [] ∧ R = [] ∧ A_arg = A₁ ∧ B_res = A₂ := by
               grind [List.singleton_eq_append_iff]
-            have hf: L = [] ∧ R = [] ∧ T = A' ∧ V = B' := by grind
-            let m1 := list_degree (U ++ ([A'] ++ Γ) ++ W) + tp_degree B' + tp_degree B
-            have m1n : m1 < deg := by
+            have h_decomp: L = [] ∧ R = [] ∧ A_arg = A₁ ∧ B_res = A₂ := by grind
+            let m1 := list_degree (Γ_L ++ ([A₁] ++ Γ) ++ Γ_R) + tp_degree A₂ + tp_degree B
+            have h_deg_lt_princ : m1 < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have c: U ++ S ++ Γ ++ W ⇒ B := by grind
+            have d_reduced : Γ_L ++ Δ_arg ++ Γ ++ Γ_R ⇒ B := by grind
             grind
-          · let m := list_degree (U ++ [V] ++ L ++ Γ ++ Λ) + tp_degree (A' ⧹ B') + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (Γ_L ++ [B_res] ++ L ++ Γ ++ Λ) + tp_degree (A₁ ⧹ A₂) + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have d: U ++ [V] ++ L ++ Γ ++ Λ ⇒ B := by grind
-            have e: U ++ S ++ [T ⧹ V] ++ (L ++ Γ ++ Λ) ⇒ B := by grind
+            have d_cut_main : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by grind
+            have d_reconstructed : Γ_L ++ Δ_arg ++ [A_arg ⧹ B_res] ++ (L ++ Γ ++ Λ) ⇒ B := by grind
             grind
-        | rdiv_l x y =>
-          rename_i S T U V W
+        | rdiv_l d_arg d_main =>
+          rename_i Δ_arg A_arg Γ_L B_res Γ_R
           rcases list_split_4_cases d_right_eq_x
             with ⟨R, rfl, rfl⟩
                | ⟨L, R, h, rfl, rfl⟩
                | ⟨L, R, rfl, rfl, rfl⟩
                | ⟨L, R, rfl, rfl, rfl⟩
-          · let m := list_degree (Δ ++ Γ ++ R ++ [V] ++ W) + tp_degree (A' ⧹ B') + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (Δ ++ Γ ++ R ++ [B_res] ++ Γ_R) + tp_degree (A₁ ⧹ A₂) + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have d: Δ ++ Γ ++ (R ++ [V] ++ W) ⇒ B := by grind
-            have e: (Δ ++ Γ ++ R) ++ [V ⧸ T] ++ S ++ W ⇒ B := by grind
+            have d_cut_main : Δ ++ Γ ++ (R ++ [B_res] ++ Γ_R) ⇒ B := by grind
+            have d_reconstructed : (Δ ++ Γ ++ R) ++ [B_res ⧸ A_arg] ++ Δ_arg ++ Γ_R ⇒ B := by grind
             grind
           · grind [List.singleton_eq_append_iff]
-          · let m := list_degree (L ++ Γ ++ R) + tp_degree (A' ⧹ B') + tp_degree T
-            have mn : m < deg := by
+          · let m := list_degree (L ++ Γ ++ R) + tp_degree (A₁ ⧹ A₂) + tp_degree A_arg
+            have h_deg_lt : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
-            have d: L ++ Γ ++ R ⇒ T := by grind
-            have e: U ++ [V ⧸ T] ++ (L ++ Γ ++ R) ++ W ⇒ B := by grind
+            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
+            have d_reconstructed : Γ_L ++ [B_res ⧸ A_arg] ++ (L ++ Γ ++ R) ++ Γ_R ⇒ B := by grind
             grind
-          · let m := list_degree (U ++ [V] ++ L ++ Γ ++ Λ) + tp_degree (A' ⧹ B') + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (Γ_L ++ [B_res] ++ L ++ Γ ++ Λ) + tp_degree (A₁ ⧹ A₂) + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
-            have d: U ++ [V] ++ L ++ [A' ⧹ B'] ++ Λ ⇒ B := by grind
-            have e: U ++ [V] ++ L ++ Γ ++ Λ ⇒ B := by grind
+            have d_cut_main : Γ_L ++ [B_res] ++ L ++ [A₁ ⧹ A₂] ++ Λ ⇒ B := by grind
+            have d_reconstructed : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by grind
             grind
-      | rdiv_r a b =>
-        rename_i A' B'
-        have c: Γ ⇒ B' ⧸ A' := by grind
-        generalize d_right_eq_x : Δ ++ [B' ⧸ A'] ++ Λ = X at d_right
+      | rdiv_r h_ne_L d_inner_L =>
+        rename_i A₁ A₂
+        have h_der_A : Γ ⇒ A₂ ⧸ A₁ := by grind
+        generalize d_right_eq_x : Δ ++ [A₂ ⧸ A₁] ++ Λ = ContextRight at d_right
         cases d_right with
         | ax => grind only [nonempty_append, List.cons_eq_cons, List.append_assoc, List.append_cons,
           List.append_eq_nil_iff, List.append_eq_singleton_iff, Derive.rdiv_r]
-        | ldiv_r x y =>
-          rename_i C' D'
-          let m := list_degree ([C'] ++ Δ ++ Γ ++ Λ) + tp_degree (B' ⧸ A') + tp_degree D'
-          have mn : m < deg := by
+        | ldiv_r h_ne_R d_inner_R =>
+          rename_i C D
+          let m := list_degree ([C] ++ Δ ++ Γ ++ Λ) + tp_degree (A₂ ⧸ A₁) + tp_degree D
+          have h_deg_lt : m < deg := by
             grind only [list_degree, tp_degree, list_degree_traversible]
-          have e_l : [C'] ++ Δ ++ [ B' ⧸ A' ] ++ Λ ⇒ D' := by grind
-          have e_c : [C'] ++ Δ ++ Γ ++ Λ ⇒ D' := by grind
+          have d_permuted_inner : [C] ++ Δ ++ [ A₂ ⧸ A₁ ] ++ Λ ⇒ D := by grind
+          have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by grind
           grind
-        | rdiv_r x y =>
-          rename_i C' D'
-          let m := list_degree (Δ ++ Γ ++ Λ ++ [C']) + tp_degree ( B' ⧸ A' ) + tp_degree D'
-          have mn : m < deg := by
+        | rdiv_r h_ne_R d_inner_R =>
+          rename_i C D
+          let m := list_degree (Δ ++ Γ ++ Λ ++ [C]) + tp_degree ( A₂ ⧸ A₁ ) + tp_degree D
+          have h_deg_lt : m < deg := by
             grind only [list_degree, tp_degree, list_degree_traversible]
-          have e_l : Δ ++ [ B' ⧸ A' ] ++ Λ ++ [C'] ⇒ D' := by grind
-          have e_c : Δ ++ Γ ++ Λ ++ [C'] ⇒ D' := by grind
+          have d_permuted_inner : Δ ++ [ A₂ ⧸ A₁ ] ++ Λ ++ [C] ⇒ D := by grind
+          have d_cut_result : Δ ++ Γ ++ Λ ++ [C] ⇒ D := by grind
           grind
-        | ldiv_l x y =>
-          rename_i S T U V W
+        | ldiv_l d_arg d_main =>
+          rename_i Δ_arg A_arg Γ_L B_res Γ_R
           rcases list_split_4_cases d_right_eq_x
             with ⟨R, rfl, rfl⟩
                | ⟨L, R, rfl, rfl, rfl⟩
                | ⟨L, R, h_contra, rfl, rfl⟩
                | ⟨L, R, rfl, rfl, rfl⟩
-          · let m := list_degree (Δ ++ Γ ++ (R ++ [V] ++ W)) + tp_degree (B' ⧸ A') + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (Δ ++ Γ ++ (R ++ [B_res] ++ Γ_R))
+                   + tp_degree (A₂ ⧸ A₁) + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have e: Δ ++ Γ ++ R ++ [V] ++ W ⇒ B := by grind
-            have f: Δ ++ Γ ++ R ++ S ++ [T ⧹ V] ++ W ⇒ B := by grind
+            have d_cut_main : Δ ++ Γ ++ R ++ [B_res] ++ Γ_R ⇒ B := by grind
+            have d_reconstructed : Δ ++ Γ ++ R ++ Δ_arg ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
             grind
-          · let m := list_degree (L ++ Γ ++ R) + tp_degree T + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (L ++ Γ ++ R) + tp_degree A_arg + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have d: L ++ Γ ++ R ⇒ T := by grind
-            have e: U ++ (L ++ Γ ++ R) ++ [T ⧹ V] ++ W ⇒ B := by grind
+            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
+            have d_reconstructed : Γ_L ++ (L ++ Γ ++ R) ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
             grind
           · grind [List.singleton_eq_append_iff]
-          · let m := list_degree (U ++ [V] ++ L ++ Γ ++ Λ) + tp_degree (B' ⧸ A') + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (Γ_L ++ [B_res] ++ L ++ Γ ++ Λ) + tp_degree (A₂ ⧸ A₁) + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have d: U ++ [V] ++ L ++ Γ ++ Λ ⇒ B := by grind
-            have e: U ++ S ++ [T ⧹ V] ++ (L ++ Γ ++ Λ) ⇒ B := by grind
+            have d_cut_main : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by grind
+            have d_reconstructed : Γ_L ++ Δ_arg ++ [A_arg ⧹ B_res] ++ (L ++ Γ ++ Λ) ⇒ B := by grind
             grind
-        | rdiv_l x y =>
-          rename_i S T U V W
+        | rdiv_l d_arg d_main =>
+          rename_i Δ_arg A_arg Γ_L B_res Γ_R
           rcases list_split_4_cases d_right_eq_x
             with ⟨R, rfl, rfl⟩
                | ⟨L, R, h, rfl, rfl⟩
                | ⟨L, R, rfl, rfl, rfl⟩
                | ⟨L, R, rfl, rfl, rfl⟩
-          · let m := list_degree (Δ ++ Γ ++ R ++ [V] ++ W) + tp_degree (B' ⧸ A') + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (Δ ++ Γ ++ R ++ [B_res] ++ Γ_R) + tp_degree (A₂ ⧸ A₁) + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have d: Δ ++ Γ ++ (R ++ [V] ++ W) ⇒ B := by grind
-            have e: (Δ ++ Γ ++ R) ++ [V ⧸ T] ++ S ++ W ⇒ B := by grind
+            have d_cut_main : Δ ++ Γ ++ (R ++ [B_res] ++ Γ_R) ⇒ B := by grind
+            have d_reconstructed : (Δ ++ Γ ++ R) ++ [B_res ⧸ A_arg] ++ Δ_arg ++ Γ_R ⇒ B := by grind
             grind
-          · have he: [V ⧸ T] = L ++ [B' ⧸ A'] ++ R → L = [] ∧ R = [] ∧ V = B' ∧ T = A' := by
+          · have h_eq_decomp: [B_res ⧸ A_arg] = L ++ [A₂ ⧸ A₁] ++ R
+                              → L = [] ∧ R = [] ∧ B_res = A₂ ∧ A_arg = A₁ := by
               grind [List.singleton_eq_append_iff]
-            have hf: [V ⧸ T] = L ++ [B' ⧸ A'] ++ R → L = [] ∧ R = [] ∧ V = B' ∧ T = A' := by grind
-            let m1 := list_degree (U ++ (Γ ++ [A']) ++ W) + tp_degree B' + tp_degree B
-            have m1n : m1 < deg := by
+            have h_decomp: L = [] ∧ R = [] ∧ B_res = A₂ ∧ A_arg = A₁ := by grind
+            let m1 := list_degree (Γ_L ++ (Γ ++ [A₁]) ++ Γ_R) + tp_degree A₂ + tp_degree B
+            have h_deg_lt_princ : m1 < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
-            have c: (U ++ Γ) ++ S ++ W ⇒ B := by grind
+            have d_reduced : (Γ_L ++ Γ) ++ Δ_arg ++ Γ_R ⇒ B := by grind
             grind
-          · let m := list_degree (L ++ Γ ++ R) + tp_degree (B' ⧸ A') + tp_degree T
-            have mn : m < deg := by
+          · let m := list_degree (L ++ Γ ++ R) + tp_degree (A₂ ⧸ A₁) + tp_degree A_arg
+            have h_deg_lt : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
-            have d: L ++ Γ ++ R ⇒ T := by grind
-            have e: U ++ [V ⧸ T] ++ (L ++ Γ ++ R) ++ W ⇒ B := by grind
+            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
+            have d_reconstructed : Γ_L ++ [B_res ⧸ A_arg] ++ (L ++ Γ ++ R) ++ Γ_R ⇒ B := by grind
             grind
-          · let m := list_degree (U ++ [V] ++ L ++ Γ ++ Λ) + tp_degree (B' ⧸ A') + tp_degree B
-            have mn : m < deg := by
+          · let m := list_degree (Γ_L ++ [B_res] ++ L ++ Γ ++ Λ) + tp_degree (A₂ ⧸ A₁) + tp_degree B
+            have h_deg_lt : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
-            have d: U ++ [V] ++ L ++ [B' ⧸ A'] ++ Λ ⇒ B := by grind
-            have e: U ++ [V] ++ L ++ Γ ++ Λ ⇒ B := by grind
+            have d_cut_main : Γ_L ++ [B_res] ++ L ++ [A₂ ⧸ A₁] ++ Λ ⇒ B := by grind
+            have d_reconstructed : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by grind
             grind
-      | rdiv_l a b =>
-        rename_i W X Y Z V
-        let m := list_degree (Δ ++ (Y ++ [Z] ++ V) ++ Λ) + tp_degree A + tp_degree B
-        have mn : m < deg := by grind
-        have c: Δ ++ Y ++ [Z] ++ V ++ Λ ⇒ B := by grind
-        have d: Δ ++ Y ++ [Z ⧸ X] ++ W ++ V ++ Λ ⇒ B := by grind
+      | rdiv_l d_arg d_main =>
+        rename_i Γ_L Γ_R  Δ_arg A_arg B_res
+        let m := list_degree (Δ ++ (Δ_arg ++ [A_arg] ++ B_res) ++ Λ) + tp_degree A + tp_degree B
+        have h_deg_lt : m < deg := by grind
+        have d_restored_context : Δ ++ Δ_arg ++ [A_arg] ++ B_res ++ Λ ⇒ B := by grind
+        have d_final : Δ ++ Δ_arg ++ [A_arg ⧸ Γ_R] ++ Γ_L ++ B_res ++ Λ ⇒ B := by grind
         grind
-      | ldiv_l a b =>
-        rename_i W X Y Z V
-        let m := list_degree (Δ ++ (Y ++ [Z] ++ V) ++ Λ) + tp_degree A + tp_degree B
-        have mn : m < deg := by grind
-        have c: Δ ++ Y ++ [Z] ++ V ++ Λ ⇒ B := by grind
-        have d: Δ ++ Y ++ W ++ [X ⧹ Z] ++ V ++ Λ ⇒ B := by grind
+      | ldiv_l d_arg d_main =>
+        rename_i Γ_L Γ_R Δ_arg A_arg B_res
+        let m := list_degree (Δ ++ (Δ_arg ++ [A_arg] ++ B_res) ++ Λ) + tp_degree A + tp_degree B
+        have h_deg_lt : m < deg := by grind
+        have d_restored_context : Δ ++ Δ_arg ++ [A_arg] ++ B_res ++ Λ ⇒ B := by grind
+        have d_final : Δ ++ Δ_arg ++ Γ_L ++ [Γ_R ⧹ A_arg] ++ B_res ++ Λ ⇒ B := by grind
         grind
 
 end Lambek
