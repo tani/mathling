@@ -5,6 +5,7 @@ import Mathlib.Data.List.Basic
 
 namespace Lambek
 
+@[grind cases]
 inductive Tp where
   | atom (s : String) : Tp
   | ldiv (a b : Tp)   : Tp
@@ -15,7 +16,7 @@ prefix:50 "#" => Tp.atom
 infixr:60 " ⧹ " => Tp.ldiv
 infixl:60 " ⧸ " => Tp.rdiv
 
-@[grind]
+@[grind intro]
 inductive Derive : List Tp → Tp → Prop where
   | ax : Derive [A] A
   | rdiv_r :
@@ -37,25 +38,21 @@ inductive Derive : List Tp → Tp → Prop where
 
 infixl:50 " ⇒ " => Derive
 
-@[grind]
+@[grind =]
 def tp_degree : Tp → Nat
-  | Tp.atom _     => 1
-  | Tp.ldiv A B   => tp_degree A + tp_degree B + 1
-  | Tp.rdiv A B   => tp_degree A + tp_degree B + 1
+  | # _     => 1
+  | A ⧹ B   => tp_degree A + tp_degree B + 1
+  | A ⧸ B   => tp_degree A + tp_degree B + 1
 
-@[grind .]
-theorem tp_degree_nozero : tp_degree X > 0 := by
-  induction X
-  · grind
-  · grind
-  grind
-
-@[grind]
+@[grind =]
 def list_degree : List Tp → Nat
   | []        => 0
   | A :: Γ    => tp_degree A + list_degree Γ
 
-@[grind .]
+@[grind =]
+theorem list_degree_tp_degree : list_degree [X] = tp_degree X := by grind
+
+@[grind =]
 theorem list_degree_traversible : list_degree (X ++ Y) = list_degree X + list_degree Y := by
   induction X
   · grind
@@ -108,7 +105,6 @@ theorem list_split_4_cases
     · grind
     · grind
 
-
 @[grind =>]
 theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   induction Δ
@@ -116,6 +112,7 @@ theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   · grind
   · simp
   grind
+
 set_option maxHeartbeats 4000000 in
   --
 theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
@@ -151,8 +148,8 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
           have e_l : Δ ++ [ A' ⧹ B' ] ++ Λ ++ [C'] ⇒ D' := by grind
           have e_c : Δ ++ Γ ++ Λ ++ [C'] ⇒ D' := by grind
           grind
-        | ldiv_l x y => sorry
-        | rdiv_l x y => sorry
+        | ldiv_l x y => sorry -- todo
+        | rdiv_l x y => sorry -- todo
       | rdiv_r a b =>
         rename_i A' B'
         have c: Γ ⇒ B' ⧸ A' := by grind
