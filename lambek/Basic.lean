@@ -57,11 +57,7 @@ theorem nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
 
 @[grind =>]
 theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
-  induction Δ
-  induction Λ
-  · grind
-  · simp
-  grind
+  grind only [List.append_eq_nil_iff]
 
 theorem list_split_2_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂) :
@@ -81,7 +77,7 @@ theorem list_split_3_cases
   rcases list_split_2_cases (by simpa using h)
     with ⟨R, h1, h2⟩ | ⟨L, R, h1, h2, h3⟩
   · grind
-  · rcases list_split_2_cases h1.symm with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
+  · rcases list_split_2_cases h1.symm <;> grind
 
 theorem list_split_4_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃ ++ Δ₄) :
