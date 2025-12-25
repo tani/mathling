@@ -1,4 +1,3 @@
-import Lean.LibrarySuggestions.Default
 import Mathlib.Data.Nat.Basic
 import Mathlib.Data.List.Basic
 
