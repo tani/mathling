@@ -78,9 +78,7 @@ theorem list_split_2_cases
   (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R) := by
   simp only [List.append_assoc, List.cons_append, List.nil_append] at h
   rcases List.append_eq_append_iff.mp h with ⟨m, rfl, hm⟩ | ⟨m, rfl, hm⟩
-  · cases m with
-    | nil => grind
-    | cons => grind
+  · cases m <;> grind
   · grind
 
 theorem list_split_3_cases
@@ -163,10 +161,7 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
             have e: U ++ (L ++ Γ ++ R) ++ [T ⧹ V] ++ W ⇒ B := by grind
             grind
           · have he: [T ⧹ V] = L ++ [A' ⧹ B'] ++ R → L = [] ∧ R = [] ∧ T = A' ∧ V = B' := by
-              intro h
-              cases L with
-              | nil => grind
-              | cons head tail => grind
+              grind [List.singleton_eq_append_iff]
             have hf: L = [] ∧ R = [] ∧ T = A' ∧ V = B' := by grind
             let m1 := list_degree (U ++ ([A'] ++ Γ) ++ W) + tp_degree B' + tp_degree B
             have m1n : m1 < deg := by
@@ -192,12 +187,7 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
             have d: Δ ++ Γ ++ (R ++ [V] ++ W) ⇒ B := by grind
             have e: (Δ ++ Γ ++ R) ++ [V ⧸ T] ++ S ++ W ⇒ B := by grind
             grind
-          · have f: ¬ ([V ⧸ T] = L ++ [A' ⧹ B'] ++ R) := by
-              intro h
-              cases L with
-              | nil => grind
-              | cons head tail => grind
-            grind
+          · grind [List.singleton_eq_append_iff]
           · let m := list_degree (L ++ Γ ++ R) + tp_degree (A' ⧹ B') + tp_degree T
             have mn : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
@@ -252,12 +242,7 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
             have d: L ++ Γ ++ R ⇒ T := by grind
             have e: U ++ (L ++ Γ ++ R) ++ [T ⧹ V] ++ W ⇒ B := by grind
             grind
-          · have f: ¬ ([T ⧹ V] = L ++ [B' ⧸ A'] ++ R) := by
-              intro h
-              cases L with
-              | nil => grind
-              | cons head tail => grind
-            grind
+          · grind [List.singleton_eq_append_iff]
           · let m := list_degree (U ++ [V] ++ L ++ Γ ++ Λ) + tp_degree (B' ⧸ A') + tp_degree B
             have mn : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
@@ -278,10 +263,7 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
             have e: (Δ ++ Γ ++ R) ++ [V ⧸ T] ++ S ++ W ⇒ B := by grind
             grind
           · have he: [V ⧸ T] = L ++ [B' ⧸ A'] ++ R → L = [] ∧ R = [] ∧ V = B' ∧ T = A' := by
-              intro h
-              cases L with
-              | nil => grind
-              | cons head tail => grind
+              grind [List.singleton_eq_append_iff]
             have hf: [V ⧸ T] = L ++ [B' ⧸ A'] ++ R → L = [] ∧ R = [] ∧ V = B' ∧ T = A' := by grind
             let m1 := list_degree (U ++ (Γ ++ [A']) ++ W) + tp_degree B' + tp_degree B
             have m1n : m1 < deg := by
