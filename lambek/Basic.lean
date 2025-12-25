@@ -96,7 +96,7 @@ theorem list_split_4_cases
   · rcases list_split_3_cases (by simpa using h1.symm)
       with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
 
-set_option maxHeartbeats 4000000 in
+set_option maxHeartbeats 1000000 in
 --
 theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
   (d_left : Γ ⇒ A)
