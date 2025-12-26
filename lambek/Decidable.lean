@@ -1,4 +1,4 @@
-import lambek.Basic
+import Lambek.Basic
 
 namespace Lambek
 
@@ -198,5 +198,7 @@ termination_by
   list_degree Γ + tp_degree A
 decreasing_by
   all_goals grind
+
+instance (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := derive Γ A
 
 end Lambek

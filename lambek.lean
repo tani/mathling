@@ -1,2 +1,2 @@
-import lambek.Basic
-import lambek.Parse
+import Lambek.Basic
+import Lambek.Decidable
