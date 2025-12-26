@@ -93,7 +93,9 @@ lemma list_split_4_cases
 
 set_option maxHeartbeats 1000000 in
 --
-theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
+
+@[grind =>]
+theorem cut_admissible
   (d_left : Γ ⇒ A)
   (d_right : Δ ++ [A] ++ Λ ⇒ B) :
   Δ ++ Γ ++ Λ ⇒ B := by
@@ -284,5 +286,43 @@ theorem cut_admissible {A B : Tp} {Γ Δ Λ : List Tp}
         have d_restored_context : Δ ++ Δ_arg ++ [A_arg] ++ B_res ++ Λ ⇒ B := by grind
         have d_final : Δ ++ Δ_arg ++ Γ_L ++ [Γ_R ⧹ A_arg] ++ B_res ++ Λ ⇒ B := by grind
         grind
+
+@[grind =>]
+theorem ldiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (A ⧹ B)) :
+ [A] ++ Γ ⇒ B := by
+    have a: [A] ⇒ A := by grind
+    have b: [B] ⇒ B := by grind
+    have c: [] ++ [A] ++ [A ⧹ B] ++ [] ⇒ B := by grind
+    grind
+
+@[grind =>]
+theorem rdiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (B ⧸ A)) :
+  Γ ++ [A] ⇒ B := by
+    have a: [A] ⇒ A := by grind
+    have b: [B] ⇒ B := by grind
+    have c: [] ++ [B ⧸ A] ++ ([A] ++ []) ⇒ B := by grind
+    grind
+
+@[grind]
+def is_atom : Tp → Prop
+  | Tp.atom _ => True
+  | _   => False
+
+@[grind =>]
+theorem atom_generation
+  (h_ctx : ∀ x ∈ Γ, is_atom x)
+  (h_der : Γ ⇒ Tp.atom s) :
+    Γ = [Tp.atom s] := by
+  cases h_der with
+  | ax =>
+      grind
+  | rdiv_l d_arg d_main =>
+      rename_i Δ A Γ₁ B Λ
+      have hbad : is_atom (B ⧸ A) := by grind
+      grind
+  | ldiv_l d_arg d_main =>
+      rename_i Δ A Γ₁ B Λ
+      have hbad : is_atom (A ⧹ B) := by grind
+      grind
 
 end Lambek
