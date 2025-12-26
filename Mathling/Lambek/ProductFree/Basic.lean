@@ -1,7 +1,7 @@
 import Mathlib.Data.Nat.Basic
 import Mathlib.Data.List.Basic
 
-namespace Mathling.LambekCalculus.ProductFree
+namespace Mathling.Lambek.ProductFree
 
 @[grind cases]
 inductive Tp where
@@ -325,4 +325,4 @@ theorem atom_generation
       have hbad : is_atom (A ⧹ B) := by grind
       grind
 
-end Mathling.LambekCalculus.ProductFree
+end Mathling.Lambek.ProductFree

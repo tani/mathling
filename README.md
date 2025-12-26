@@ -20,18 +20,18 @@ This project provides a formalization of the Lambek calculus, a type of substruc
 
 ## Structure
 
-- `Mathling/LambekCalculus/ProductFree/Basic.lean`: Core definitions for types (`Tp`) and the sequent calculus (`Sequent`). Contains the proof of `cut_admissible`.
-- `Mathling/LambekCalculus/ProductFree/Decidable.lean`: Implementation of the verified decision procedure.
+- `Mathling/Lambek/ProductFree/Basic.lean`: Core definitions for types (`Tp`) and the sequent calculus (`Sequent`). Contains the proof of `cut_admissible`.
+- `Mathling/Lambek/ProductFree/Decidable.lean`: Implementation of the verified decision procedure.
 
 ## Usage
 
 You can use the `decide` tactic to automatically prove sequents in the Lambek calculus.
 
 ```lean
-import Mathling.LambekCalculus.ProductFree.Basic
-import Mathling.LambekCalculus.ProductFree.Decidable
+import Mathling.Lambek.ProductFree.Basic
+import Mathling.Lambek.ProductFree.Decidable
 
-open Mathling.LambekCalculus.ProductFree
+open Mathling.Lambek.ProductFree
 
 -- An example of a simple derivation: (A / B) , B => A
 example : [# "A" ⧸ # "B", # "B"] ⇒ # "A" := by

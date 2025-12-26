@@ -16,7 +16,7 @@ In the Lambek Calculus, we deal with **types** (categories) and **sequents**.
 
 ## Formal Definitions of Lambek Calculus
 
-The implementation in `Mathling/LambekCalculus/ProductFree/Basic.lean` defines the syntax and the inference rules.
+The implementation in `Mathling/Lambek/ProductFree/Basic.lean` defines the syntax and the inference rules.
 
 The set of types is defined inductively:
 - Atomic types: $p, q, \dots$
@@ -69,7 +69,7 @@ Proof by cases on the derivation. The only applicable rule for an atomic goal wi
 
 ## Decision Procedure
 
-The Lambek calculus is decidable. We provide a verified decision procedure grounded in the cut-free sequent calculus in `Mathling/LambekCalculus/ProductFree/Decidable.lean`.
+The Lambek calculus is decidable. We provide a verified decision procedure grounded in the cut-free sequent calculus in `Mathling/Lambek/ProductFree/Decidable.lean`.
 
 > **Theorem** (Decidability): 
 > For any context $\Gamma$ and type $A$, there exists a computational procedure to determine if $\Gamma \Rightarrow A$ is provable.

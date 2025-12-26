@@ -1,2 +1,2 @@
-import Mathling.LambekCalculus.ProductFree.Basic
-import Mathling.LambekCalculus.ProductFree.Decidable
+import Mathling.Lambek.ProductFree.Basic
+import Mathling.Lambek.ProductFree.Decidable

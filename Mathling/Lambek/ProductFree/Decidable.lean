@@ -1,6 +1,6 @@
-import Mathling.LambekCalculus.ProductFree.Basic
+import Mathling.Lambek.ProductFree.Basic
 
-namespace Mathling.LambekCalculus.ProductFree
+namespace Mathling.Lambek.ProductFree
 
 inductive Search (α : Type) : Type where
   | found : α → Search α
@@ -201,4 +201,4 @@ decreasing_by
 
 instance (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := derive Γ A
 
-end Mathling.LambekCalculus.ProductFree
+end Mathling.Lambek.ProductFree
