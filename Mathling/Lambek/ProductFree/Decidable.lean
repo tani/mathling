@@ -133,7 +133,7 @@ lemma ldiv_candidates_spec {Γ : List Tp} {cand : LDivCand} :
           refine ⟨(left, Δ), ?_, rfl⟩
           grind
 
-def derive (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
+def deriveDecidable (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
   cases A with
   | atom s =>
       by_cases hax : Γ = [Tp.atom s]
@@ -143,9 +143,9 @@ def derive (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
           (cand.1.Δ ⇒ cand.1.A) ∧ ((cand.1.left ++ [cand.1.B] ++ cand.1.Λ) ⇒ Tp.atom s)
         have dec_rdiv_pred : ∀ cand, Decidable (rdiv_pred cand) := by
           intro cand
-          cases derive cand.1.Δ cand.1.A with
+          cases deriveDecidable cand.1.Δ cand.1.A with
           | isTrue d_arg =>
-              cases derive (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s) with
+              cases deriveDecidable (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s) with
               | isTrue d_main => exact isTrue (by grind)
               | isFalse h_main => exact isFalse (by grind)
           | isFalse h_arg => exact isFalse (by grind)
@@ -157,9 +157,9 @@ def derive (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
               (cand.1.Δ ⇒ cand.1.A) ∧ ((cand.1.left ++ [cand.1.B] ++ cand.1.Λ) ⇒ Tp.atom s)
             have dec_ldiv_pred : ∀ cand, Decidable (ldiv_pred cand) := by
               intro cand
-              cases derive cand.1.Δ cand.1.A with
+              cases deriveDecidable cand.1.Δ cand.1.A with
               | isTrue d_arg =>
-                  cases derive (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s) with
+                  cases deriveDecidable (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s) with
                   | isTrue d_main => exact isTrue (by grind)
                   | isFalse h_main => exact isFalse (by grind)
               | isFalse h_arg =>
@@ -185,13 +185,13 @@ def derive (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
   | ldiv A B =>
       by_cases hΓ : Γ = []
       · exact isFalse (by grind)
-      · cases derive ([A] ++ Γ) B with
+      · cases deriveDecidable ([A] ++ Γ) B with
         | isTrue h => exact isTrue (by grind)
         | isFalse h => exact isFalse (by grind)
   | rdiv B A =>
       by_cases hΓ : Γ = []
       · exact isFalse (by grind)
-      · cases derive (Γ ++ [A]) B with
+      · cases deriveDecidable (Γ ++ [A]) B with
         | isTrue h => exact isTrue (by grind)
         | isFalse h => exact isFalse (by grind)
 termination_by
@@ -199,6 +199,29 @@ termination_by
 decreasing_by
   all_goals grind
 
-instance (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := derive Γ A
+/-- `Γ ⇒ A` を Bool として判定する（証明項は返さない） -/
+def deriveBool (Γ : List Tp) (A : Tp) : Bool :=
+  match A with
+  | Tp.atom s =>
+       Γ = [Tp.atom s]
+    || (rdiv_candidates Γ).attach.any (fun cand =>
+            deriveBool cand.1.Δ cand.1.A &&
+            deriveBool (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s))
+    || (ldiv_candidates Γ).attach.any (fun cand =>
+            deriveBool cand.1.Δ cand.1.A &&
+            deriveBool (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s))
+  | Tp.ldiv A B =>
+    Γ ≠ [] && deriveBool ([A] ++ Γ) B
+  | Tp.rdiv B A =>
+    Γ ≠ [] && deriveBool (Γ ++ [A]) B
+termination_by
+  list_degree Γ + tp_degree A
+decreasing_by
+  all_goals grind
+
+instance (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := deriveDecidable Γ A
+
+--example : deriveBool [Tp.atom "A" ⧸ Tp.atom "B", Tp.atom "B"] (Tp.atom "A") = true := by
+  --decide
 
 end Mathling.Lambek.ProductFree

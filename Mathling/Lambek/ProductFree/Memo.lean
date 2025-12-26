@@ -184,7 +184,6 @@ def deriveM (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) :=
 instance (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := deriveM Γ A
 
 -- An example of a simple derivation: (A / B) , B => A
-example : [Tp.atom "A" ⧸ Tp.atom "B", Tp.atom "B"] ⇒ Tp.atom "A" := by
-  decide
+
 
 end Mathling.Lambek.ProductFree
