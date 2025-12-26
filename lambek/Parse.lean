@@ -248,8 +248,6 @@ lemma ldiv_candidates_spec {Γ : List Tp} {cand : LDivCand} :
           apply (mem_list_splits_iff).2
           rfl
 
-set_option backward.eqns.deepRecursiveSplit false
-set_option backward.eqns.nonrecursive false
 noncomputable def derive (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
   classical
   cases A with
@@ -353,5 +351,3 @@ decreasing_by
     | exact (measure_rdiv_right (Γ := Γ) (A := A) (B := B))
 
 end Lambek
-set_option backward.eqns.deepRecursiveSplit true
-set_option backward.eqns.nonrecursive true
