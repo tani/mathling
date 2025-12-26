@@ -1,4 +1,4 @@
-# Lambek
+# Mathling
 
 Formalized implementation of the **Lambek Calculus** in Lean 4.
 
@@ -20,18 +20,18 @@ This project provides a formalization of the Lambek calculus, a type of substruc
 
 ## Structure
 
-- `Lambek/Basic.lean`: Core definitions for types (`Tp`) and the sequent calculus (`Sequent`). Contains the proof of `cut_admissible`.
-- `Lambek/Decidable.lean`: Implementation of the verified decision procedure.
+- `Mathling/LambekCalculus/ProductFree/Basic.lean`: Core definitions for types (`Tp`) and the sequent calculus (`Sequent`). Contains the proof of `cut_admissible`.
+- `Mathling/LambekCalculus/ProductFree/Decidable.lean`: Implementation of the verified decision procedure.
 
 ## Usage
 
 You can use the `decide` tactic to automatically prove sequents in the Lambek calculus.
 
 ```lean
-import Lambek.Basic
-import Lambek.Decidable
+import Mathling.LambekCalculus.ProductFree.Basic
+import Mathling.LambekCalculus.ProductFree.Decidable
 
-open Lambek
+open Mathling.LambekCalculus.ProductFree
 
 -- An example of a simple derivation: (A / B) , B => A
 example : [# "A" ⧸ # "B", # "B"] ⇒ # "A" := by
