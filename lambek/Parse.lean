@@ -2,10 +2,41 @@ import lambek.Basic
 
 namespace List
 
-def decidableExists {α} (xs : List α) (p : α → Prop) [DecidablePred p] :
-    Decidable (∃ x ∈ xs, p x) := by
-  classical
-  exact inferInstance
+inductive Search (α : Type) : Type where
+  | found : α → Search α
+  | not_found : (α → False) → Search α
+
+def searchExists {α} (xs : List α) (p : α → Prop)
+    (dec : ∀ x, Decidable (p x)) : Search {x : α // x ∈ xs ∧ p x} := by
+  induction xs with
+  | nil =>
+      exact Search.not_found (by
+        intro h
+        cases h with
+        | mk x hx =>
+            cases hx.1)
+  | cons x xs ih =>
+      cases dec x with
+      | isTrue hx =>
+          exact Search.found ⟨x, by simp, hx⟩
+      | isFalse hx =>
+          cases ih with
+          | found h =>
+              refine Search.found ?_
+              rcases h with ⟨y, hy, hp⟩
+              exact ⟨y, by simp [hy], hp⟩
+          | not_found h =>
+              exact Search.not_found (by
+                intro h'
+                rcases h' with ⟨y, hy, hp⟩
+                have : y = x ∨ y ∈ xs := by
+                  simpa using hy
+                cases this with
+                | inl hxy =>
+                    subst hxy
+                    exact hx hp
+                | inr hys =>
+                    exact h ⟨y, hys, hp⟩)
 
 end List
 
@@ -182,6 +213,62 @@ lemma measure_ldiv_right {Γ : List Tp} {A B : Tp} :
     _ = list_degree Γ + tp_degree (A ⧹ B) := by
         simpa [Nat.add_assoc, Nat.add_comm] using hright.symm
 
+lemma measure_rdiv_left_arg {Γ left Δ Λ : List Tp} {B' A' : Tp}
+    (h : Γ = left ++ [B' ⧸ A'] ++ Δ ++ Λ) :
+    list_degree Δ + tp_degree A' < list_degree Γ + 1 := by
+  subst h
+  have hpos : 0 < list_degree left + list_degree Λ + tp_degree B' + 2 := by
+    exact Nat.succ_pos _
+  calc
+    list_degree Δ + tp_degree A'
+        < list_degree Δ + tp_degree A' + (list_degree left + list_degree Λ + tp_degree B' + 2) := by
+          exact Nat.lt_add_of_pos_right
+            (n := list_degree Δ + tp_degree A')
+            (k := list_degree left + list_degree Λ + tp_degree B' + 2) hpos
+    _ = list_degree (left ++ [B' ⧸ A'] ++ Δ ++ Λ) + 1 := by grind
+
+lemma measure_rdiv_left_main {Γ left Δ Λ : List Tp} {B' A' : Tp}
+    (h : Γ = left ++ [B' ⧸ A'] ++ Δ ++ Λ) :
+    list_degree (left ++ [B'] ++ Λ) + 1 < list_degree Γ + 1 := by
+  subst h
+  have hpos : 0 < tp_degree A' + list_degree Δ + 1 := by
+    exact Nat.succ_pos _
+  calc
+    list_degree (left ++ [B'] ++ Λ) + 1
+        < list_degree (left ++ [B'] ++ Λ) + 1 + (tp_degree A' + list_degree Δ + 1) := by
+          exact Nat.lt_add_of_pos_right
+            (n := list_degree (left ++ [B'] ++ Λ) + 1)
+            (k := tp_degree A' + list_degree Δ + 1) hpos
+    _ = list_degree (left ++ [B' ⧸ A'] ++ Δ ++ Λ) + 1 := by grind
+
+lemma measure_ldiv_left_arg {Γ left Δ Λ : List Tp} {A' B' : Tp}
+    (h : Γ = left ++ Δ ++ [A' ⧹ B'] ++ Λ) :
+    list_degree Δ + tp_degree A' < list_degree Γ + 1 := by
+  subst h
+  have hpos : 0 < list_degree left + list_degree Λ + tp_degree B' + 2 := by
+    exact Nat.succ_pos _
+  calc
+    list_degree Δ + tp_degree A'
+        < list_degree Δ + tp_degree A' + (list_degree left + list_degree Λ + tp_degree B' + 2) := by
+          exact Nat.lt_add_of_pos_right
+            (n := list_degree Δ + tp_degree A')
+            (k := list_degree left + list_degree Λ + tp_degree B' + 2) hpos
+    _ = list_degree (left ++ Δ ++ [A' ⧹ B'] ++ Λ) + 1 := by grind
+
+lemma measure_ldiv_left_main {Γ left Δ Λ : List Tp} {A' B' : Tp}
+    (h : Γ = left ++ Δ ++ [A' ⧹ B'] ++ Λ) :
+    list_degree (left ++ [B'] ++ Λ) + 1 < list_degree Γ + 1 := by
+  subst h
+  have hpos : 0 < tp_degree A' + list_degree Δ + 1 := by
+    exact Nat.succ_pos _
+  calc
+    list_degree (left ++ [B'] ++ Λ) + 1
+        < list_degree (left ++ [B'] ++ Λ) + 1 + (tp_degree A' + list_degree Δ + 1) := by
+          exact Nat.lt_add_of_pos_right
+            (n := list_degree (left ++ [B'] ++ Λ) + 1)
+            (k := tp_degree A' + list_degree Δ + 1) hpos
+    _ = list_degree (left ++ Δ ++ [A' ⧹ B'] ++ Λ) + 1 := by grind
+
 lemma rdiv_candidates_spec {Γ : List Tp} {cand : RDivCand} :
     cand ∈ rdiv_candidates Γ ↔
       Γ = cand.left ++ [cand.B ⧸ cand.A] ++ cand.Δ ++ cand.Λ := by
@@ -248,73 +335,102 @@ lemma ldiv_candidates_spec {Γ : List Tp} {cand : LDivCand} :
           apply (mem_list_splits_iff).2
           rfl
 
-noncomputable def derive (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
-  classical
+def derive (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
   cases A with
   | atom s =>
       by_cases hax : Γ = [Tp.atom s]
       · subst hax
         exact isTrue Derive.ax
-      · let rdiv_pred : RDivCand → Prop := fun cand =>
-          (cand.Δ ⇒ cand.A) ∧ ((cand.left ++ [cand.B] ++ cand.Λ) ⇒ Tp.atom s)
-        haveI : DecidablePred rdiv_pred := by
+      · let rdiv_cands := (rdiv_candidates Γ).attach
+        let rdiv_pred : {c // c ∈ rdiv_candidates Γ} → Prop := fun cand =>
+          (cand.1.Δ ⇒ cand.1.A) ∧ ((cand.1.left ++ [cand.1.B] ++ cand.1.Λ) ⇒ Tp.atom s)
+        have dec_rdiv_pred : ∀ cand, Decidable (rdiv_pred cand) := by
           intro cand
-          classical
-          exact inferInstance
-        cases (List.decidableExists (rdiv_candidates Γ) rdiv_pred) with
-        | isTrue h =>
-            classical
-            have hcand : ∃ cand, cand ∈ rdiv_candidates Γ ∧ rdiv_pred cand := h
-            let cand := Classical.choose hcand
-            have hspec : cand ∈ rdiv_candidates Γ ∧ rdiv_pred cand :=
-              Classical.choose_spec hcand
+          have hctx :
+              Γ = cand.1.left ++ [cand.1.B ⧸ cand.1.A] ++ cand.1.Δ ++ cand.1.Λ :=
+            (rdiv_candidates_spec).1 cand.property
+          cases derive cand.1.Δ cand.1.A with
+          | isTrue d_arg =>
+              cases derive (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s) with
+              | isTrue d_main =>
+                  exact isTrue ⟨d_arg, d_main⟩
+              | isFalse h_main =>
+                  exact isFalse (by
+                    intro h
+                    exact h_main h.2)
+          | isFalse h_arg =>
+              exact isFalse (by
+                intro h
+                exact h_arg h.1)
+        cases (List.searchExists rdiv_cands rdiv_pred dec_rdiv_pred) with
+        | found h =>
+            rcases h with ⟨cand, hmem, hp⟩
             have hctx :
-                Γ = cand.left ++ [cand.B ⧸ cand.A] ++ cand.Δ ++ cand.Λ :=
-              (rdiv_candidates_spec).1 hspec.1
+                Γ = cand.1.left ++ [cand.1.B ⧸ cand.1.A] ++ cand.1.Δ ++ cand.1.Λ :=
+              (rdiv_candidates_spec).1 cand.property
             have d :
-                cand.left ++ [cand.B ⧸ cand.A] ++ cand.Δ ++ cand.Λ ⇒ Tp.atom s :=
-              Derive.rdiv_l hspec.2.1 hspec.2.2
+                cand.1.left ++ [cand.1.B ⧸ cand.1.A] ++ cand.1.Δ ++ cand.1.Λ ⇒ Tp.atom s :=
+              Derive.rdiv_l hp.1 hp.2
             exact isTrue (by simpa [hctx] using d)
-        | isFalse h_rdiv =>
-            let ldiv_pred : LDivCand → Prop := fun cand =>
-              (cand.Δ ⇒ cand.A) ∧ ((cand.left ++ [cand.B] ++ cand.Λ) ⇒ Tp.atom s)
-            haveI : DecidablePred ldiv_pred := by
+        | not_found h_rdiv =>
+            let ldiv_cands := (ldiv_candidates Γ).attach
+            let ldiv_pred : {c // c ∈ ldiv_candidates Γ} → Prop := fun cand =>
+              (cand.1.Δ ⇒ cand.1.A) ∧ ((cand.1.left ++ [cand.1.B] ++ cand.1.Λ) ⇒ Tp.atom s)
+            have dec_ldiv_pred : ∀ cand, Decidable (ldiv_pred cand) := by
               intro cand
-              classical
-              exact inferInstance
-            cases (List.decidableExists (ldiv_candidates Γ) ldiv_pred) with
-            | isTrue h =>
-                classical
-                have hcand : ∃ cand, cand ∈ ldiv_candidates Γ ∧ ldiv_pred cand := h
-                let cand := Classical.choose hcand
-                have hspec : cand ∈ ldiv_candidates Γ ∧ ldiv_pred cand :=
-                  Classical.choose_spec hcand
+              have hctx :
+                  Γ = cand.1.left ++ cand.1.Δ ++ [cand.1.A ⧹ cand.1.B] ++ cand.1.Λ :=
+                (ldiv_candidates_spec).1 cand.property
+              cases derive cand.1.Δ cand.1.A with
+              | isTrue d_arg =>
+                  cases derive (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s) with
+                  | isTrue d_main =>
+                      exact isTrue ⟨d_arg, d_main⟩
+                  | isFalse h_main =>
+                      exact isFalse (by
+                        intro h
+                        exact h_main h.2)
+              | isFalse h_arg =>
+                  exact isFalse (by
+                    intro h
+                    exact h_arg h.1)
+            cases (List.searchExists ldiv_cands ldiv_pred dec_ldiv_pred) with
+            | found h =>
+                rcases h with ⟨cand, hmem, hp⟩
                 have hctx :
-                    Γ = cand.left ++ cand.Δ ++ [cand.A ⧹ cand.B] ++ cand.Λ :=
-                  (ldiv_candidates_spec).1 hspec.1
+                    Γ = cand.1.left ++ cand.1.Δ ++ [cand.1.A ⧹ cand.1.B] ++ cand.1.Λ :=
+                  (ldiv_candidates_spec).1 cand.property
                 have d :
-                    cand.left ++ cand.Δ ++ [cand.A ⧹ cand.B] ++ cand.Λ ⇒ Tp.atom s :=
-                  Derive.ldiv_l hspec.2.1 hspec.2.2
+                    cand.1.left ++ cand.1.Δ ++ [cand.1.A ⧹ cand.1.B] ++ cand.1.Λ ⇒ Tp.atom s :=
+                  Derive.ldiv_l hp.1 hp.2
                 exact isTrue (by simpa [hctx] using d)
-            | isFalse h_ldiv =>
+            | not_found h_ldiv =>
                 exact isFalse (by
                   intro hder
                   cases hder
                   case ax =>
                     exact hax rfl
                   case rdiv_l Δ A Γ_left B Λ d_arg d_main =>
-                    let cand : RDivCand := ⟨Γ_left, B, A, Δ, Λ⟩
-                    have hmem :
-                        cand ∈ rdiv_candidates (Γ_left ++ [B ⧸ A] ++ Δ ++ Λ) := by
+                    let cand0 : RDivCand := ⟨Γ_left, B, A, Δ, Λ⟩
+                    have hmem0 :
+                        cand0 ∈ rdiv_candidates (Γ_left ++ [B ⧸ A] ++ Δ ++ Λ) := by
                       apply (rdiv_candidates_spec).2
-                      simp [cand, List.append_assoc]
+                      simp [cand0, List.append_assoc]
+                    let cand : {c // c ∈ rdiv_candidates (Γ_left ++ [B ⧸ A] ++ Δ ++ Λ)} :=
+                      ⟨cand0, hmem0⟩
+                    have hmem : cand ∈ rdiv_cands := by
+                      simp [rdiv_cands]
                     exact h_rdiv ⟨cand, hmem, ⟨d_arg, d_main⟩⟩
                   case ldiv_l Δ A Γ_left B Λ d_arg d_main =>
-                    let cand : LDivCand := ⟨Γ_left, A, B, Δ, Λ⟩
-                    have hmem :
-                        cand ∈ ldiv_candidates (Γ_left ++ Δ ++ [A ⧹ B] ++ Λ) := by
+                    let cand0 : LDivCand := ⟨Γ_left, A, B, Δ, Λ⟩
+                    have hmem0 :
+                        cand0 ∈ ldiv_candidates (Γ_left ++ Δ ++ [A ⧹ B] ++ Λ) := by
                       apply (ldiv_candidates_spec).2
-                      simp [cand, List.append_assoc]
+                      simp [cand0, List.append_assoc]
+                    let cand : {c // c ∈ ldiv_candidates (Γ_left ++ Δ ++ [A ⧹ B] ++ Λ)} :=
+                      ⟨cand0, hmem0⟩
+                    have hmem : cand ∈ ldiv_cands := by
+                      simp [ldiv_cands]
                     exact h_ldiv ⟨cand, hmem, ⟨d_arg, d_main⟩⟩)
   | ldiv A B =>
       by_cases hΓ : Γ = []
@@ -349,5 +465,9 @@ decreasing_by
     first
     | exact (measure_ldiv_right (Γ := Γ) (A := A) (B := B))
     | exact (measure_rdiv_right (Γ := Γ) (A := A) (B := B))
+    | exact (by simpa [tp_degree] using measure_rdiv_left_arg (h := hctx))
+    | exact (by simpa [tp_degree] using measure_rdiv_left_main (h := hctx))
+    | exact (by simpa [tp_degree] using measure_ldiv_left_arg (h := hctx))
+    | exact (by simpa [tp_degree] using measure_ldiv_left_main (h := hctx))
 
 end Lambek
