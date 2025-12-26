@@ -1,3 +1,4 @@
+import Std.Data.HashMap.Basic
 import Mathling.Lambek.ProductFree.Basic
 import Mathling.Lambek.ProductFree.Decidable
 
@@ -6,33 +7,36 @@ namespace Mathling.Lambek.ProductFree
 /-
   Γ, A ごとの `Decidable (Γ ⇒ A)` を格納するメモ用のエントリ
 -/
-inductive DeriveMemoEntry where
-  | mk (Γ : List Tp) (A : Tp) (d : Decidable (Γ ⇒ A))
+structure DeriveMemoEntry where
+  Γ : List Tp
+  A : Tp
+  d : Decidable (Γ ⇒ A)
 
-/-- `derive` 用メモテーブル（線形探索の単純な実装） -/
-abbrev DeriveMemo := List DeriveMemoEntry
+/-- `derive` 用メモテーブル（HashMap による実装） -/
+abbrev DeriveMemo := Std.HashMap (List Tp × Tp) DeriveMemoEntry
 
 namespace DeriveMemo
 
 /-- すでに計算済みならメモから取り出す -/
-def lookup (Γ : List Tp) (A : Tp) : DeriveMemo → Option (Decidable (Γ ⇒ A))
-  | [] => none
-  | DeriveMemoEntry.mk Γ' A' d :: memo =>
-      if hΓ : Γ' = Γ then
-        if hA : A' = A then
+def lookup (Γ : List Tp) (A : Tp) (memo : DeriveMemo) : Option (Decidable (Γ ⇒ A)) :=
+  match memo[(Γ, A)]? with
+  | none => none
+  | some entry =>
+      if hΓ : entry.Γ = Γ then
+        if hA : entry.A = A then
           some (by
             cases hΓ
             cases hA
-            exact d)
+            exact entry.d)
         else
-          lookup Γ A memo
+          none
       else
-        lookup Γ A memo
+        none
 
-/-- 新しい結果をメモに追加する（先頭に積むだけ） -/
+/-- 新しい結果をメモに追加する -/
 def insert (Γ : List Tp) (A : Tp) (d : Decidable (Γ ⇒ A)) (memo : DeriveMemo) :
     DeriveMemo :=
-  DeriveMemoEntry.mk Γ A d :: memo
+  Std.HashMap.insert memo (Γ, A) { Γ := Γ, A := A, d := d }
 
 end DeriveMemo
 
@@ -53,14 +57,12 @@ mutual
               let d := isTrue (by grind)
               (d, DeriveMemo.insert Γ (Tp.atom s) d memo)
             else
-              -- Right division candidates
               let rdiv_cands := (rdiv_candidates Γ).attach
               match process_rdiv_cands s Γ rdiv_cands memo with
               | (Search.found ⟨cand_sub, _, h1, h2⟩, memo1) =>
                   let d := isTrue (by grind)
                   (d, DeriveMemo.insert Γ (Tp.atom s) d memo1)
               | (Search.not_found h_rdiv, memo1) =>
-                  -- Left division candidates
                   let ldiv_cands := (ldiv_candidates Γ).attach
                   match process_ldiv_cands s Γ ldiv_cands memo1 with
                   | (Search.found ⟨cand_sub, _, h1, h2⟩, memo2) =>
@@ -75,12 +77,12 @@ mutual
                           let cand0 : RDivCand := ⟨Γ_left, B, A, Δ, Λ⟩
                           let cand_sub : {c // c ∈ rdiv_candidates (Γ_left ++ [B ⧸ A] ++ Δ ++ Λ)} :=
                             ⟨cand0, by grind⟩
-                          apply h_rdiv ⟨cand_sub, by apply List.mem_attach, by grind, by grind⟩
+                          apply h_rdiv ⟨cand_sub, by grind, by grind, by grind⟩
                         case ldiv_l Δ A Γ_left B Λ d_arg d_main =>
                           let cand0 : LDivCand := ⟨Γ_left, A, B, Δ, Λ⟩
                           let cand_sub : {c // c ∈ ldiv_candidates (Γ_left ++ Δ ++ [A ⧹ B] ++ Λ)} :=
                             ⟨cand0, by grind⟩
-                          apply h_ldiv ⟨cand_sub, by apply List.mem_attach, by grind, by grind⟩)
+                          apply h_ldiv ⟨cand_sub, by grind, by grind, by grind⟩)
                       (d, DeriveMemo.insert Γ (Tp.atom s) d memo2)
         | Tp.ldiv A B =>
             let A' := Tp.ldiv A B
@@ -121,39 +123,25 @@ mutual
         | (isTrue h1, memo1) =>
             match deriveM_impl (cand.val.left ++ [cand.val.B] ++ cand.val.Λ) (Tp.atom s) memo1 with
             | (isTrue h2, memo2) =>
-                (Search.found ⟨cand, by apply List.mem_cons_self, h1, h2⟩, memo2)
+                (Search.found ⟨cand, by grind, h1, h2⟩, memo2)
             | (isFalse h2, memo2) =>
                  match process_rdiv_cands s Γ rest memo2 with
                  | (Search.found ⟨res, h_mem, h_p1, h_p2⟩, memo3) =>
-                     (Search.found ⟨res, by apply List.mem_cons_of_mem; exact h_mem, h_p1, h_p2⟩, memo3)
+                     (Search.found ⟨res, by grind, h_p1, h_p2⟩, memo3)
                  | (Search.not_found h, memo3) =>
                      (Search.not_found (by
                        intro ⟨x, hx_mem, hx_p1, hx_p2⟩
-                       if h_eq : x = cand then
-                         subst h_eq
-                         grind
-                       else
-                         apply h ⟨x, ?_, hx_p1, hx_p2⟩
-                         rw [List.mem_cons] at hx_mem
-                         cases hx_mem
-                         case inl h_inl => contradiction
-                         case inr h_inr => exact h_inr), memo3)
+                       apply h ⟨x, ?_, hx_p1, hx_p2⟩
+                       grind), memo3)
         | (isFalse h1, memo1) =>
              match process_rdiv_cands s Γ rest memo1 with
              | (Search.found ⟨res, h_mem, h_p1, h_p2⟩, memo2) =>
-                 (Search.found ⟨res, by apply List.mem_cons_of_mem; exact h_mem, h_p1, h_p2⟩, memo2)
+                 (Search.found ⟨res, by grind, h_p1, h_p2⟩, memo2)
              | (Search.not_found h, memo2) =>
                  (Search.not_found (by
                    intro ⟨x, hx_mem, hx_p1, hx_p2⟩
-                   if h_eq : x = cand then
-                     subst h_eq
-                     contradiction
-                   else
-                     apply h ⟨x, ?_, hx_p1, hx_p2⟩
-                     rw [List.mem_cons] at hx_mem
-                     cases hx_mem
-                     case inl h_inl => contradiction
-                     case inr h_inr => exact h_inr), memo2)
+                   apply h ⟨x, ?_, hx_p1, hx_p2⟩
+                   grind), memo2)
   termination_by (list_degree Γ + tp_degree (Tp.atom s), 0, cands.length)
   decreasing_by all_goals grind
 
@@ -171,46 +159,32 @@ mutual
             | (isFalse h2, memo2) =>
                  match process_ldiv_cands s Γ rest memo2 with
                  | (Search.found ⟨res, h_mem, h_p1, h_p2⟩, memo3) =>
-                     (Search.found ⟨res, by apply List.mem_cons_of_mem; exact h_mem, h_p1, h_p2⟩, memo3)
+                     (Search.found ⟨res, by grind, h_p1, h_p2⟩, memo3)
                  | (Search.not_found h, memo3) =>
                      (Search.not_found (by
                        intro ⟨x, hx_mem, hx_p1, hx_p2⟩
-                       if h_eq : x = cand then
-                         subst h_eq
-                         grind
-                       else
-                         apply h ⟨x, ?_, hx_p1, hx_p2⟩
-                         rw [List.mem_cons] at hx_mem
-                         cases hx_mem
-                         case inl h_inl => contradiction
-                         case inr h_inr => exact h_inr), memo3)
+                       apply h ⟨x, ?_, hx_p1, hx_p2⟩
+                       grind), memo3)
         | (isFalse h1, memo1) =>
              match process_ldiv_cands s Γ rest memo1 with
              | (Search.found ⟨res, h_mem, h_p1, h_p2⟩, memo2) =>
-                 (Search.found ⟨res, by apply List.mem_cons_of_mem; exact h_mem, h_p1, h_p2⟩, memo2)
+                 (Search.found ⟨res, by grind, h_p1, h_p2⟩, memo2)
              | (Search.not_found h, memo2) =>
                  (Search.not_found (by
                    intro ⟨x, hx_mem, hx_p1, hx_p2⟩
-                   if h_eq : x = cand then
-                     subst h_eq
-                     contradiction
-                   else
-                     apply h ⟨x, ?_, hx_p1, hx_p2⟩
-                     rw [List.mem_cons] at hx_mem
-                     cases hx_mem
-                     case inl h_inl => contradiction
-                     case inr h_inr => exact h_inr), memo2)
+                   apply h ⟨x, ?_, hx_p1, hx_p2⟩
+                   grind), memo2)
   termination_by (list_degree Γ + tp_degree (Tp.atom s), 0, cands.length)
   decreasing_by all_goals grind
 end
 
 def deriveM (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) :=
-  (deriveM_impl Γ A []).1
+  (deriveM_impl Γ A ∅).1
 
 instance (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := deriveM Γ A
 
 -- An example of a simple derivation: (A / B) , B => A
 example : [Tp.atom "A" ⧸ Tp.atom "B", Tp.atom "B"] ⇒ Tp.atom "A" := by
-  decide +native
+  decide
 
 end Mathling.Lambek.ProductFree

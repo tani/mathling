@@ -1,3 +1,4 @@
+import Std.Data.HashMap
 import Mathlib.Data.Nat.Basic
 import Mathlib.Data.List.Basic
 
@@ -8,7 +9,7 @@ inductive Tp where
   | atom (name : String) : Tp
   | ldiv (A B : Tp)      : Tp
   | rdiv (A B : Tp)      : Tp
-  deriving Repr, DecidableEq
+  deriving Repr, DecidableEq, BEq, Hashable
 
 prefix:50 "#" => Tp.atom
 infixr:60 " ⧹ " => Tp.ldiv
