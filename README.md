@@ -1,5 +1,53 @@
-# lambek
+# Lambek
 
+Formalized implementation of the **Lambek Calculus** in Lean 4.
+
+## Overview
+
+This project provides a formalization of the Lambek calculus, a type of substructural logic used in mathematical linguistics. It includes the definition of types, a sequent calculus, and a verified decision procedure.
+
+## Features
+
+- **Syntactic Types**: Implementation of Lambek types:
+  - Atomic types: `# "np"`, `# "s"`, etc.
+  - Left division: `A ⧹ B` (pronounced "A under B")
+  - Right division: `B ⧸ A` (pronounced "B over A")
+- **Sequent Calculus**: Formalization of the core sequent rules:
+  - Axiom (`ax`)
+  - Right and Left rules for both divisions.
+- **Cut Admissibility**: A verified proof that the cut rule is admissible, ensuring the consistency and streamlining of the logic.
+- **Decidability**: A certified decision procedure that can automatically prove or disprove sequents using `decide`.
+
+## Structure
+
+- `Lambek/Basic.lean`: Core definitions for types (`Tp`) and the sequent calculus (`Derive`). Contains the proof of `cut_admissible`.
+- `Lambek/Decidable.lean`: Implementation of the verified decision procedure.
+
+## Usage
+
+You can use the `decide` tactic to automatically prove sequents in the Lambek calculus.
+
+```lean
+import Lambek.Basic
+import Lambek.Decidable
+
+open Lambek
+
+-- An example of a simple derivation: (A / B) , B => A
+example : [# "A" ⧸ # "B", # "B"] ⇒ # "A" := by
+  decide
+
+-- Another example: A , (A \ B) => B
+example : [# "A", # "A" ⧹ # "B"] ⇒ # "B" := by
+  decide
+```
+
+## Requirements
+
+- Lean 4
+- Mathlib 4 (specified in `lakefile.toml`)
+
+<!--
 ## GitHub configuration
 
 To set up your new GitHub repository, follow these steps:
@@ -11,3 +59,4 @@ To set up your new GitHub repository, follow these steps:
 * In the **Source** dropdown menu, select "GitHub Actions".
 
 After following the steps above, you can remove this section from the README file.
+-->
