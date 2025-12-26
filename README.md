@@ -20,7 +20,7 @@ This project provides a formalization of the Lambek calculus, a type of substruc
 
 ## Structure
 
-- `Lambek/Basic.lean`: Core definitions for types (`Tp`) and the sequent calculus (`Derive`). Contains the proof of `cut_admissible`.
+- `Lambek/Basic.lean`: Core definitions for types (`Tp`) and the sequent calculus (`Sequent`). Contains the proof of `cut_admissible`.
 - `Lambek/Decidable.lean`: Implementation of the verified decision procedure.
 
 ## Usage

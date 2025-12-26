@@ -15,26 +15,26 @@ infixr:60 " ⧹ " => Tp.ldiv
 infixl:60 " ⧸ " => Tp.rdiv
 
 @[grind intro]
-inductive Derive : List Tp → Tp → Prop where
-  | ax : Derive [A] A
+inductive Sequent : List Tp → Tp → Prop where
+  | ax : Sequent [A] A
   | rdiv_r :
       Γ ≠ [] →
-      Derive (Γ ++ [A]) B →
-      Derive Γ (B ⧸ A)
+      Sequent (Γ ++ [A]) B →
+      Sequent Γ (B ⧸ A)
   | ldiv_r :
       Γ ≠ [] →
-      Derive ([A] ++ Γ) B →
-      Derive Γ (A ⧹ B)
+      Sequent ([A] ++ Γ) B →
+      Sequent Γ (A ⧹ B)
   | rdiv_l :
-      Derive Δ A →
-      Derive (Γ ++ [B] ++ Λ) C →
-      Derive (Γ ++ [B ⧸ A] ++ Δ ++ Λ) C
+      Sequent Δ A →
+      Sequent (Γ ++ [B] ++ Λ) C →
+      Sequent (Γ ++ [B ⧸ A] ++ Δ ++ Λ) C
   | ldiv_l :
-      Derive Δ A →
-      Derive (Γ ++ [B] ++ Λ) C →
-      Derive (Γ ++ Δ ++ [A ⧹ B] ++ Λ) C
+      Sequent Δ A →
+      Sequent (Γ ++ [B] ++ Λ) C →
+      Sequent (Γ ++ Δ ++ [A ⧹ B] ++ Λ) C
 
-infixl:50 " ⇒ " => Derive
+infixl:50 " ⇒ " => Sequent
 
 @[grind =]
 def tp_degree : Tp → Nat
@@ -113,7 +113,7 @@ theorem cut_admissible
         cases d_right with
         | ax =>
           grind only [List.cons_eq_cons, List.append_assoc, List.append_cons,
-          List.append_eq_nil_iff, List.append_eq_singleton_iff, Derive.ldiv_r]
+          List.append_eq_nil_iff, List.append_eq_singleton_iff, Sequent.ldiv_r]
         | ldiv_r h_ne_R d_inner_R =>
           rename_i C D
           let m := list_degree ([C] ++ Δ ++ Γ ++ Λ) + tp_degree (A₁ ⧹ A₂) + tp_degree D
@@ -194,7 +194,7 @@ theorem cut_admissible
         generalize d_right_eq_x : Δ ++ [A₂ ⧸ A₁] ++ Λ = ContextRight at d_right
         cases d_right with
         | ax => grind only [nonempty_append, List.cons_eq_cons, List.append_assoc, List.append_cons,
-          List.append_eq_nil_iff, List.append_eq_singleton_iff, Derive.rdiv_r]
+          List.append_eq_nil_iff, List.append_eq_singleton_iff, Sequent.rdiv_r]
         | ldiv_r h_ne_R d_inner_R =>
           rename_i C D
           let m := list_degree ([C] ++ Δ ++ Γ ++ Λ) + tp_degree (A₂ ⧸ A₁) + tp_degree D
