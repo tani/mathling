@@ -48,18 +48,18 @@ def list_degree : List Tp → Nat
   | A :: Γ    => tp_degree A + list_degree Γ
 
 @[grind =]
-theorem list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
+lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
   induction Γ <;> grind
 
 @[grind =>]
-theorem nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
+lemma nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
   induction h <;> grind [List.append_eq_nil_iff]
 
 @[grind =>]
-theorem nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
+lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   grind only [List.append_eq_nil_iff]
 
-theorem list_split_2_cases
+lemma list_split_2_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂) :
   (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂) ∨
   (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R) := by
@@ -69,7 +69,7 @@ theorem list_split_2_cases
     grind
   · grind
 
-theorem list_split_3_cases
+lemma list_split_3_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃) :
   (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂ ++ Δ₃) ∨
   (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R ++ Δ₃) ∨
@@ -79,7 +79,7 @@ theorem list_split_3_cases
   · grind
   · rcases list_split_2_cases h1.symm <;> grind
 
-theorem list_split_4_cases
+lemma list_split_4_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃ ++ Δ₄) :
   (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂ ++ Δ₃ ++ Δ₄)
   ∨ (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R ++ Δ₃ ++ Δ₄)
