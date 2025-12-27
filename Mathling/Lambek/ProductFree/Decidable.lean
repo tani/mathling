@@ -85,6 +85,7 @@ lemma candidates_list_degree (h : c ∈ candidates Γ) :
       have h_split : X ++ Y = L := splits_list_degree hX
       grind
 
+@[grind .]
 lemma candidates_rdiv_mem (Γ Δ Λ : List Tp) (A B : Tp) :
   Cand.rdiv Γ B A Δ Λ ∈ candidates (Γ ++ [B ⧸ A] ++ Δ ++ Λ) := by
   unfold candidates
@@ -94,6 +95,7 @@ lemma candidates_rdiv_mem (Γ Δ Λ : List Tp) (A B : Tp) :
   · refine List.mem_map.mpr ?_
     refine ⟨(Δ, Λ), ?_, ?_⟩ <;> grind
 
+@[grind .]
 lemma candidates_ldiv_mem (Γ₁ Δ R : List Tp) (A B : Tp) :
   Cand.ldiv Γ₁ Δ A B R ∈ candidates (Γ₁ ++ Δ ++ [A ⧹ B] ++ R) := by
   unfold candidates
@@ -244,7 +246,7 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
 
 lemma prove1_iff_prove2 : prove1 Γ A ↔ prove2 Γ A := by grind
 
-@[grind .]
+@[grind =>]
 lemma prove1_sound (h : prove1 Γ A) : Γ ⇒ A := by
   induction Γ, A using prove1.induct with
   | case1 Γ s h_rdiv_left h_rdiv_right h_ldiv_left h_ldiv_right =>
@@ -254,10 +256,11 @@ lemma prove1_sound (h : prove1 Γ A) : Γ ⇒ A := by
   | case3 Γ B A' h_rec => grind
 
 
-@[grind .]
-lemma prove1_complete : Γ ⇒ A → prove1 Γ A := by
+@[grind =>]
+lemma prove1_comple (h : Γ ⇒ A) : prove1 Γ A := by
+  revert h
   classical
-  have h :
+  have hp :
       ∀ n Γ A, list_degree Γ + tp_degree A = n → Γ ⇒ A → prove1 Γ A := by
     intro n
     refine Nat.strong_induction_on n ?_
@@ -271,15 +274,13 @@ lemma prove1_complete : Γ ⇒ A → prove1 Γ A := by
             rename_i Δ A Γ₁ B Λ
             simp only [Bool.or_eq_true, List.any_eq_true]
             right
-            refine ⟨⟨Cand.rdiv Γ₁ B A Δ Λ,
-              candidates_rdiv_mem (Γ:=Γ₁) (Δ:=Δ) (Λ:=Λ) (A:=A) (B:=B)⟩, by simp, ?_⟩
+            refine ⟨⟨Cand.rdiv Γ₁ B A Δ Λ, by grind⟩, by simp, ?_⟩
             grind
         | ldiv_l d_arg d_main =>
             rename_i Δ A Γ₁ B Λ
             simp only [Bool.or_eq_true, List.any_eq_true]
             right
-            refine ⟨⟨Cand.ldiv Γ₁ Δ A B Λ,
-              candidates_ldiv_mem (Γ₁:=Γ₁) (Δ:=Δ) (R:=Λ) (A:=A) (B:=B)⟩, by simp, ?_⟩
+            refine ⟨⟨Cand.ldiv Γ₁ Δ A B Λ, by grind⟩, by simp, ?_⟩
             grind
     | ldiv A' B => grind
     | rdiv B A' => grind
