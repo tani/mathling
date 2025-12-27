@@ -1,53 +1,17 @@
+import Mathlib.Data.Bool.Basic
 import Mathling.Lambek.ProductFree.Basic
 
 namespace Mathling.Lambek.ProductFree
 
-inductive Search (α : Type) : Type where
-  | found : α → Search α
-  | not_found : (α → False) → Search α
-
-def searchExists {α} (xs : List α) (p : α → Prop)
-    (dec : ∀ x, Decidable (p x)) : Search {x : α // x ∈ xs ∧ p x} := by
-  induction xs with
-  | nil => exact Search.not_found (by grind)
-  | cons x xs ih =>
-      cases dec x with
-      | isTrue hx =>
-          exact Search.found ⟨x, by simp, hx⟩
-      | isFalse hx =>
-          cases ih with
-          | found h =>
-              refine Search.found ?_
-              rcases h with ⟨y, hy, hp⟩
-              exact ⟨y, by grind, hp⟩
-          | not_found h =>
-              exact Search.not_found (by
-                intro h'
-                rcases h' with ⟨y, hy, hp⟩
-                have : y = x ∨ y ∈ xs := by grind
-                cases this with
-                | inl hxy => grind
-                | inr hys => exact h ⟨y, hys, hp⟩)
-
 @[grind]
-def list_splits {α} : List α → List (List α × List α)
+def splits {α} : List α → List (List α × List α)
   | [] => [([], [])]
-  | x :: xs => ([], x :: xs) :: (list_splits xs).map (fun (l, r) => (x :: l, r))
+  | x :: xs => ([], x :: xs) :: (splits xs).map (fun (l, r) => (x :: l, r))
 
 @[grind .]
-lemma mem_list_splits_iff {α} {xs : List α} :
-    ∀ {l r : List α}, (l, r) ∈ list_splits xs ↔ xs = l ++ r := by
-  induction xs with
-  | nil =>
-      intro l r
-      simp [list_splits]
-  | cons x xs ih =>
-      intro l r
-      constructor
-      · intro h
-        grind
-      · intro h
-        grind [List.cons_eq_append_iff]
+lemma splits_list_degree :
+  ∀ X ∈ splits Γ, (list_degree X.1) + (list_degree X.2) = (list_degree Γ) := by
+    induction Γ <;> grind
 
 @[grind]
 def picks {α} : List α → List (List α × α × List α)
@@ -55,173 +19,68 @@ def picks {α} : List α → List (List α × α × List α)
   | x :: xs => ([], x, xs) :: (picks xs).map (fun (l, a, r) => (x :: l, a, r))
 
 @[grind .]
-lemma mem_picks_iff {α} {xs : List α} :
-    ∀ {l : List α} {x : α} {r : List α}, (l, x, r) ∈ picks xs ↔ xs = l ++ x :: r := by
-  induction xs with
-  | nil =>
-      intro l x r
-      simp [picks]
-  | cons y ys ih =>
-      intro l x r
-      constructor
-      · intro h
-        grind
-      · intro h
-        grind [List.cons_eq_append_iff]
-
-structure RDivCand where
-  left : List Tp
-  B : Tp
-  A : Tp
-  Δ : List Tp
-  Λ : List Tp
-
-structure LDivCand where
-  left : List Tp
-  A : Tp
-  B : Tp
-  Δ : List Tp
-  Λ : List Tp
+lemma picks_list_degree :
+  ∀ X ∈ picks Γ, (list_degree X.1) + (tp_degree X.2.1) + (list_degree X.2.2) = (list_degree Γ) := by
+    induction Γ <;> grind
 
 @[grind]
-def rdiv_candidates (Γ : List Tp) : List RDivCand :=
-  (picks Γ).flatMap (fun (left, f, right) =>
-    match f with
-    | B ⧸ A => (list_splits right).map (fun (Δ, Λ) => ⟨left, B, A, Δ, Λ⟩)
-    | _ => [])
+inductive Cand where
+  | rdiv (L : List Tp) (B A : Tp) (Δ Λ : List Tp)
+  | ldiv (Γ : List Tp) (A B : Tp) (Δ : List Tp) (R : List Tp)
 
 @[grind]
-def ldiv_candidates (Γ : List Tp) : List LDivCand :=
-  (picks Γ).flatMap (fun (left, f, right) =>
+def candidates (Γ : List Tp) : List Cand :=
+  (picks Γ).flatMap (fun (L, f, R) =>
     match f with
-    | A ⧹ B => (list_splits left).map (fun (Γ0, Δ) => ⟨Γ0, A, B, Δ, right⟩)
+    | B ⧸ A => (splits R).map (fun (Δ, Λ) => .rdiv L B A Δ Λ)
+    | A ⧹ B => (splits L).map (fun (Γ, Δ) => .ldiv Γ A B Δ R)
     | _ => [])
 
 @[grind .]
-lemma rdiv_candidates_spec {Γ : List Tp} {cand : RDivCand} :
-    cand ∈ rdiv_candidates Γ ↔
-      Γ = cand.left ++ [cand.B ⧸ cand.A] ++ cand.Δ ++ cand.Λ := by
-  cases cand with
-  | mk left B A Δ Λ =>
-      constructor
-      · intro h
-        rcases List.mem_flatMap.mp h
-        grind
-      · intro h
-        apply List.mem_flatMap.mpr
-        refine ⟨(left, B ⧸ A, Δ ++ Λ), ?_, ?_⟩
-        · grind
-        · apply List.mem_map.mpr
-          refine ⟨(Δ, Λ), ?_, rfl⟩
-          grind
-
-@[grind .]
-lemma ldiv_candidates_spec {Γ : List Tp} {cand : LDivCand} :
-    cand ∈ ldiv_candidates Γ ↔
-      Γ = cand.left ++ cand.Δ ++ [cand.A ⧹ cand.B] ++ cand.Λ := by
-  cases cand with
-  | mk left A B Δ Λ =>
-      constructor
-      · intro h
-        rcases List.mem_flatMap.mp h
-        grind
-      · intro h
-        apply List.mem_flatMap.mpr
-        refine ⟨(left ++ Δ, A ⧹ B, Λ), ?_, ?_⟩
-        · grind
-        · apply List.mem_map.mpr
-          refine ⟨(left, Δ), ?_, rfl⟩
-          grind
-
-def deriveDecidable (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := by
-  cases A with
-  | atom s =>
-      by_cases hax : Γ = [Tp.atom s]
-      · exact isTrue (by grind)
-      · let rdiv_cands := (rdiv_candidates Γ).attach
-        let rdiv_pred : {c // c ∈ rdiv_candidates Γ} → Prop := fun cand =>
-          (cand.1.Δ ⇒ cand.1.A) ∧ ((cand.1.left ++ [cand.1.B] ++ cand.1.Λ) ⇒ Tp.atom s)
-        have dec_rdiv_pred : ∀ cand, Decidable (rdiv_pred cand) := by
-          intro cand
-          cases deriveDecidable cand.1.Δ cand.1.A with
-          | isTrue d_arg =>
-              cases deriveDecidable (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s) with
-              | isTrue d_main => exact isTrue (by grind)
-              | isFalse h_main => exact isFalse (by grind)
-          | isFalse h_arg => exact isFalse (by grind)
-        cases (searchExists rdiv_cands rdiv_pred dec_rdiv_pred) with
-        | found h => exact isTrue (by grind)
-        | not_found h_rdiv =>
-            let ldiv_cands := (ldiv_candidates Γ).attach
-            let ldiv_pred : {c // c ∈ ldiv_candidates Γ} → Prop := fun cand =>
-              (cand.1.Δ ⇒ cand.1.A) ∧ ((cand.1.left ++ [cand.1.B] ++ cand.1.Λ) ⇒ Tp.atom s)
-            have dec_ldiv_pred : ∀ cand, Decidable (ldiv_pred cand) := by
-              intro cand
-              cases deriveDecidable cand.1.Δ cand.1.A with
-              | isTrue d_arg =>
-                  cases deriveDecidable (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s) with
-                  | isTrue d_main => exact isTrue (by grind)
-                  | isFalse h_main => exact isFalse (by grind)
-              | isFalse h_arg =>
-                  exact isFalse (by grind)
-            cases (searchExists ldiv_cands ldiv_pred dec_ldiv_pred) with
-            | found h =>
-                exact isTrue (by grind)
-            | not_found h_ldiv =>
-                exact isFalse (by
-                  intro hder
-                  cases hder
-                  case ax => grind
-                  case rdiv_l Δ A Γ_left B Λ d_arg d_main =>
-                    let cand0 : RDivCand := ⟨Γ_left, B, A, Δ, Λ⟩
-                    let cand : {c // c ∈ rdiv_candidates (Γ_left ++ [B ⧸ A] ++ Δ ++ Λ)} :=
-                      ⟨cand0, by grind⟩
-                    exact h_rdiv ⟨cand, by grind, (by grind)⟩
-                  case ldiv_l Δ A Γ_left B Λ d_arg d_main =>
-                    let cand0 : LDivCand := ⟨Γ_left, A, B, Δ, Λ⟩
-                    let cand : {c // c ∈ ldiv_candidates (Γ_left ++ Δ ++ [A ⧹ B] ++ Λ)} :=
-                      ⟨cand0, by grind⟩
-                    exact h_ldiv ⟨cand, by grind, (by grind)⟩)
-  | ldiv A B =>
-      by_cases hΓ : Γ = []
-      · exact isFalse (by grind)
-      · cases deriveDecidable ([A] ++ Γ) B with
-        | isTrue h => exact isTrue (by grind)
-        | isFalse h => exact isFalse (by grind)
+lemma candidates_list_degree :
+  ∀ c ∈ candidates Γ,
+  match c with
+    | .rdiv L B _ Δ Λ =>
+        list_degree Δ < list_degree Γ ∧
+        (list_degree L + tp_degree B + list_degree Λ) < list_degree Γ
+    | .ldiv Γ₀ _ B Δ R =>
+        list_degree Δ < list_degree Γ ∧
+        (list_degree Γ₀ + tp_degree B + list_degree R) < list_degree Γ := by
+  intro c hc
+  simp only [candidates, List.mem_flatMap, Prod.exists] at hc
+  rcases hc with ⟨L, f, R, hpicks, hf⟩
+  have h_f_deg := picks_list_degree (L, f, R) hpicks
+  cases f with
   | rdiv B A =>
-      by_cases hΓ : Γ = []
-      · exact isFalse (by grind)
-      · cases deriveDecidable (Γ ++ [A]) B with
-        | isTrue h => exact isTrue (by grind)
-        | isFalse h => exact isFalse (by grind)
-termination_by
-  list_degree Γ + tp_degree A
-decreasing_by
-  all_goals grind
+    simp only [List.mem_map, Prod.exists] at hf
+    rcases hf with ⟨Δ, Λ, hsplit, rfl⟩
+    have h_split_deg := splits_list_degree (Δ, Λ) hsplit
+    grind
+  | ldiv A B =>
+    simp only [List.mem_map, Prod.exists] at hf
+    rcases hf with ⟨Γ₀, Δ, hsplit, rfl⟩
+    have h_split_deg := splits_list_degree (Γ₀, Δ) hsplit
+    grind
+  | _ => contradiction
 
-/-- `Γ ⇒ A` を Bool として判定する（証明項は返さない） -/
-def deriveBool (Γ : List Tp) (A : Tp) : Bool :=
+def prove (Γ : List Tp) (A : Tp) : Bool :=
   match A with
   | Tp.atom s =>
-       Γ = [Tp.atom s]
-    || (rdiv_candidates Γ).attach.any (fun cand =>
-            deriveBool cand.1.Δ cand.1.A &&
-            deriveBool (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s))
-    || (ldiv_candidates Γ).attach.any (fun cand =>
-            deriveBool cand.1.Δ cand.1.A &&
-            deriveBool (cand.1.left ++ [cand.1.B] ++ cand.1.Λ) (Tp.atom s))
+    (Γ = [Tp.atom s]) ||
+    (candidates Γ).any (fun
+      | .rdiv L B A Δ Λ =>
+          prove Δ A && prove (L ++ [B] ++ Λ) (Tp.atom s)
+      | .ldiv Γ A B Δ R =>
+          prove Δ A && prove (Γ ++ [B] ++ R) (Tp.atom s))
   | Tp.ldiv A B =>
-    Γ ≠ [] && deriveBool ([A] ++ Γ) B
+    Γ ≠ [] && prove ([A] ++ Γ) B
   | Tp.rdiv B A =>
-    Γ ≠ [] && deriveBool (Γ ++ [A]) B
+    Γ ≠ [] && prove (Γ ++ [A]) B
 termination_by
   list_degree Γ + tp_degree A
 decreasing_by
-  all_goals grind
-
-instance (Γ : List Tp) (A : Tp) : Decidable (Γ ⇒ A) := deriveDecidable Γ A
-
---example : deriveBool [Tp.atom "A" ⧸ Tp.atom "B", Tp.atom "B"] (Tp.atom "A") = true := by
-  --decide
+  all_goals
+    sorry
+-- example : [Tp.atom "A" ⧸ Tp.atom "B", Tp.atom "B"] ⇒ (Tp.atom "A") := by grind
 
 end Mathling.Lambek.ProductFree
