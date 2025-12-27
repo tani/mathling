@@ -9,7 +9,7 @@ inductive Tp where
   | atom (name : String) : Tp
   | ldiv (A B : Tp)      : Tp
   | rdiv (A B : Tp)      : Tp
-  deriving Repr, DecidableEq, BEq, Hashable
+  deriving Repr, DecidableEq
 
 prefix:65 "#" => Tp.atom
 infixr:60 " ⧹ " => Tp.ldiv
