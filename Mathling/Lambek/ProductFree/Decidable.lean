@@ -34,7 +34,7 @@ def candidates (Γ : List Tp) : List Cand :=
   (picks Γ).flatMap (fun (L, f, R) =>
     match f with
     | B ⧸ A => (splits R).map (fun (Δ, Λ) => .rdiv L B A Δ Λ)
-    | A ⧹ B => (splits L).map (fun (Γ, Δ) => .ldiv Γ A B Δ R)
+    | A ⧹ B => (splits R).map (fun (Δ, Λ) => .ldiv L A B Δ Λ)
     | # _ => [])
 
 @[grind =>]
@@ -50,41 +50,33 @@ lemma candidates_list_degree (h : c ∈ candidates Γ) :
       simp only [List.mem_map, Prod.exists] at h_cand
       rcases h_cand with ⟨_, _, h_split, _⟩
       have h_geom_split := splits_list_degree h_split
-      sorry
+      grind
   | A ⧹ B =>
       simp only [List.mem_map, Prod.exists] at h_cand
       rcases h_cand with ⟨_, _, h_split, _⟩
       have h_geom_split := splits_list_degree h_split
-      sorry
+      grind
   | # _ => grind
 
 def prove (Γ : List Tp) (A : Tp) : Bool :=
   match A with
   | Tp.atom s =>
     (Γ = [Tp.atom s]) ||
-    (candidates Γ).any (fun
+    (candidates Γ).attach.any (fun ⟨c, _hc⟩ =>
+      match c with
       | .rdiv L B A' Δ Λ =>
-          have h0: L ++ [B ⧸ A'] ++ Δ ++ Λ = Γ := sorry
-          have h1: list_degree Δ + tp_degree A' < list_degree Γ + tp_degree (# s) := by grind
-          have h2: list_degree (L ++ [B] ++ Λ) + tp_degree (# s) < list_degree Γ + tp_degree (# s) := by grind
-          prove Δ A' && prove (L ++ [B] ++ Λ) (# s)
+        prove Δ A' && prove (L ++ [B] ++ Λ) (# s)
       | .ldiv Λ A' B Δ R =>
-          have h0: Λ ++ [A' ⧹ B] ++ Δ ++ R = Γ := sorry
-          have h1: list_degree Δ + tp_degree A' < list_degree Γ + tp_degree (# s) := by grind
-          have h2: list_degree (Λ ++ [B] ++ R) + tp_degree (# s) < list_degree Γ + tp_degree (# s) := by grind
-          prove Δ A' && prove (Λ ++ [B] ++ R) (# s))
+        prove Δ A' && prove (Λ ++ [B] ++ R) (# s))
   | Tp.ldiv A' B =>
-    have h0: A = A' ⧹ B := sorry
-    have h1: list_degree ([A'] ++ Γ) + tp_degree B < list_degree Γ + tp_degree A := by grind
     Γ ≠ [] && prove ([A'] ++ Γ) B
   | Tp.rdiv B A' =>
-    have h0: A = B ⧸ A' := sorry
-    have h1: list_degree (Γ ++ [A']) + tp_degree B < list_degree Γ + tp_degree A := by grind
     Γ ≠ [] && prove (Γ ++ [A']) B
 termination_by
   list_degree Γ + tp_degree A
 decreasing_by
   all_goals grind
 
+theorem prove_iff_sequent : prove Γ A ↔ Γ ⇒ A := sorry
 
 end Mathling.Lambek.ProductFree

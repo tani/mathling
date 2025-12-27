@@ -11,7 +11,7 @@ inductive Tp where
   | rdiv (A B : Tp)      : Tp
   deriving Repr, DecidableEq, BEq, Hashable
 
-prefix:50 "#" => Tp.atom
+prefix:65 "#" => Tp.atom
 infixr:60 " ⧹ " => Tp.ldiv
 infixl:60 " ⧸ " => Tp.rdiv
 
