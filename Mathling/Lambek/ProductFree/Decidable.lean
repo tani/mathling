@@ -1,4 +1,5 @@
 import Mathlib.Data.Bool.Basic
+import Mathlib.Data.List.Basic
 import Mathling.Lambek.ProductFree.Basic
 import Lean.LibrarySuggestions.Default
 
@@ -69,8 +70,6 @@ lemma candidates_list_degree (h : c ∈ candidates Γ) :
     | .ldiv Γ₁ Δ A B R => Γ₁ ++ Δ ++ [A ⧹ B] ++ R = Γ := by
   simp only [candidates, List.mem_flatMap, Prod.exists] at h
   rcases h with ⟨L, f, R, h_pick, h_cand⟩
-  have h_geom : L ++ [f] ++ R = Γ := by
-    simpa using (picks_list_degree h_pick)
   cases f with
   | atom s =>
       grind
@@ -229,7 +228,7 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
     · have h_eq :
         list_degree (A' :: Γ) + tp_degree B + 1 =
           list_degree Γ + tp_degree (A' ⧹ B) := by
-        grind only [list_degree_traversible, list_degree, tp_degree]
+        grind
       grind
   case case3 Γ B A' h_rec =>
     unfold prove1 at h
@@ -241,7 +240,7 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
     · have h_eq :
         list_degree (Γ ++ [A']) + tp_degree B + 1 =
           list_degree Γ + tp_degree (B ⧸ A') := by
-        grind only [list_degree_traversible, list_degree, tp_degree]
+        grind
       grind
 
 lemma prove1_iff_prove2 : prove1 Γ A ↔ prove2 Γ A := by grind
