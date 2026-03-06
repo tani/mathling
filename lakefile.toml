@@ -12,7 +12,17 @@ maxSynthPendingDepth = 3
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-rev = "v4.26.0"
+rev = "v4.28.0"
+
+[[require]]
+name = "literate-lean"
+git = "https://github.com/tani/literate-lean.git"
+rev = "main"
+
+[[require]]
+name = "cslib"
+scope = "leanprover"
+rev = "v4.28.0"
 
 [[lean_lib]]
 name = "Mathling"
