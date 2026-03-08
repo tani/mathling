@@ -7,7 +7,8 @@
 # Lambek 計算の決定可能性の証明
 
 このファイルでは、Lambek計算において与えられたシーケントに対して証明が存在するか
-どうかを判定する手続きが決定可能であることを証明する。まず手続き的に証明探索アルゴリズムを定義する。
+どうかを判定する手続きが決定可能であることを証明する。
+まず手続き的に証明探索アルゴリズムを定義する。
 そして、証明探索アルゴリズムが `Mathling.Lambek.ProductFree.Basic` で帰納的に定義された
 シーケントの導出と一致することを示す。
 
@@ -68,12 +69,16 @@ def picks {α} : List α → List (List α × α × List α)
   | x :: xs => ([], x, xs) :: (picks xs).map (fun (l, a, r) => (x :: l, a, r))
 ```
 
+選択した要素とその前後の結果のリストを結合すると、元のリストに等しくなることを示す。
+
 ```lean
 @[grind =>]
 lemma picks_list_degree (h : X ∈ picks Γ) :
    X.1 ++ [X.2.1] ++ X.2.2 = Γ := by
   induction Γ generalizing X <;> grind
 ```
+
+リストの結合の中からの選択として、元のリストそれぞれの要素を選ぶ候補が正しく生成されることを示す。
 
 ```lean
 @[grind .]
@@ -91,8 +96,8 @@ lemma picks_mem {α} (Γ Δ : List α) (a : α) :
 
 ## 証明探索の候補
 
-もし体系においてカットフリーな証明が存在するならば、
-証明探索の過程で、シーケントの左辺から選択と分割を組み合わせて得られる候補の中に、
+もし体系においてカットフリーな証明が存在するならば、証明探索の過程で、
+シーケントの左辺から選択と分割を組み合わせて得られる候補の中に、
 証明の構造を反映したものが存在するはずである。この候補を `Cand` として定義する。
 
 ```lean
@@ -113,6 +118,8 @@ def candidates (Γ : List Tp) : List Cand :=
         (splits L).map (fun (Γ, Δ) => .ldiv Γ Δ A B R)
     | # _ => [])
 ```
+
+証明探索の候補 `candidates` が、元のリストを正しく分割・選択して得られた構造であることを示す補助定理。
 
 ```lean
 @[grind =>]
@@ -137,6 +144,8 @@ lemma candidates_list_degree (h : c ∈ candidates Γ) :
       grind
 ```
 
+右除法 `/` を含むシーケントの左辺から生成される候補が、正しく `candidates` に含まれることを示す。
+
 ```lean
 @[grind .]
 lemma candidates_rdiv_mem (Γ Δ Λ : List Tp) (A B : Tp) :
@@ -149,6 +158,8 @@ lemma candidates_rdiv_mem (Γ Δ Λ : List Tp) (A B : Tp) :
     refine ⟨(Δ, Λ), ?_, ?_⟩ <;> grind
 ```
 
+左除法 `\` を含むシーケントの左辺から生成される候補が、正しく `candidates` に含まれることを示す。
+
 ```lean
 @[grind .]
 lemma candidates_ldiv_mem (Γ₁ Δ R : List Tp) (A B : Tp) :
@@ -160,6 +171,12 @@ lemma candidates_ldiv_mem (Γ₁ Δ R : List Tp) (A B : Tp) :
   · refine List.mem_map.mpr ?_
     refine ⟨(Γ₁, Δ), ?_, ?_⟩ <;> grind
 ```
+
+## 決定可能手続きの定義
+
+シーケントの証明が存在するかどうかを判定する再帰関数 `prove1` を定義する。
+右辺の論理式の形に応じて、証明規則を後ろ向きに適用していく。
+右辺がアトムの場合は、左辺の要素から候補を選んで再帰的に証明可能かを判定する。
 
 ```lean
 @[grind .]
@@ -183,6 +200,10 @@ decreasing_by
   all_goals grind
 ```
 
+上の `prove1` 関数は自身の停止性を証明しながら定義されているが、
+停止性を特別に証明する必要がある関数はLeanの *計算* にしようすることができないため、
+探索の深さ（ステップ数）を明示的に引数に取ることで、自明に停止する補助関数 `proveAux` を定義する。
+
 ```lean
 @[grind .]
 def proveAux : Nat → List Tp → Tp → Bool
@@ -205,11 +226,18 @@ def proveAux : Nat → List Tp → Tp → Bool
         (Γ ≠ []) && proveAux n (Γ ++ [A']) B
 ```
 
+`proveAux` を用い、探索の深さとしてシーケントのサイズから計算される十分な上限ステップ数を与えることで、
+`prove1` と等価な判定関数 `prove2` を定義する。
+
 ```lean
 @[grind .]
 def prove2 (Γ : List Tp) (A : Tp) : Bool :=
   proveAux (list_degree Γ + tp_degree A + 1) Γ A
 ```
+
+ここから、これらの関数の性質を証明していく。
+まず `proveAux` について、あるステップ数で証明可能ならば、
+それより1大きいステップ数でも証明可能であることを示す。
 
 ```lean
 @[grind =>]
@@ -218,12 +246,16 @@ lemma proveAux_mono (h : proveAux n Γ A) :
   induction n generalizing Γ A <;> grind
 ```
 
+さらに、任意の大きいステップ数に対しても単調に証明可能であることが言える。
+
 ```lean
 @[grind =>]
 lemma proveAux_mono_le {n m : Nat} (h : n ≤ m) (hp : proveAux n Γ A) :
     proveAux m Γ A := by
   induction h <;> grind
 ```
+
+`proveAux` で証明可能ならば、元の `prove1` でも証明可能であること（健全性）を示す。
 
 ```lean
 @[grind =>]
@@ -246,6 +278,8 @@ lemma proveAux_sound (h : proveAux n Γ A) : prove1 Γ A := by
       | ldiv A' B => grind
       | rdiv B A' => grind
 ```
+
+逆に、`prove1` で証明可能ならば、十分なステップ数を持たせた `prove2` でも証明可能であること（完全性）を示す。
 
 ```lean
 @[grind =>]
@@ -314,9 +348,16 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
       grind
 ```
 
+上記２つの補題から、`prove1` と `prove2` は同値であることがわかる。
+
 ```lean
 lemma prove1_iff_prove2 : prove1 Γ A ↔ prove2 Γ A := by grind
 ```
+
+## 論理体系との一致
+
+アルゴリズム `prove1` が真を返すならば、実際にシーケントの導出 $Γ ⇒ A$ が
+論理体系において存在すること（健全性）を証明する。
 
 ```lean
 @[grind =>]
@@ -328,6 +369,9 @@ lemma prove1_sound (h : prove1 Γ A) : Γ ⇒ A := by
   | case2 Γ A' B h_rec => grind
   | case3 Γ B A' h_rec => grind
 ```
+
+逆に、論理体系においてシーケントの導出 $Γ ⇒ A$ が存在するならば、
+アルゴリズム `prove1` は真を返すこと（完全性）を証明する。
 
 ```lean
 @[grind =>]
@@ -361,20 +405,31 @@ lemma prove1_complete (h : Γ ⇒ A) : prove1 Γ A := by
   grind
 ```
 
+健全性と完全性をまとめることで、`prove1` がシーケントの導出可能性と同値であることが示される。
+
 ```lean
 @[grind .]
 lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
 ```
+
+先ほど示した `prove1` と `prove2` の同値性により、最終的に `prove2` もシーケントの導出可能性と同値であることがわかる。
 
 ```lean
 @[grind .]
 theorem prove2_iff_sequent : prove2 Γ A ↔ Γ ⇒ A := by grind
 ```
 
+`prove2` は停止性が保証されたアルゴリズムであり、
+それが対象とする論理体系の導出可能性と同値であるため、
+Lambek計算の証明可能性が決定可能（Decidable）であることが結論づけられる。
+
 ```lean
 instance : Decidable (Γ ⇒ A) :=
   decidable_of_iff (prove2 Γ A) (by grind)
 ```
+
+この決定可能性のインスタンスにより、具体的なシーケントに対して Lean の `decide` タクティクを用いて
+自動的に証明探索・判定を行わせることが可能になる。
 
 ```lean
 example : [Tp.atom "p", Tp.ldiv (Tp.atom "p") (Tp.atom "q")] ⇒ Tp.atom "q" :=
@@ -384,3 +439,5 @@ example : [Tp.atom "p", Tp.ldiv (Tp.atom "p") (Tp.atom "q")] ⇒ Tp.atom "q" :=
 ```lean
 end Mathling.Lambek.ProductFree
 ```
+
+<!-- vim: set filetype=markdown : -->
