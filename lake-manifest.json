@@ -15,7 +15,7 @@
    "type": "git",
    "subDir": null,
    "scope": "",
-   "rev": "b9c71f8302023ed935a5b8088e38c513397da2cb",
+   "rev": "d6b09005139ffcb6066546636e1437003c9c50cf",
    "name": "«literate-lean»",
    "manifestFile": "lake-manifest.json",
    "inputRev": "main",
