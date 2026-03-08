@@ -272,6 +272,31 @@ lemma proveAux_mono_le {n m : Nat} (h : n ≤ m) (hp : proveAux n Γ A) :
 
 `proveAux` で証明可能ならば、元の `prove1` でも証明可能であること（健全性）を示す。
 
+### 健全性の証明戦略
+
+この補題は、ステップ数 $n$ に関する帰納法によって証明される。
+`proveAux (n + 1)` が真であることは、その内部の再帰呼び出し（ステップ数 $n$）が真であることを意味し、
+帰納法の仮定を適用することで `prove1` の再帰条件を満たすことができる。
+
+```mermaid
+graph TD
+    Start["proveAux_sound (健全性)"] --> Strategy["ステップ数 n に関する帰納法"]
+
+    Strategy -- "n = 0" --> Base["proveAux 0 ... = false<br/>自明に成立"]
+
+    Strategy -- "n + 1" --> Succ["proveAux (n + 1) ... の構造を分解"]
+
+    Succ --> Cases{右辺 A の形}
+
+    Cases -- "原子式 (# s)" --> AtomBranch{内部の判定}
+    AtomBranch -- "公理 axiom" --> ResultAx["Γ = [# s] となり自明"]
+    AtomBranch -- "左導入規則" --> LeftRule["candidates から選択<br/>proveAux n ... に再帰"]
+    LeftRule --> IH_Atom["帰納法の仮定 (IH) を適用し<br/>prove1 ... を得る"]
+
+    Cases -- "左除法 / 右除法" --> Div["右導入規則を適用し<br/>proveAux n ... に再帰"]
+    Div --> IH_Div["IH を適用して prove1 ... を得る"]
+```
+
 ```lean
 @[grind =>]
 lemma proveAux_sound (h : proveAux n Γ A) : prove1 Γ A := by
@@ -296,6 +321,30 @@ lemma proveAux_sound (h : proveAux n Γ A) : prove1 Γ A := by
 
 逆に、`prove1` で証明可能ならば、十分なステップ数を持たせた `prove2` でも証明可能であること（完全性）を示す。
 規則の適用をするごとに次数は単調増加することの証明になっている。
+
+### 完全性の証明戦略
+
+この補題は、`prove1` の再帰構造に基づいた帰納法によって証明される。
+各ステップにおいて、部分問題の次数が元の問題の次数より小さいことを示し、
+それによって十分なステップ数（次数に基づく上限）が確保されていることを確認する。
+
+```mermaid
+graph TD
+    Start["proveAux_complete (完全性)"] --> Strategy["prove1 の再帰構造に基づく帰納法"]
+
+    Strategy --> Cases{右辺 A の形}
+
+    Cases -- "原子式 (# s)" --> AtomBranch{内部の判定}
+    AtomBranch -- "公理 axiom" --> ResultAx["自明 (Γ = [# s])"]
+    AtomBranch -- "左導入規則" --> LeftRule["左辺の論理式を分解<br>部分問題へ再帰"]
+    LeftRule --> IH_Atom["IH を適用し、proveAux_mono_le <br>でステップ数の差分を埋める"]
+
+    Cases -- "左除法 (A' ⧹ B)" --> LDiv["右導入規則を適用<br>[A'] ++ Γ ⇒ B へ再帰"]
+    LDiv --> IH_LDiv["IH を適用し、次数の等価性<br>(tp_degree の定義) を利用"]
+
+    Cases -- "右除法 (B ⧸ A')" --> RDiv["右導入規則を適用<br>Γ ++ [A'] ⇒ B へ再帰"]
+    RDiv --> IH_RDiv["IH を適用"]
+```
 
 ```lean
 @[grind =>]
@@ -389,6 +438,29 @@ lemma prove1_sound (h : prove1 Γ A) : Γ ⇒ A := by
 逆に、論理体系においてシーケントの導出 $Γ ⇒ A$ が存在するならば、
 アルゴリズム `prove1` は真を返すこと（完全性）を証明する。
 prove1 は存在証明だけをすれば良いので `classical` (古典論理ベース)の証明を行なっている。
+
+### 解き方の構造（完全性）
+
+論理体系での導出が存在するならば `prove1` が必ず成功することを示すため、
+導出の「次数」に関する帰納法を用いる。
+論理体系の各推論規則（公理、右ルール、左ルール）に対応して、
+`prove1` がどのように再帰的に成功するかを対応させる。
+
+```mermaid
+graph TD
+    Start["prove1_complete (完全性)"] --> Strategy["次数 n に関する強い帰納法"]
+
+    Strategy --> Cases{導出規則の形}
+
+    Cases -- "公理 axiom" --> ResultAx["A = # s かつ Γ = [# s]<br/>prove1 のベースケースで成功"]
+
+    Cases -- "右導入規則" --> RightRule["Γ ⇒ A ⧹ B または B ⧸ A<br/>[A'] ++ Γ ⇒ B へ簡約"]
+    RightRule --> IH_Right["IH を適用して分解後の<br/>prove1 が成功することを確認"]
+
+    Cases -- "左導入規則" --> LeftRule["右辺 A = # s の場合<br/>左辺の論理式を分解"]
+    LeftRule --> Select["candidates から適切な<br/>Cand を選択"]
+    Select --> IH_Left["分割された前提部分に<br/>IH を適用して成功を確認"]
+```
 
 ```lean
 @[grind =>]
