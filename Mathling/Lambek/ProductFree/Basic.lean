@@ -1,20 +1,47 @@
-import Std.Data.HashMap
-import Mathlib.Data.Nat.Basic
-import Mathlib.Data.List.Basic
+    import Mathlib.Data.Nat.Basic
+    import Mathlib.Data.List.Basic
+    import LiterateLean
 
+# Lambek 計算（積なし）の基本定義と性質
+
+このファイルでは、Lambek 計算（Lambek Calculus）の積（Product）を持たない断片について、
+その論理式の定義、シーケント体系、および基本的な性質（カット除去定理など）を定義する。
+
+```lean
 namespace Mathling.Lambek.ProductFree
+set_option linter.style.emptyLine false
+set_option linter.style.whitespace false
+set_option linter.style.setOption false
+set_option linter.style.maxHeartbeats false
+```
 
+## 論理式の定義
+
+Lambek 計算の論理式（Type）は、原子式のほかに、左除法 `\` と右除法 `/` を用いて構成される。
+
+```lean
 @[grind cases]
 inductive Tp where
   | atom (name : String) : Tp
   | ldiv (A B : Tp)      : Tp
   | rdiv (A B : Tp)      : Tp
   deriving Repr, DecidableEq
+```
 
+利便性のために、原子式、左除法、右除法の記法を導入する。
+
+```lean
 prefix:65 "#" => Tp.atom
 infixr:60 " ⧹ " => Tp.ldiv
 infixl:60 " ⧸ " => Tp.rdiv
+```
 
+## シーケント体系の定義
+
+Lambek 計算のシーケント $Γ ⇒ A$ は、論理式の空でないリスト $Γ$ から単一の論理式 $A$ を導出する。
+ここではカット規則を含まない、カットフリーな導出規則を帰納的に定義する。
+
+```lean
 @[grind intro]
 inductive Sequent : List Tp → Tp → Prop where
   | ax : Sequent [A] A
@@ -36,7 +63,13 @@ inductive Sequent : List Tp → Tp → Prop where
       Sequent (Γ ++ Δ ++ [A ⧹ B] ++ Λ) C
 
 infixl:50 " ⇒ " => Sequent
+```
 
+## 次数（Degree）の定義
+
+証明の停止性や帰納法のために、論理式およびリストの「次数（サイズ）」を定義する。
+
+```lean
 @[grind =]
 def tp_degree : Tp → Nat
   | # _     => 1
@@ -47,19 +80,40 @@ def tp_degree : Tp → Nat
 def list_degree : List Tp → Nat
   | []        => 0
   | A :: Γ    => tp_degree A + list_degree Γ
+```
 
+リストが連結された場合の次数についての補助定理。
+
+```lean
 @[grind =]
 lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
   induction Γ <;> grind
+```
 
+## シーケントの基本的な性質
+
+導出可能なシーケントの左辺は必ず空ではない。
+
+```lean
 @[grind =>]
 lemma nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
   induction h <;> grind [List.append_eq_nil_iff]
+```
 
+空でないリストを含む連結リストもまた空ではない。
+
+```lean
 @[grind =>]
 lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   grind only [List.append_eq_nil_iff]
+```
 
+## リスト分割に関する補題
+
+カット除去定理の証明において、リストの中に特定の論理式が含まれている場合の分割パターンを
+網羅的に扱うための補題が必要となる。
+
+```lean
 lemma list_split_2_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂) :
   (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂) ∨
@@ -90,11 +144,16 @@ lemma list_split_4_cases
     with ⟨R, h1, h2⟩ | ⟨L, R, h1, h2, h3⟩
   · grind
   · rcases list_split_3_cases (by simpa using h1.symm)
-      with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
+    with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
+```
 
+## カット除去定理（演繹の許容性）
+
+Lambek 計算において、カット規則は許容的（Admissible）である。
+すなわち、カット規則を用いて導出できるシーケントは、カット規則を使わずに導出できる。
+
+```lean
 set_option maxHeartbeats 1000000 in
---
-
 @[grind =>]
 theorem cut_admissible
   (d_left : Γ ⇒ A)
@@ -287,7 +346,13 @@ theorem cut_admissible
         have d_restored_context : Δ ++ Δ_arg ++ [A_arg] ++ B_res ++ Λ ⇒ B := by grind
         have d_final : Δ ++ Δ_arg ++ Γ_L ++ [Γ_R ⧹ A_arg] ++ B_res ++ Λ ⇒ B := by grind
         grind
+```
 
+## 除法の逆転可能性（Invertibility）
+
+右導入規則の逆方向もまた成立する。これはカット除去定理を用いて証明できる。
+
+```lean
 @[grind =>]
 theorem ldiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (A ⧹ B)) :
  [A] ++ Γ ⇒ B := by
@@ -295,15 +360,20 @@ theorem ldiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (A ⧹ B)) :
     have b: [B] ⇒ B := by grind
     have c: [] ++ [A] ++ [A ⧹ B] ++ [] ⇒ B := by grind
     grind
-
-@[grind =>]
 theorem rdiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (B ⧸ A)) :
   Γ ++ [A] ⇒ B := by
     have a: [A] ⇒ A := by grind
     have b: [B] ⇒ B := by grind
     have c: [] ++ [B ⧸ A] ++ ([A] ++ []) ⇒ B := by grind
     grind
+```
 
+## 原子式に関する性質
+
+証明の右辺が原子式であり、かつ左辺がすべて原子式である場合、
+そのシーケントは軸公式（ax）から得られたものである。
+
+```lean
 @[grind]
 def is_atom : Tp → Prop
   | Tp.atom _ => True
@@ -325,5 +395,10 @@ theorem atom_generation
       rename_i Δ A Γ₁ B Λ
       have hbad : is_atom (A ⧹ B) := by grind
       grind
+```
 
+```lean
 end Mathling.Lambek.ProductFree
+```
+
+<!-- vim: set filetype=markdown : -->
