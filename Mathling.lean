@@ -1,2 +1,12 @@
 import Mathling.Lambek.ProductFree.Basic
 import Mathling.Lambek.ProductFree.Decidable
+import Mathling.Lambek.ProductFree.Right.Basic
+import Mathling.Lambek.ProductFree.Right.Decidable
+import Mathling.Lambek.ProductFree.Right.Shallow.Basic
+import Mathling.Lambek.ProductFree.Right.Shallow.Decidable
+import Mathling.Lambek.ProductFree.Left.Basic
+import Mathling.Lambek.ProductFree.Left.Decidable
+import Mathling.Lambek.ProductFree.Left.Shallow.Basic
+import Mathling.Lambek.ProductFree.Left.Shallow.Decidable
+import Mathling.Lambek.ProductFree.Shallow.Basic
+import Mathling.Lambek.ProductFree.Shallow.Decidable
