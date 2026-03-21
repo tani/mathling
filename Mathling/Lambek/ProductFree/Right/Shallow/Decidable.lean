@@ -27,7 +27,7 @@ set_option linter.style.maxHeartbeats false
 ```lean
 @[grind .]
 def prove1 (Γ : List Tp) (A : Tp) : Bool :=
-  _root_.Mathling.Lambek.ProductFree.translatedProve1 (fun A : Tp => A.toRight.toProductFree) Γ A
+  _root_.Mathling.Lambek.ProductFree.translatedProve1 Tp.toProductFree Γ A
 ```
 
 `proveAux` は深さ付き探索を表す。
@@ -36,7 +36,7 @@ def prove1 (Γ : List Tp) (A : Tp) : Bool :=
 @[grind .]
 def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
   _root_.Mathling.Lambek.ProductFree.translatedProveAux
-    (fun A : Tp => A.toRight.toProductFree) n Γ A
+    Tp.toProductFree n Γ A
 ```
 
 `prove2` は決定手続きとして使う最終版である。
@@ -44,7 +44,7 @@ def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
 ```lean
 @[grind .]
 def prove2 (Γ : List Tp) (A : Tp) : Bool :=
-  _root_.Mathling.Lambek.ProductFree.translatedProve2 (fun A : Tp => A.toRight.toProductFree) Γ A
+  _root_.Mathling.Lambek.ProductFree.translatedProve2 Tp.toProductFree Γ A
 ```
 
 ## 単調性と補助補題
@@ -57,7 +57,7 @@ lemma proveAux_mono {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) :
   proveAux (n + 1) Γ A := by
   simpa [proveAux] using
     (_root_.Mathling.Lambek.ProductFree.translatedProveAux_mono
-      (fun A : Tp => A.toRight.toProductFree) h)
+      Tp.toProductFree h)
 ```
 
 より大きい深さへの単調性も同様に従う。
@@ -68,7 +68,7 @@ lemma proveAux_mono_le {n m : Nat} {Γ : List Tp} {A : Tp} (h : n ≤ m) (hp : p
     proveAux m Γ A := by
   simpa [proveAux] using
     (_root_.Mathling.Lambek.ProductFree.translatedProveAux_mono_le
-      (fun A : Tp => A.toRight.toProductFree) h hp)
+      Tp.toProductFree h hp)
 ```
 
 深さ付き探索が成功すれば主探索も成功する。
@@ -78,7 +78,7 @@ lemma proveAux_mono_le {n m : Nat} {Γ : List Tp} {A : Tp} (h : n ≤ m) (hp : p
 lemma proveAux_sound {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) : prove1 Γ A := by
   simpa [prove1, proveAux] using
     (_root_.Mathling.Lambek.ProductFree.translatedProveAux_sound
-      (fun A : Tp => A.toRight.toProductFree) h)
+      Tp.toProductFree h)
 ```
 
 逆に、主探索の成功から十分大きい深さ付き探索が得られる。
@@ -88,7 +88,7 @@ lemma proveAux_sound {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) : p
 lemma proveAux_complete {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : prove2 Γ A := by
   simpa [prove1, prove2] using
     (_root_.Mathling.Lambek.ProductFree.translatedProveAux_complete
-      (fun A : Tp => A.toRight.toProductFree) h)
+      Tp.toProductFree h)
 ```
 
 したがって `prove1` と `prove2` は同値である。
@@ -97,7 +97,7 @@ lemma proveAux_complete {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : prove2 Γ A 
 lemma prove1_iff_prove2 {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ prove2 Γ A := by
   simpa [prove1, prove2] using
     (_root_.Mathling.Lambek.ProductFree.translatedProve1_iff_Prove2
-      (fun A : Tp => A.toRight.toProductFree) (Γ := Γ) (A := A))
+      Tp.toProductFree (Γ := Γ) (A := A))
 ```
 
 ## シーケント体系との一致
@@ -107,10 +107,9 @@ lemma prove1_iff_prove2 {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ prove2 Γ A :=
 ```lean
 @[grind .]
 lemma prove1_sound {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : Γ ⇒ A := by
-  simpa [prove1, Sequent, ctxToRight, Tp.toRight, _root_.Mathling.Lambek.ProductFree.Right.Sequent,
-    _root_.Mathling.Lambek.ProductFree.Right.ctxToProductFree] using
+  simpa [prove1, Sequent, ctxToProductFree, Tp.toProductFree] using
     (_root_.Mathling.Lambek.ProductFree.translatedProve1_sound
-      (fun A : Tp => A.toRight.toProductFree) h)
+      Tp.toProductFree h)
 ```
 
 シーケント導出から探索の成功も従う。
@@ -120,14 +119,11 @@ lemma prove1_sound {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : Γ ⇒ A := by
 lemma prove1_complete {Γ : List Tp} {A : Tp} (h : Γ ⇒ A) : prove1 Γ A := by
   have h_pf :
       _root_.Mathling.Lambek.ProductFree.Sequent
-        (List.map (fun A : Tp => A.toRight.toProductFree) Γ)
-        ((fun A : Tp => A.toRight.toProductFree) A) := by
-    simpa [Sequent, ctxToRight, Tp.toRight, _root_.Mathling.Lambek.ProductFree.Right.Sequent,
-      _root_.Mathling.Lambek.ProductFree.Right.ctxToProductFree,
-      _root_.Mathling.Lambek.ProductFree.Right.Tp.toProductFree] using h
+        (List.map Tp.toProductFree Γ) A.toProductFree := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree] using h
   simpa [prove1] using
     (_root_.Mathling.Lambek.ProductFree.translatedProve1_complete
-      (fun A : Tp => A.toRight.toProductFree) h_pf)
+      Tp.toProductFree h_pf)
 ```
 
 これで探索と導出の同値が得られる。
@@ -143,10 +139,9 @@ lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := b
 ```lean
 @[grind .]
 theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
-  simpa [prove2, Sequent, ctxToRight, Tp.toRight, _root_.Mathling.Lambek.ProductFree.Right.Sequent,
-    _root_.Mathling.Lambek.ProductFree.Right.ctxToProductFree] using
+  simpa [prove2, Sequent, ctxToProductFree, Tp.toProductFree] using
     (_root_.Mathling.Lambek.ProductFree.translatedProve2_iff_Sequent
-      (fun A : Tp => A.toRight.toProductFree) (Γ := Γ) (A := A))
+      Tp.toProductFree (Γ := Γ) (A := A))
 ```
 
 したがって shallow シーケントには `Decidable` instance が入る。

@@ -46,40 +46,38 @@ prefix:65 "#" => Tp.atom
 infixl:60 " ⧸ " => Tp.rdiv
 ```
 
-論理式ひとつの次数を定義する。
-
-```lean
-@[grind =]
-def tp_degree : Tp → Nat :=
-  fun
-  | .atom _ => 1
-  | .rdiv B A => tp_degree B + tp_degree A + 1
-```
-
-文脈全体の次数は要素ごとの和とする。
-
-```lean
-@[grind =]
-def list_degree : List Tp → Nat :=
-  fun
-  | [] => 0
-  | A :: Γ => tp_degree A + list_degree Γ
-```
-
-連結に対する加法性を示す。
-
-```lean
-@[grind =]
-lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
-  induction Γ <;> grind
-```
-
 各 right 論理式を一般の product-free 論理式へ写す。
 
 ```lean
 def Tp.toProductFree : Tp → _root_.Mathling.Lambek.ProductFree.Tp
   | .atom name => _root_.Mathling.Lambek.ProductFree.Tp.atom name
   | .rdiv B A => _root_.Mathling.Lambek.ProductFree.Tp.rdiv B.toProductFree A.toProductFree
+```
+
+論理式ひとつの次数は一般断片の次数を通じて定義する。
+
+```lean
+@[grind =]
+def tp_degree (A : Tp) : Nat :=
+  _root_.Mathling.Lambek.ProductFree.translatedTpDegree Tp.toProductFree A
+```
+
+文脈全体の次数も一般断片側の定義を再利用する。
+
+```lean
+@[grind =]
+def list_degree (Γ : List Tp) : Nat :=
+  _root_.Mathling.Lambek.ProductFree.translatedListDegree Tp.toProductFree Γ
+```
+
+連結に対する加法性も一般断片側から従う。
+
+```lean
+@[grind =]
+lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
+  simpa [list_degree] using
+    (_root_.Mathling.Lambek.ProductFree.translatedListDegree_traversible Tp.toProductFree
+      (Γ := Γ) (Δ := Δ))
 ```
 
 文脈も同じ写像で翻訳する。

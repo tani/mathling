@@ -1,6 +1,6 @@
     import Mathlib.Data.List.Basic
     import Mathlib.Data.Nat.Basic
-    import Mathling.Lambek.ProductFree.Left.Basic
+import Mathling.Lambek.ProductFree.Basic
     import LiterateLean
 
 # Left-Shallow Fragment of Product-Free Lambek Calculus
@@ -8,7 +8,7 @@
 このファイルでは、積を持たない Lambek 計算の left-shallow 断片を定義する。
 left-shallow 断片では、左除法の分母は原子式に限定される。
 
-基本的なメタ理論は `_root_.Mathling.Lambek.ProductFree.Left.Basic` に翻訳して再利用する。
+基本的なメタ理論は `_root_.Mathling.Lambek.ProductFree.Basic` に翻訳して再利用する。
 
 ```lean
 namespace Mathling.Lambek.ProductFree.Left.Shallow
@@ -45,82 +45,80 @@ prefix:65 "#" => Tp.atom
 infixr:60 " ⧹ " => Tp.ldiv
 ```
 
-次数は shallow な構文に合わせて定義する。
+各 shallow 論理式を一般の product-free 論理式へ直接写す。
+
+```lean
+def Tp.toProductFree : Tp → _root_.Mathling.Lambek.ProductFree.Tp
+  | .atom name => _root_.Mathling.Lambek.ProductFree.Tp.atom name
+  | .ldiv A B =>
+      _root_.Mathling.Lambek.ProductFree.Tp.ldiv
+        (_root_.Mathling.Lambek.ProductFree.Tp.atom A)
+        (_root_.Mathling.Lambek.ProductFree.Tp.atom B)
+```
+
+次数は一般断片の次数を通じて定義する。
 
 ```lean
 @[grind =]
-def tp_degree : Tp → Nat :=
-  fun
-  | Tp.atom _ => 1
-  | Tp.ldiv _ _ => 3
+def tp_degree (A : Tp) : Nat :=
+  _root_.Mathling.Lambek.ProductFree.translatedTpDegree Tp.toProductFree A
 ```
 
-文脈の次数は要素ごとの次数の和である。
+文脈の次数も一般断片側の定義を再利用する。
 
 ```lean
 @[grind =]
-def list_degree : List Tp → Nat :=
-  fun
-  | [] => 0
-  | A :: Γ => tp_degree A + list_degree Γ
+def list_degree (Γ : List Tp) : Nat :=
+  _root_.Mathling.Lambek.ProductFree.translatedListDegree Tp.toProductFree Γ
 ```
 
-連結に対する加法性も記録しておく。
+連結に対する加法性も一般断片から従う。
 
 ```lean
 @[grind =]
 lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
-  induction Γ <;> grind
+  simpa [list_degree] using
+    (_root_.Mathling.Lambek.ProductFree.translatedListDegree_traversible Tp.toProductFree
+      (Γ := Γ) (Δ := Δ))
 ```
 
-## 一般 left 断片への翻訳
+## 一般断片への翻訳
 
-left-shallow の定理は left 断片への翻訳から得る。
-
-各 shallow 論理式を left 断片へ写す。
-
-```lean
-def Tp.toLeft : Tp → _root_.Mathling.Lambek.ProductFree.Left.Tp
-  | .atom name => _root_.Mathling.Lambek.ProductFree.Left.Tp.atom name
-  | .ldiv A B =>
-      _root_.Mathling.Lambek.ProductFree.Left.Tp.ldiv
-        (_root_.Mathling.Lambek.ProductFree.Left.Tp.atom A)
-        (_root_.Mathling.Lambek.ProductFree.Left.Tp.atom B)
-```
+left-shallow の定理は一般の product-free 断片への翻訳から得る。
 
 文脈も同じ写像で翻訳する。
 
 ```lean
-def ctxToLeft : List Tp → List _root_.Mathling.Lambek.ProductFree.Left.Tp :=
-  List.map Tp.toLeft
+def ctxToProductFree : List Tp → List _root_.Mathling.Lambek.ProductFree.Tp :=
+  List.map Tp.toProductFree
 ```
 
 空文脈の翻訳は自明である。
 
 ```lean
-@[simp] lemma ctxToLeft_nil : ctxToLeft [] = [] := rfl
+@[simp] lemma ctxToProductFree_nil : ctxToProductFree [] = [] := rfl
 ```
 
 先頭要素を付けた文脈の翻訳も簡約できる。
 
 ```lean
-@[simp] lemma ctxToLeft_cons :
-    ctxToLeft (A :: Γ) = A.toLeft :: ctxToLeft Γ := rfl
+@[simp] lemma ctxToProductFree_cons :
+    ctxToProductFree (A :: Γ) = A.toProductFree :: ctxToProductFree Γ := rfl
 ```
 
 連結についても翻訳が分配される。
 
 ```lean
-@[simp] lemma ctxToLeft_append :
-    ctxToLeft (Γ ++ Δ) = ctxToLeft Γ ++ ctxToLeft Δ := by
-  simp [ctxToLeft]
+@[simp] lemma ctxToProductFree_append :
+    ctxToProductFree (Γ ++ Δ) = ctxToProductFree Γ ++ ctxToProductFree Δ := by
+  simp [ctxToProductFree]
 ```
 
-shallow シーケントは left 断片のシーケントとして実装する。
+shallow シーケントは一般断片のシーケントとして実装する。
 
 ```lean
 def Sequent (Γ : List Tp) (A : Tp) : Prop :=
-  _root_.Mathling.Lambek.ProductFree.Left.Sequent (ctxToLeft Γ) A.toLeft
+  _root_.Mathling.Lambek.ProductFree.Sequent (ctxToProductFree Γ) A.toProductFree
 ```
 
 ## shallow 規則
@@ -135,9 +133,9 @@ namespace Sequent
 
 ```lean
 theorem ax : Sequent [A] A := by
-  simpa [Sequent, ctxToLeft, Tp.toLeft] using
-    (_root_.Mathling.Lambek.ProductFree.Left.Sequent.ax :
-      _root_.Mathling.Lambek.ProductFree.Left.Sequent [A.toLeft] A.toLeft)
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
+    (_root_.Mathling.Lambek.ProductFree.Sequent.ax :
+      _root_.Mathling.Lambek.ProductFree.Sequent [A.toProductFree] A.toProductFree)
 ```
 
 右導入規則は left 断片側の定理を持ち上げる。
@@ -147,19 +145,9 @@ theorem ldiv_r
   (h_ne : Γ ≠ [])
   (h : Sequent ([Tp.atom A] ++ Γ) (Tp.atom B)) :
   Sequent Γ (Tp.ldiv A B) := by
-  have h_ne_left : ctxToLeft Γ ≠ [] := by
-    cases Γ <;> simp at h_ne ⊢
-  have h_left :
-      _root_.Mathling.Lambek.ProductFree.Left.Sequent
-        ([_root_.Mathling.Lambek.ProductFree.Left.Tp.atom A] ++ ctxToLeft Γ)
-        (_root_.Mathling.Lambek.ProductFree.Left.Tp.atom B) := by
-    simpa [Sequent, ctxToLeft, Tp.toLeft] using h
-  simpa [Sequent, ctxToLeft, Tp.toLeft] using
-    (_root_.Mathling.Lambek.ProductFree.Left.Sequent.ldiv_r
-      (Γ := ctxToLeft Γ)
-      (A := _root_.Mathling.Lambek.ProductFree.Left.Tp.atom A)
-      (B := _root_.Mathling.Lambek.ProductFree.Left.Tp.atom B)
-      h_ne_left h_left)
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
+    (_root_.Mathling.Lambek.ProductFree.Sequent.ldiv_r
+      (by simpa using h_ne) h)
 ```
 
 左導入規則も翻訳先からそのまま再利用する。
@@ -169,20 +157,20 @@ theorem ldiv_l
   (h_arg : Sequent Δ (Tp.atom A))
   (h_main : Sequent (Γ ++ [Tp.atom B] ++ Λ) C) :
   Sequent (Γ ++ Δ ++ [Tp.ldiv A B] ++ Λ) C := by
-  have h_main_left :
-      _root_.Mathling.Lambek.ProductFree.Left.Sequent
-        (ctxToLeft Γ ++ [_root_.Mathling.Lambek.ProductFree.Left.Tp.atom B] ++ ctxToLeft Λ)
-        C.toLeft := by
-    simpa [Sequent, ctxToLeft, Tp.toLeft, List.append_assoc] using h_main
-  simpa [Sequent, ctxToLeft, Tp.toLeft, List.append_assoc] using
-    (_root_.Mathling.Lambek.ProductFree.Left.Sequent.ldiv_l
-      (Δ := ctxToLeft Δ)
-      (A := _root_.Mathling.Lambek.ProductFree.Left.Tp.atom A)
-      (Γ := ctxToLeft Γ)
-      (B := _root_.Mathling.Lambek.ProductFree.Left.Tp.atom B)
-      (Λ := ctxToLeft Λ)
-      (C := C.toLeft)
-      h_arg h_main_left)
+  have h_main_pf :
+      _root_.Mathling.Lambek.ProductFree.Sequent
+        (ctxToProductFree Γ ++ [_root_.Mathling.Lambek.ProductFree.Tp.atom B] ++ ctxToProductFree Λ)
+        C.toProductFree := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree, List.append_assoc] using h_main
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree, List.append_assoc] using
+    (_root_.Mathling.Lambek.ProductFree.Sequent.ldiv_l
+      (Δ := ctxToProductFree Δ)
+      (A := _root_.Mathling.Lambek.ProductFree.Tp.atom A)
+      (Γ := ctxToProductFree Γ)
+      (B := _root_.Mathling.Lambek.ProductFree.Tp.atom B)
+      (Λ := ctxToProductFree Λ)
+      (C := C.toProductFree)
+      h_arg h_main_pf)
 ```
 
 規則定義の名前空間をここで閉じる。
@@ -207,8 +195,8 @@ lemma nonempty_premises
   (h : _root_.Mathling.Lambek.ProductFree.Left.Shallow.Sequent Γ A) : Γ ≠ [] := by
   cases Γ with
   | nil =>
-      simpa [Sequent, ctxToLeft] using
-        (_root_.Mathling.Lambek.ProductFree.Left.nonempty_premises h)
+      simpa [Sequent, ctxToProductFree] using
+        (_root_.Mathling.Lambek.ProductFree.nonempty_premises h)
   | cons => simp
 ```
 
@@ -228,18 +216,15 @@ theorem cut_admissible
   (d_left : _root_.Mathling.Lambek.ProductFree.Left.Shallow.Sequent Γ A)
   (d_right : _root_.Mathling.Lambek.ProductFree.Left.Shallow.Sequent (Δ ++ [A] ++ Λ) B) :
   _root_.Mathling.Lambek.ProductFree.Left.Shallow.Sequent (Δ ++ Γ ++ Λ) B := by
-  have d_left_left :
-      _root_.Mathling.Lambek.ProductFree.Left.Sequent (ctxToLeft Γ) A.toLeft := by
-    simpa [Sequent, ctxToLeft, Tp.toLeft] using d_left
-  have d_right_left :
-      _root_.Mathling.Lambek.ProductFree.Left.Sequent
-        (ctxToLeft Δ ++ [A.toLeft] ++ ctxToLeft Λ) B.toLeft := by
-    simpa [Sequent, ctxToLeft, Tp.toLeft, List.append_assoc] using d_right
-  have h_cut :
-      _root_.Mathling.Lambek.ProductFree.Left.Sequent
-        (ctxToLeft Δ ++ ctxToLeft Γ ++ ctxToLeft Λ) B.toLeft := by
-    exact _root_.Mathling.Lambek.ProductFree.Left.cut_admissible d_left_left d_right_left
-  simpa [Sequent, ctxToLeft, Tp.toLeft, List.append_assoc] using h_cut
+  have d_left_pf :
+      _root_.Mathling.Lambek.ProductFree.Sequent (ctxToProductFree Γ) A.toProductFree := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree] using d_left
+  have d_right_pf :
+      _root_.Mathling.Lambek.ProductFree.Sequent
+        (ctxToProductFree Δ ++ [A.toProductFree] ++ ctxToProductFree Λ) B.toProductFree := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree, List.append_assoc] using d_right
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree, List.append_assoc] using
+    (_root_.Mathling.Lambek.ProductFree.cut_admissible d_left_pf d_right_pf)
 ```
 
 左除法の右規則の逆転可能性も再輸出する。
@@ -248,11 +233,11 @@ theorem cut_admissible
 theorem ldiv_invertible {Γ : List Tp} {A B : String}
   (h : _root_.Mathling.Lambek.ProductFree.Left.Shallow.Sequent Γ (Tp.ldiv A B)) :
   _root_.Mathling.Lambek.ProductFree.Left.Shallow.Sequent ([Tp.atom A] ++ Γ) (Tp.atom B) := by
-  simpa [Sequent, ctxToLeft, Tp.toLeft] using
-    (_root_.Mathling.Lambek.ProductFree.Left.ldiv_invertible
-      (Γ := ctxToLeft Γ)
-      (A := _root_.Mathling.Lambek.ProductFree.Left.Tp.atom A)
-      (B := _root_.Mathling.Lambek.ProductFree.Left.Tp.atom B)
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
+    (_root_.Mathling.Lambek.ProductFree.ldiv_invertible
+      (Γ := ctxToProductFree Γ)
+      (A := _root_.Mathling.Lambek.ProductFree.Tp.atom A)
+      (B := _root_.Mathling.Lambek.ProductFree.Tp.atom B)
       h)
 ```
 
@@ -261,7 +246,7 @@ theorem ldiv_invertible {Γ : List Tp} {A B : String}
 ```lean
 @[grind]
 def is_atom (A : Tp) : Prop :=
-  _root_.Mathling.Lambek.ProductFree.translatedIsAtom (fun A => A.toLeft.toProductFree) A
+  _root_.Mathling.Lambek.ProductFree.translatedIsAtom Tp.toProductFree A
 ```
 
 原子式のみの文脈から導出できる原子式は公理の場合に限られる。
@@ -271,33 +256,29 @@ theorem atom_generation {Γ : List Tp} {s : String}
   (h_ctx : ∀ x ∈ Γ, is_atom x)
   (h_der : _root_.Mathling.Lambek.ProductFree.Left.Shallow.Sequent Γ (Tp.atom s)) :
   Γ = [Tp.atom s] := by
-  have h_ctx_left :
-      ∀ x ∈ ctxToLeft Γ, _root_.Mathling.Lambek.ProductFree.Left.is_atom x := by
+  have h_ctx_pf :
+      ∀ x ∈ ctxToProductFree Γ, _root_.Mathling.Lambek.ProductFree.is_atom x := by
     intro x hx
     rcases List.mem_map.mp hx with ⟨y, hy, rfl⟩
-    simpa [is_atom, Tp.toLeft, _root_.Mathling.Lambek.ProductFree.Left.is_atom,
+    simpa [is_atom, Tp.toProductFree, _root_.Mathling.Lambek.ProductFree.is_atom,
       _root_.Mathling.Lambek.ProductFree.translatedIsAtom] using h_ctx y hy
-  have h_left :
-      ctxToLeft Γ = [_root_.Mathling.Lambek.ProductFree.Left.Tp.atom s] := by
-    have h_der_left :
-        _root_.Mathling.Lambek.ProductFree.Left.Sequent (ctxToLeft Γ)
-          (_root_.Mathling.Lambek.ProductFree.Left.Tp.atom s) := by
-      simpa [Sequent, ctxToLeft, Tp.toLeft] using h_der
-    simpa [Sequent, ctxToLeft, Tp.toLeft] using
-      (_root_.Mathling.Lambek.ProductFree.Left.atom_generation h_ctx_left h_der_left)
+  have h_pf :
+      ctxToProductFree Γ = [_root_.Mathling.Lambek.ProductFree.Tp.atom s] := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
+      (_root_.Mathling.Lambek.ProductFree.atom_generation h_ctx_pf h_der)
   cases Γ with
   | nil =>
-      simp [ctxToLeft] at h_left
+      simp [ctxToProductFree] at h_pf
   | cons x xs =>
       cases x with
       | atom name =>
           cases xs with
           | nil =>
-              simpa [ctxToLeft, Tp.toLeft] using h_left
+              simpa [ctxToProductFree, Tp.toProductFree] using h_pf
           | cons y ys =>
-              simp [ctxToLeft] at h_left
+              simp [ctxToProductFree] at h_pf
       | ldiv A B =>
-          simp [ctxToLeft, Tp.toLeft] at h_left
+          simp [ctxToProductFree, Tp.toProductFree] at h_pf
 ```
 
 最後に名前空間を閉じる。
