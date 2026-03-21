@@ -515,6 +515,38 @@ theorem atom_generation
       grind
 ```
 
+## 翻訳ラッパ用の共通 utility
+
+他の断片では、各論理式をこの一般断片へ翻訳して基本補題を再利用する。
+そのための薄い helper をここにまとめて置く。
+
+```lean
+def translatedTpDegree (toProductFree : α → Tp) (A : α) : Nat :=
+  tp_degree (toProductFree A)
+```
+
+```lean
+def translatedListDegree (toProductFree : α → Tp) (Γ : List α) : Nat :=
+  list_degree (Γ.map toProductFree)
+```
+
+```lean
+lemma translatedListDegree_traversible (toProductFree : α → Tp) :
+    translatedListDegree toProductFree (Γ ++ Δ) =
+      translatedListDegree toProductFree Γ + translatedListDegree toProductFree Δ := by
+  simp [translatedListDegree, list_degree_traversible]
+```
+
+```lean
+def translatedIsAtom (toProductFree : α → Tp) (A : α) : Prop :=
+  is_atom (toProductFree A)
+```
+
+```lean
+lemma translatedNonemptyAppend (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
+  exact nonempty_append h
+```
+
 ```lean
 end Mathling.Lambek.ProductFree
 ```

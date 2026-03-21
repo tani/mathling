@@ -534,6 +534,113 @@ example : [Tp.atom "p", Tp.ldiv (Tp.atom "p") (Tp.atom "q")] ⇒ Tp.atom "q" :=
   by decide
 ```
 
+## 翻訳ラッパ用の共通 helper
+
+部分断片の決定手続きは、各断片から一般断片への翻訳を与えるだけで再利用できる。
+そのための補助定義と補題をここにまとめる。
+
+```lean
+def translatedProve1 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool :=
+  prove1 (Γ.map toProductFree) (toProductFree A)
+```
+
+```lean
+def translatedProveAux (toProductFree : α → Tp) (n : Nat) (Γ : List α) (A : α) : Bool :=
+  proveAux n (Γ.map toProductFree) (toProductFree A)
+```
+
+```lean
+def translatedProve2 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool :=
+  prove2 (Γ.map toProductFree) (toProductFree A)
+```
+
+```lean
+lemma translatedProveAux_mono
+    (toProductFree : α → Tp)
+    {n : Nat} {Γ : List α} {A : α}
+    (h : translatedProveAux toProductFree n Γ A) :
+    translatedProveAux toProductFree (n + 1) Γ A := by
+  simpa [translatedProveAux] using
+    (proveAux_mono (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+```
+
+```lean
+lemma translatedProveAux_mono_le
+    (toProductFree : α → Tp)
+    {n m : Nat} {Γ : List α} {A : α}
+    (h : n ≤ m) (hp : translatedProveAux toProductFree n Γ A) :
+    translatedProveAux toProductFree m Γ A := by
+  simpa [translatedProveAux] using
+    (proveAux_mono_le (Γ := Γ.map toProductFree) (A := toProductFree A) h hp)
+```
+
+```lean
+lemma translatedProveAux_sound
+    (toProductFree : α → Tp)
+    {n : Nat} {Γ : List α} {A : α}
+    (h : translatedProveAux toProductFree n Γ A) :
+    translatedProve1 toProductFree Γ A := by
+  simpa [translatedProve1, translatedProveAux] using
+    (proveAux_sound (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+```
+
+```lean
+lemma translatedProveAux_complete
+    (toProductFree : α → Tp)
+    {Γ : List α} {A : α}
+    (h : translatedProve1 toProductFree Γ A) :
+    translatedProve2 toProductFree Γ A := by
+  simpa [translatedProve1, translatedProve2] using
+    (proveAux_complete (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+```
+
+```lean
+lemma translatedProve1_iff_Prove2
+    (toProductFree : α → Tp)
+    {Γ : List α} {A : α} :
+    translatedProve1 toProductFree Γ A ↔ translatedProve2 toProductFree Γ A := by
+  simpa [translatedProve1, translatedProve2] using
+    (prove1_iff_prove2 (Γ := Γ.map toProductFree) (A := toProductFree A))
+```
+
+```lean
+lemma translatedProve1_sound
+    (toProductFree : α → Tp)
+    {Γ : List α} {A : α}
+    (h : translatedProve1 toProductFree Γ A) :
+    Sequent (Γ.map toProductFree) (toProductFree A) := by
+  simpa [translatedProve1] using
+    (prove1_sound (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+```
+
+```lean
+lemma translatedProve1_complete
+    (toProductFree : α → Tp)
+    {Γ : List α} {A : α}
+    (h : Sequent (Γ.map toProductFree) (toProductFree A)) :
+    translatedProve1 toProductFree Γ A := by
+  simpa [translatedProve1] using
+    (prove1_complete (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+```
+
+```lean
+lemma translatedProve1_iff_Sequent
+    (toProductFree : α → Tp)
+    {Γ : List α} {A : α} :
+    translatedProve1 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by
+  constructor
+  · apply translatedProve1_sound toProductFree
+  · apply translatedProve1_complete toProductFree
+```
+
+```lean
+theorem translatedProve2_iff_Sequent
+    (toProductFree : α → Tp)
+    {Γ : List α} {A : α} :
+    translatedProve2 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by
+  rw [← translatedProve1_iff_Prove2, translatedProve1_iff_Sequent]
+```
+
 ```lean
 end Mathling.Lambek.ProductFree
 ```

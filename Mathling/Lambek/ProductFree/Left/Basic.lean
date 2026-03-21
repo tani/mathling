@@ -1,6 +1,13 @@
+    import Mathlib.Data.List.Basic
     import Mathlib.Data.Nat.Basic
-import Mathlib.Data.List.Basic
-import LiterateLean
+    import Mathling.Lambek.ProductFree.Basic
+    import LiterateLean
+
+# Left Fragment of Product-Free Lambek Calculus
+
+このファイルでは、積を持たない Lambek 計算の left 断片を定義する。
+left 断片では左除法だけを許し、基本的なメタ理論は
+`Mathling.Lambek.ProductFree.Basic` への翻訳で再利用する。
 
 まず left 断片の名前空間を開く。
 
@@ -8,7 +15,7 @@ import LiterateLean
 namespace Mathling.Lambek.ProductFree.Left
 ```
 
-この literate ファイルでは、コードブロック単位で style 抑止を管理する。
+この literate ファイルでは、style と heartbeat に関する設定を独立した Lean コードブロックに分けて置く。
 
 ```lean
 set_option linter.style.emptyLine false
@@ -17,79 +24,47 @@ set_option linter.style.setOption false
 set_option linter.style.maxHeartbeats false
 ```
 
-## 論理式の定義
-
-原子式（atom）は文字列（String）を用いて識別され、左除法演算子を再帰的に適用することで、任意の論理式を構成する。
+まず、left 断片の論理式を定義する。
 
 ```lean
 @[grind cases]
 inductive Tp where
   | atom (name : String) : Tp
-  | ldiv (A B : Tp)      : Tp
+  | ldiv (A B : Tp) : Tp
   deriving Repr, DecidableEq
 ```
 
-## シーケント体系
-
-利便性のために、原子式、左除法の記法を導入する。
-
-原子式と左除法の記法をここで導入する。
+原子式の記法を導入する。
 
 ```lean
 prefix:65 "#" => Tp.atom
-infixr:60 " ⧹ " => Tp.ldiv
 ```
 
-## シーケント体系の定義
-
-Lambek 計算のシーケント $Γ ⇒ A$ は、前提となる論理式の空でないリスト $Γ$ から、単一の結論 $A$ が導出可能であることを表す。
-ここでは、カット規則を含まない、カットフリーなシーケント体系を帰納的に定義する。
-
-- $A, Γ ⇒ B$ が導出可能であるとき $Γ ⇒ A \backslash B$ が導出可能
-- $Δ ⇒ A$ と $Γ, B, Λ ⇒ C$ が導出可能であるとき $Γ, Δ, A \backslash B, Λ ⇒ C$ が導出可能
+左除法の記法を導入する。
 
 ```lean
-@[grind intro]
-inductive Sequent : List Tp → Tp → Prop where
-  | ax : Sequent [A] A
-  | ldiv_r :
-      Γ ≠ [] →
-      Sequent ([A] ++ Γ) B →
-      Sequent Γ (A ⧹ B)
-  | ldiv_l :
-      Sequent Δ A →
-      Sequent (Γ ++ [B] ++ Λ) C →
-      Sequent (Γ ++ Δ ++ [A ⧹ B] ++ Λ) C
-
-infixl:50 " ⇒ " => Sequent
+infixr:60 " ⧹ " => Tp.ldiv
 ```
-
-## 次数（Degree）の定義
-
-証明の停止性や帰納法のために、論理式およびリストの「次数（サイズ）」を定義する。
-ここでは、原子式の次数を 1 とし、演算子の次数を 1 と定義する。これらの総和を次数と呼ぶ。
-
 
 論理式ひとつの次数を定義する。
 
 ```lean
 @[grind =]
-def tp_degree : Tp → Nat
-  | # _     => 1
-  | A ⧹ B   => tp_degree A + tp_degree B + 1
+def tp_degree : Tp → Nat :=
+  fun
+  | .atom _ => 1
+  | .ldiv A B => tp_degree A + tp_degree B + 1
 ```
 
 文脈全体の次数は要素ごとの和とする。
 
 ```lean
 @[grind =]
-def list_degree : List Tp → Nat
-  | []        => 0
-  | A :: Γ    => tp_degree A + list_degree Γ
+def list_degree : List Tp → Nat :=
+  fun
+  | [] => 0
+  | A :: Γ => tp_degree A + list_degree Γ
 ```
-
-## 証明の停止性
-リストの次数は、そのリストに含まれる各論理式の次数の総和に等しい。
 
 連結に対する加法性を示す。
 
@@ -99,229 +74,216 @@ lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_d
   induction Γ <;> grind
 ```
 
-## シーケントの基本的な性質
+各 left 論理式を一般の product-free 論理式へ写す。
 
-シーケント計算の定義から、導出可能なシーケントの左辺は必ず空ではない。
+```lean
+def Tp.toProductFree : Tp → _root_.Mathling.Lambek.ProductFree.Tp
+  | .atom name => _root_.Mathling.Lambek.ProductFree.Tp.atom name
+  | .ldiv A B => _root_.Mathling.Lambek.ProductFree.Tp.ldiv A.toProductFree B.toProductFree
+```
+
+文脈も同じ写像で翻訳する。
+
+```lean
+def ctxToProductFree : List Tp → List _root_.Mathling.Lambek.ProductFree.Tp :=
+  List.map Tp.toProductFree
+```
+
+空文脈の翻訳は自明である。
+
+```lean
+@[simp] lemma ctxToProductFree_nil : ctxToProductFree [] = [] := rfl
+```
+
+先頭要素を付けた文脈の翻訳も簡約できる。
+
+```lean
+@[simp] lemma ctxToProductFree_cons :
+    ctxToProductFree (A :: Γ) = A.toProductFree :: ctxToProductFree Γ := rfl
+```
+
+連結についても翻訳が分配される。
+
+```lean
+@[simp] lemma ctxToProductFree_append :
+    ctxToProductFree (Γ ++ Δ) = ctxToProductFree Γ ++ ctxToProductFree Δ := by
+  simp [ctxToProductFree]
+```
+
+left シーケントは一般断片のシーケントとして実装する。
+
+```lean
+def Sequent (Γ : List Tp) (A : Tp) : Prop :=
+  _root_.Mathling.Lambek.ProductFree.Sequent (ctxToProductFree Γ) A.toProductFree
+```
+
+以下では left 規則をまとめる名前空間を開く。
+
+```lean
+namespace Sequent
+```
+
+公理規則は翻訳先の公理そのものである。
+
+```lean
+theorem ax : Sequent [A] A := by
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
+    (_root_.Mathling.Lambek.ProductFree.Sequent.ax :
+      _root_.Mathling.Lambek.ProductFree.Sequent [A.toProductFree] A.toProductFree)
+```
+
+左除法の右規則は一般断片側の定理を持ち上げる。
+
+```lean
+theorem ldiv_r
+  (h_ne : Γ ≠ [])
+  (h : Sequent ([A] ++ Γ) B) :
+  Sequent Γ (A ⧹ B) := by
+  have h_ne_pf : ctxToProductFree Γ ≠ [] := by
+    cases Γ <;> simp at h_ne ⊢
+  have h_pf :
+      _root_.Mathling.Lambek.ProductFree.Sequent
+        ([A.toProductFree] ++ ctxToProductFree Γ)
+        B.toProductFree := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree] using h
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
+    (_root_.Mathling.Lambek.ProductFree.Sequent.ldiv_r
+      (Γ := ctxToProductFree Γ)
+      (A := A.toProductFree)
+      (B := B.toProductFree)
+      h_ne_pf h_pf)
+```
+
+左除法の左規則も翻訳先からそのまま再利用する。
+
+```lean
+theorem ldiv_l
+  (h_arg : Sequent Δ A)
+  (h_main : Sequent (Γ ++ [B] ++ Λ) C) :
+  Sequent (Γ ++ Δ ++ [A ⧹ B] ++ Λ) C := by
+  have h_main_pf :
+      _root_.Mathling.Lambek.ProductFree.Sequent
+        (ctxToProductFree Γ ++ [B.toProductFree] ++ ctxToProductFree Λ)
+        C.toProductFree := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree, List.append_assoc] using h_main
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree, List.append_assoc] using
+    (_root_.Mathling.Lambek.ProductFree.Sequent.ldiv_l
+      (Δ := ctxToProductFree Δ)
+      (A := A.toProductFree)
+      (Γ := ctxToProductFree Γ)
+      (B := B.toProductFree)
+      (Λ := ctxToProductFree Λ)
+      (C := C.toProductFree)
+      h_arg h_main_pf)
+```
+
+規則定義の名前空間をここで閉じる。
+
+```lean
+end Sequent
+```
+
+読みやすさのため left 断片側の記法を与える。
+
+```lean
+infixl:50 " ⇒ " => Sequent
+```
+
+導出可能なシーケントは空文脈を持たない。
 
 ```lean
 @[grind =>]
-lemma nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
-  induction h <;> grind [List.append_eq_nil_iff]
+lemma nonempty_premises (h : _root_.Mathling.Lambek.ProductFree.Left.Sequent Γ A) : Γ ≠ [] := by
+  cases Γ with
+  | nil =>
+      simpa [Sequent, ctxToProductFree] using
+        (_root_.Mathling.Lambek.ProductFree.nonempty_premises h)
+  | cons => simp
 ```
 
-シーケントの左辺に関する導入規則について特に、
-空でないリストを含む連結リストもまた空ではない。
+非空文脈を含む連結もやはり非空である。
 
 ```lean
 @[grind =>]
 lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
-  grind only [List.append_eq_nil_iff]
+  exact _root_.Mathling.Lambek.ProductFree.translatedNonemptyAppend h
 ```
 
-## リスト分割に関する補題
-
-カット除去定理の証明において、リストの中に特定の論理式が含まれている場合の分割パターンを
-網羅的に扱うための補題が必要となる。
-
-リストの途中に特定の論理式 $α$ が含まれている場合、このリストを複数に分割した際、
-$α$ はいずれかの断片に必ず含まれることになる。
-ここでは $n = 4$ までの分割を考える。
-
-例えば、$Γ₁, α, Γ₂ = Δ₁, Δ₂$ である時、$α$ が $Δ₁$ に含まれるか $Δ₂$ に含まれるか
-の２通りが考えられる。
-
-2 分割の場合分けをまず示す。
+カット許容性は一般断片での結果を翻訳して得る。
 
 ```lean
-lemma list_split_2_cases
-  (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂) :
-  (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂) ∨
-  (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R) := by
-  simp only [List.append_assoc, List.cons_append, List.nil_append] at h
-  rcases List.append_eq_append_iff.mp h with ⟨m, rfl, hm⟩ | ⟨m, rfl, hm⟩
-  · simp [List.cons_eq_append_iff] at hm
-    grind
-  · grind
-```
-
-3 分割の場合分けは 2 分割補題を使って導く。
-
-```lean
-lemma list_split_3_cases
-  (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃) :
-  (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂ ++ Δ₃) ∨
-  (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R ++ Δ₃) ∨
-  (∃ L R, Δ₃ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ Δ₂ ++ L ∧ Γ₂ = R) := by
-  rcases list_split_2_cases (by simpa using h)
-    with ⟨R, h1, h2⟩ | ⟨L, R, h1, h2, h3⟩
-  · grind
-  · rcases list_split_2_cases h1.symm with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
-```
-
-4 分割の場合分けも同様に段階的に導く。
-
-```lean
-lemma list_split_4_cases
-  (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃ ++ Δ₄) :
-  (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂ ++ Δ₃ ++ Δ₄)
-  ∨ (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R ++ Δ₃ ++ Δ₄)
-  ∨ (∃ L R, Δ₃ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ Δ₂ ++ L ∧ Γ₂ = R ++ Δ₄)
-  ∨ (∃ L R, Δ₄ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ Δ₂ ++ Δ₃ ++ L ∧ Γ₂ = R) := by
-  rcases list_split_2_cases (by simpa using h)
-    with ⟨R, h1, h2⟩ | ⟨L, R, h1, h2, h3⟩
-  · grind
-  · rcases list_split_3_cases (by simpa using h1.symm)
-    with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
-```
-
-
-### カット除去の証明戦略
-
-この定理の証明は、カット論理式の次数と導出の深さに関する二重帰納法に基づいている。
-
-```mermaid
-graph TD
-    Start["カット除去の証明戦略 (Left)"] --> CaseL{左側の証明}
-    CaseL -- "公理 ax" --> DoneAx["Γ = [A] より自明"]
-    CaseL -- "導入規則" --> CaseR{右側の証明}
-    CaseR -- "導入規則" --> IsPrincipal{カット論理式は主要か？}
-    IsPrincipal -- "主要ケース" --> Principal["除法を分解して還元"]
-```
-
-## カット除去定理（演繹の許容性）
-
-Lambek 計算において、カット規則は **許容的（Admissible）** である。
-すなわち、カット規則を用いて導出可能なシーケントは、
-カット規則を使用しない体系（カットなしの体系）においても導出できる。
-
-重い証明なので heartbeat 上限だけ局所的に緩める。
-
-```lean
-set_option maxHeartbeats 1000000 in
-@[grind =>]
 theorem cut_admissible
-  (d_left : Γ ⇒ A)
-  (d_right : Δ ++ [A] ++ Λ ⇒ B) :
-  Δ ++ Γ ++ Λ ⇒ B := by
-    let deg := list_degree (Δ ++ Γ ++ Λ) + tp_degree A + tp_degree B
-    generalize h_n : deg = n
-    induction n using Nat.strong_induction_on generalizing Γ Δ Λ A B
-    next n ih =>
-      subst h_n
-      cases d_left with
-      | ax => grind
-      | ldiv_r h_ne_L d_inner_L =>
-        rename_i A₁ A₂
-        have h_der_A : Γ ⇒ A₁ ⧹ A₂ := by grind
-        generalize d_right_eq_x : Δ ++ [A₁ ⧹ A₂] ++ Λ = ContextRight at d_right
-        cases d_right with
-        | ax => grind only [List.cons_eq_cons, List.append_assoc, List.append_cons,
-          List.append_eq_nil_iff, List.append_eq_singleton_iff, Sequent.ldiv_r]
-        | ldiv_r h_ne_R d_inner_R =>
-          rename_i C D
-          let m := list_degree ([C] ++ Δ ++ Γ ++ Λ) + tp_degree (A₁ ⧹ A₂) + tp_degree D
-          have h_deg_lt : m < deg := by grind
-          have d_permuted_inner : [C] ++ Δ ++ [ A₁ ⧹ A₂ ] ++ Λ ⇒ D := by grind
-          have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by grind
-          grind
-        | ldiv_l d_arg d_main =>
-          rename_i Δ_arg A_arg Γ_L B_res Γ_R
-          rcases list_split_4_cases d_right_eq_x
-            with ⟨R, rfl, rfl⟩
-               | ⟨L, R, rfl, rfl, rfl⟩
-               | ⟨L, R, h_princ, rfl, rfl⟩
-               | ⟨L, R, rfl, rfl, rfl⟩
-          · let m := list_degree (Δ ++ Γ ++ (R ++ [B_res] ++ Γ_R)) +
-                     tp_degree (A₁ ⧹ A₂) + tp_degree B
-            have h_deg_lt : m < deg := by grind
-            have d_cut_main : Δ ++ Γ ++ R ++ [B_res] ++ Γ_R ⇒ B := by grind
-            have d_reconstructed : Δ ++ Γ ++ R ++ Δ_arg ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
-            grind
-          · let m := list_degree (L ++ Γ ++ R) + tp_degree A_arg + tp_degree B
-            have h_deg_lt : m < deg := by
-              grind only [list_degree, tp_degree, list_degree_traversible]
-            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
-            have d_reconstructed : Γ_L ++ (L ++ Γ ++ R) ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
-            grind
-          · have h_eq_decomp: [A_arg ⧹ B_res] = L ++ [A₁ ⧹ A₂] ++ R
-                               → L = [] ∧ R = [] ∧ A_arg = A₁ ∧ B_res = A₂ := by
-              grind [List.singleton_eq_append_iff]
-            have h_decomp: L = [] ∧ R = [] ∧ A_arg = A₁ ∧ B_res = A₂ := by grind
-            let m1 := list_degree (Γ_L ++ ([A₁] ++ Γ) ++ Γ_R) + tp_degree A₂ + tp_degree B
-            have h_deg_lt_princ : m1 < deg := by
-              grind only [list_degree, tp_degree, list_degree_traversible]
-            have d_reduced : Γ_L ++ Δ_arg ++ Γ ++ Γ_R ⇒ B := by grind
-            grind
-          · let m := list_degree (Γ_L ++ [B_res] ++ L ++ Γ ++ Λ) + tp_degree (A₁ ⧹ A₂) + tp_degree B
-            have h_deg_lt : m < deg := by
-              grind only [list_degree, tp_degree, list_degree_traversible]
-            have d_cut_main : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by grind
-            have d_reconstructed : Γ_L ++ Δ_arg ++ [A_arg ⧹ B_res] ++ (L ++ Γ ++ Λ) ⇒ B := by grind
-            grind
-      | ldiv_l d_arg d_main =>
-        rename_i Γ_L Γ_R Δ_arg A_arg B_res
-        let m := list_degree (Δ ++ (Δ_arg ++ [A_arg] ++ B_res) ++ Λ) + tp_degree A + tp_degree B
-        have h_deg_lt : m < deg := by grind
-        have d_restored_context : Δ ++ Δ_arg ++ [A_arg] ++ B_res ++ Λ ⇒ B := by grind
-        have d_final : Δ ++ Δ_arg ++ Γ_L ++ [Γ_R ⧹ A_arg] ++ B_res ++ Λ ⇒ B :=
-          by grind
-        grind
+  {Γ Δ Λ : List Tp} {A B : Tp}
+  (d_left : _root_.Mathling.Lambek.ProductFree.Left.Sequent Γ A)
+  (d_right : _root_.Mathling.Lambek.ProductFree.Left.Sequent (Δ ++ [A] ++ Λ) B) :
+  _root_.Mathling.Lambek.ProductFree.Left.Sequent (Δ ++ Γ ++ Λ) B := by
+  have d_left_pf :
+      _root_.Mathling.Lambek.ProductFree.Sequent (ctxToProductFree Γ) A.toProductFree := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree] using d_left
+  have d_right_pf :
+      _root_.Mathling.Lambek.ProductFree.Sequent
+        (ctxToProductFree Δ ++ [A.toProductFree] ++ ctxToProductFree Λ) B.toProductFree := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree, List.append_assoc] using d_right
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree, List.append_assoc] using
+    (_root_.Mathling.Lambek.ProductFree.cut_admissible d_left_pf d_right_pf)
 ```
 
-## 除法の逆転可能性（Invertibility）
-
-さて、カットの許容性が証明できると、とても興味深い性質が見えてくる。その一つが逆転可能性である。
-つまり、左導入規則の逆方向もまた成立する。
-
-- 通常の推論規則（右導入規則）は、$A, Γ ⇒ B$ が導出できるとき $Γ ⇒ A \backslash B$ が導出可能であるというものである。
-- 逆転可能とは、逆に $Γ ⇒ A \backslash B$ が導出できるとき $A, Γ ⇒ B$ もまた導出可能であるという性質である。
-
-左除法右導入の逆転可能性を示す。
+左除法右導入の逆転可能性を再輸出する。
 
 ```lean
-@[grind =>]
-theorem ldiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (A ⧹ B)) :
-  [A] ++ Γ ⇒ B := by
-    have a: [A] ⇒ A := by grind
-    have b: [B] ⇒ B := by grind
-    have c: [] ++ [A] ++ [A ⧹ B] ++ [] ⇒ B := by grind
-    grind
+theorem ldiv_invertible {Γ : List Tp} {A B : Tp}
+  (h : _root_.Mathling.Lambek.ProductFree.Left.Sequent Γ (A ⧹ B)) :
+  _root_.Mathling.Lambek.ProductFree.Left.Sequent ([A] ++ Γ) B := by
+  simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
+    (_root_.Mathling.Lambek.ProductFree.ldiv_invertible
+      (Γ := ctxToProductFree Γ)
+      (A := A.toProductFree)
+      (B := B.toProductFree)
+      h)
 ```
-
-## 原子式に関する性質
-
-証明探索において、これ以上探索を深める必要のない「探索の葉」を特定することは極めて重要である。
-具体的には、シーケントの右辺が原子式であり、
-かつ左辺のすべての論理式も原子式である場合、そのシーケントが導出可能であるためには、
-それが公理 axiom そのものである他に道はない。
-
-カット許容性が示されていれば、「カットなしの体系で証明できないものは、いかなる補題を導入しても証明できない」ことが保証される。
-したがって、原子式のみからなるシーケントについては、単に公理 `ax` の適用可能性のみを確認すればよい。
 
 原子式だけを見分ける述語を定義する。
 
 ```lean
 @[grind]
-def is_atom : Tp → Prop
-  | Tp.atom _ => True
-  | _   => False
+def is_atom (A : Tp) : Prop :=
+  _root_.Mathling.Lambek.ProductFree.translatedIsAtom Tp.toProductFree A
 ```
 
 原子式だけの文脈では導出は公理の形に限られる。
 
 ```lean
-@[grind =>]
-theorem atom_generation
+theorem atom_generation {Γ : List Tp} {s : String}
   (h_ctx : ∀ x ∈ Γ, is_atom x)
-  (h_der : Γ ⇒ Tp.atom s) :
-    Γ = [Tp.atom s] := by
-  cases h_der with
-  | ax =>
-      grind
-  | ldiv_l d_arg d_main =>
-      rename_i Δ A Γ₁ B Λ
-      have hbad : is_atom (A ⧹ B) := by grind
-      grind
+  (h_der : _root_.Mathling.Lambek.ProductFree.Left.Sequent Γ (Tp.atom s)) :
+  Γ = [Tp.atom s] := by
+  have h_ctx_pf :
+      ∀ x ∈ ctxToProductFree Γ, _root_.Mathling.Lambek.ProductFree.is_atom x := by
+    intro x hx
+    rcases List.mem_map.mp hx with ⟨y, hy, rfl⟩
+    cases y with
+    | atom name =>
+        simp [Tp.toProductFree, _root_.Mathling.Lambek.ProductFree.is_atom]
+    | ldiv A B =>
+        have : False := by simpa [is_atom] using h_ctx _ hy
+        contradiction
+  have h_pf :
+      ctxToProductFree Γ = [_root_.Mathling.Lambek.ProductFree.Tp.atom s] := by
+    simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
+      (_root_.Mathling.Lambek.ProductFree.atom_generation h_ctx_pf h_der)
+  cases Γ with
+  | nil =>
+      simp [ctxToProductFree] at h_pf
+  | cons x xs =>
+      cases x with
+      | atom name =>
+          cases xs with
+          | nil =>
+              simpa [ctxToProductFree, Tp.toProductFree] using h_pf
+          | cons y ys =>
+              simp [ctxToProductFree] at h_pf
+      | ldiv A B =>
+          simp [ctxToProductFree, Tp.toProductFree] at h_pf
 ```
 
 最後に名前空間を閉じる。
