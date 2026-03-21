@@ -277,9 +277,9 @@ lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
 ```lean
 @[grind =>]
 theorem cut_admissible
-  (d_left : Mathling.Lambek.ProductFree.Shallow.Sequent Γ A)
-  (d_right : Mathling.Lambek.ProductFree.Shallow.Sequent (Δ ++ [A] ++ Λ) B) :
-  Mathling.Lambek.ProductFree.Shallow.Sequent (Δ ++ Γ ++ Λ) B := by
+  (d_left : Sequent Γ A)
+  (d_right : Sequent (Δ ++ [A] ++ Λ) B) :
+  Sequent (Δ ++ Γ ++ Λ) B := by
   have d_left_pf :
       Mathling.Lambek.ProductFree.Sequent (ctxToProductFree Γ) A.toProductFree := by
     simpa [Sequent, ctxToProductFree, Tp.toProductFree] using d_left
@@ -295,8 +295,8 @@ theorem cut_admissible
 
 ```lean
 theorem ldiv_invertible {Γ : List Tp} {A B : String}
-  (h : Mathling.Lambek.ProductFree.Shallow.Sequent Γ (Tp.ldiv A B)) :
-  Mathling.Lambek.ProductFree.Shallow.Sequent ([Tp.atom A] ++ Γ) (Tp.atom B) := by
+  (h : Sequent Γ (Tp.ldiv A B)) :
+  Sequent ([Tp.atom A] ++ Γ) (Tp.atom B) := by
   simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.ldiv_invertible
       (Γ := ctxToProductFree Γ)
@@ -309,8 +309,8 @@ theorem ldiv_invertible {Γ : List Tp} {A B : String}
 
 ```lean
 theorem rdiv_invertible {Γ : List Tp} {A B : String}
-  (h : Mathling.Lambek.ProductFree.Shallow.Sequent Γ (Tp.rdiv B A)) :
-  Mathling.Lambek.ProductFree.Shallow.Sequent (Γ ++ [Tp.atom A]) (Tp.atom B) := by
+  (h : Sequent Γ (Tp.rdiv B A)) :
+  Sequent (Γ ++ [Tp.atom A]) (Tp.atom B) := by
   simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.rdiv_invertible
       (Γ := ctxToProductFree Γ)
@@ -333,7 +333,7 @@ def is_atom : Tp → Prop
 ```lean
 theorem atom_generation
   (h_ctx : ∀ x ∈ Γ, is_atom x)
-  (h_der : Mathling.Lambek.ProductFree.Shallow.Sequent Γ (Tp.atom s)) :
+  (h_der : Sequent Γ (Tp.atom s)) :
   Γ = [Tp.atom s] := by
   have h_ctx_pf :
       ∀ x ∈ ctxToProductFree Γ, Mathling.Lambek.ProductFree.is_atom x := by

@@ -7,7 +7,7 @@
 # Decidability for the Right-Shallow Fragment
 
 このファイルでは、right-shallow 断片の決定可能性を
-`_root_.Mathling.Lambek.ProductFree.Right.Decidable` への翻訳で与える。
+`Mathling.Lambek.ProductFree.Right.Decidable` への翻訳で与える。
 
 ```lean
 namespace Mathling.Lambek.ProductFree.Right.Shallow
@@ -27,7 +27,7 @@ set_option linter.style.maxHeartbeats false
 ```lean
 @[grind .]
 def prove1 (Γ : List Tp) (A : Tp) : Bool :=
-  _root_.Mathling.Lambek.ProductFree.translatedProve1 Tp.toProductFree Γ A
+  Mathling.Lambek.ProductFree.translatedProve1 Tp.toProductFree Γ A
 ```
 
 `proveAux` は深さ付き探索を表す。
@@ -35,7 +35,7 @@ def prove1 (Γ : List Tp) (A : Tp) : Bool :=
 ```lean
 @[grind .]
 def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
-  _root_.Mathling.Lambek.ProductFree.translatedProveAux
+  Mathling.Lambek.ProductFree.translatedProveAux
     Tp.toProductFree n Γ A
 ```
 
@@ -44,7 +44,7 @@ def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
 ```lean
 @[grind .]
 def prove2 (Γ : List Tp) (A : Tp) : Bool :=
-  _root_.Mathling.Lambek.ProductFree.translatedProve2 Tp.toProductFree Γ A
+  Mathling.Lambek.ProductFree.translatedProve2 Tp.toProductFree Γ A
 ```
 
 ## 単調性と補助補題
@@ -56,7 +56,7 @@ def prove2 (Γ : List Tp) (A : Tp) : Bool :=
 lemma proveAux_mono {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) :
   proveAux (n + 1) Γ A := by
   simpa [proveAux] using
-    (_root_.Mathling.Lambek.ProductFree.translatedProveAux_mono
+    (Mathling.Lambek.ProductFree.translatedProveAux_mono
       Tp.toProductFree h)
 ```
 
@@ -67,7 +67,7 @@ lemma proveAux_mono {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) :
 lemma proveAux_mono_le {n m : Nat} {Γ : List Tp} {A : Tp} (h : n ≤ m) (hp : proveAux n Γ A) :
     proveAux m Γ A := by
   simpa [proveAux] using
-    (_root_.Mathling.Lambek.ProductFree.translatedProveAux_mono_le
+    (Mathling.Lambek.ProductFree.translatedProveAux_mono_le
       Tp.toProductFree h hp)
 ```
 
@@ -77,7 +77,7 @@ lemma proveAux_mono_le {n m : Nat} {Γ : List Tp} {A : Tp} (h : n ≤ m) (hp : p
 @[grind =>]
 lemma proveAux_sound {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) : prove1 Γ A := by
   simpa [prove1, proveAux] using
-    (_root_.Mathling.Lambek.ProductFree.translatedProveAux_sound
+    (Mathling.Lambek.ProductFree.translatedProveAux_sound
       Tp.toProductFree h)
 ```
 
@@ -87,7 +87,7 @@ lemma proveAux_sound {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) : p
 @[grind =>]
 lemma proveAux_complete {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : prove2 Γ A := by
   simpa [prove1, prove2] using
-    (_root_.Mathling.Lambek.ProductFree.translatedProveAux_complete
+    (Mathling.Lambek.ProductFree.translatedProveAux_complete
       Tp.toProductFree h)
 ```
 
@@ -96,7 +96,7 @@ lemma proveAux_complete {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : prove2 Γ A 
 ```lean
 lemma prove1_iff_prove2 {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ prove2 Γ A := by
   simpa [prove1, prove2] using
-    (_root_.Mathling.Lambek.ProductFree.translatedProve1_iff_Prove2
+    (Mathling.Lambek.ProductFree.translatedProve1_iff_Prove2
       Tp.toProductFree (Γ := Γ) (A := A))
 ```
 
@@ -108,7 +108,7 @@ lemma prove1_iff_prove2 {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ prove2 Γ A :=
 @[grind .]
 lemma prove1_sound {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : Γ ⇒ A := by
   simpa [prove1, Sequent, ctxToProductFree, Tp.toProductFree] using
-    (_root_.Mathling.Lambek.ProductFree.translatedProve1_sound
+    (Mathling.Lambek.ProductFree.translatedProve1_sound
       Tp.toProductFree h)
 ```
 
@@ -118,11 +118,11 @@ lemma prove1_sound {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : Γ ⇒ A := by
 @[grind .]
 lemma prove1_complete {Γ : List Tp} {A : Tp} (h : Γ ⇒ A) : prove1 Γ A := by
   have h_pf :
-      _root_.Mathling.Lambek.ProductFree.Sequent
+      Mathling.Lambek.ProductFree.Sequent
         (List.map Tp.toProductFree Γ) A.toProductFree := by
     simpa [Sequent, ctxToProductFree, Tp.toProductFree] using h
   simpa [prove1] using
-    (_root_.Mathling.Lambek.ProductFree.translatedProve1_complete
+    (Mathling.Lambek.ProductFree.translatedProve1_complete
       Tp.toProductFree h_pf)
 ```
 
@@ -140,7 +140,7 @@ lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := b
 @[grind .]
 theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
   simpa [prove2, Sequent, ctxToProductFree, Tp.toProductFree] using
-    (_root_.Mathling.Lambek.ProductFree.translatedProve2_iff_Sequent
+    (Mathling.Lambek.ProductFree.translatedProve2_iff_Sequent
       Tp.toProductFree (Γ := Γ) (A := A))
 ```
 
