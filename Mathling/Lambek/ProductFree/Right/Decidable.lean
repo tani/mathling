@@ -1,8 +1,8 @@
-import Mathlib.Data.Bool.Basic
-import Mathlib.Data.List.Basic
-import Mathling.Lambek.ProductFree.Right.Basic
-import Lean.LibrarySuggestions.Default
-import LiterateLean
+    import Mathlib.Data.Bool.Basic
+    import Mathlib.Data.List.Basic
+    import Mathling.Lambek.ProductFree.Right.Basic
+    import Lean.LibrarySuggestions.Default
+    import LiterateLean
 
 # Lambek 計算の決定可能性の証明
 
@@ -12,20 +12,27 @@ import LiterateLean
 そして、証明探索アルゴリズムが `Mathling.Lambek.ProductFree.Right.Basic` で帰納的に定義された
 シーケントの導出と一致することを示す。
 
+まず right 決定手続きの名前空間を開く。
+
+```lean
+namespace Mathling.Lambek.ProductFree.Right
+```
+
+探索アルゴリズムの定義と説明を交互に置くため、style 抑止は独立した Lean ブロックに分ける。
+
 ```lean
 set_option linter.style.emptyLine false
 set_option linter.style.whitespace false
 set_option linter.style.setOption false
 set_option linter.style.maxHeartbeats false
-namespace Mathling.Lambek.ProductFree.Right
 ```
 
 ## 非決定的なリスト操作
 
 ### 分割
 
-リストに対する２分割する仕方は、複数ある。その総数を `splits` で定義する。
-$Γ = Δ, Λ$ となるような $(Δ, Λ)$ の総数を返す。
+リストを2つに分割する組み合わせは複数存在する。`splits` 関数は、可能なすべての分割（ペア）のリストを定義する。
+$Γ = Δ \text{ ++ } Λ$ となるような $(Δ, Λ)$ の全パターンを返す。
 
 ```lean
 @[grind]
@@ -116,8 +123,8 @@ inductive Cand where
 右導入規則は、結論が導出可能であればその前提も必ず導出可能であるため、
 非決定的な選択（バックトラッキング）を伴わずに優先的に適用することができる。
 したがって、目的のシーケントの右辺が複合式である限りは右導入規則を適用して分解し、
-右辺が原子式となった段階で、はじめて左辺のどの論理式を分解すべきかという「左辺の探索候補」を検討すればよい。
-この「左辺の探索候補」を `Cand` として定義する。
+右辺が原子式に至った段階で、初めて左辺のどの論理式を分解（左導入規則の適用）すべきかという選択が生じる。
+この探索対象となる左辺の候補を `Cand` として定義する。
 
 ```lean
 @[grind]
@@ -167,8 +174,8 @@ lemma candidates_rdiv_mem (Γ Δ Λ : List Tp) (A B : Tp) :
 シーケントの証明が存在するかどうかを判定する再帰関数 `prove1` を定義する。
 右辺の論理式の形に応じて、証明規則を後ろ向きに適用していく。
 右辺がアトムの場合は、左辺の要素から候補を選んで再帰的に証明可能かを判定する。
-以降に幾つかの証明探索アルゴリズムのバリエーションを導入するkが `prove1` が
-このファイルにおける証明探索の主役的アルゴリズムである。
+以降に幾つかの証明探索アルゴリズムのバリエーションを導入するが、`prove1` が
+このファイルにおける証明探索の中心的アルゴリズムである。
 
 ```lean
 @[grind .]
@@ -209,10 +216,11 @@ def proveAux : Nat → List Tp → Tp → Bool
         (Γ ≠ []) && proveAux n (Γ ++ [A']) B
 ```
 
-`proveAux` を用い、探索の深さとしてシーケントのサイズから計算される十分な上限ステップ数を与えることで、
-`prove1` と等価な判定関数 `prove2` を定義する。ここでは、$シーケント全体の次数 + 1$ を上限に設定している。
-なぜなら、カットの許容可能性から規則の適用をするごとに次数は単調増加することが保証されているからである。
-この事実は明示的に証明されていないが、後続の証明が成立することが間接的にこの性質の証明になっている。
+`proveAux` を用い、探索の深さとしてシーケントの次数から計算される十分な上限ステップ数を与えることで、
+`prove1` と等価な判定関数 `prove2` を定義する。ここでは、上限を「リストの次数の総和 + 結論の論理式の次数 + 1」に設定している。
+カット除去定理により、体系の推論を逆向きに辿る際（後退推論）、部分論理式のみが現れることが保証されているため、この上限で停止性が担保される。
+
+十分な深さを固定した決定手続きを定義する。
 
 ```lean
 @[grind .]
@@ -224,6 +232,8 @@ def prove2 (Γ : List Tp) (A : Tp) : Bool :=
 まず `proveAux` について、あるステップ数で証明可能ならば、
 それより1大きいステップ数でも証明可能であることを示す。
 
+1 ステップだけ深さを増やしても成功は保たれる。
+
 ```lean
 @[grind =>]
 lemma proveAux_mono (h : proveAux n Γ A) :
@@ -232,6 +242,8 @@ lemma proveAux_mono (h : proveAux n Γ A) :
 ```
 
 さらに、任意の大きいステップ数に対しても帰納法から単調に証明可能であることが言える。
+
+より大きい任意の深さへの単調性も従う。
 
 ```lean
 @[grind =>]
@@ -359,6 +371,8 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
 
 上記２つの補題から、`prove1` と `prove2` は同値であることがわかる。
 
+主探索と深さ付き探索の同値をまとめる。
+
 ```lean
 lemma prove1_iff_prove2 : prove1 Γ A ↔ prove2 Γ A := by grind
 ```
@@ -395,7 +409,8 @@ lemma prove1_sound (h : prove1 Γ A) : Γ ⇒ A := by
 
 逆に、論理体系においてシーケントの導出 $Γ ⇒ A$ が存在するならば、
 アルゴリズム `prove1` は真を返すこと（完全性）を証明する。
-prove1 は存在証明だけをすれば良いので `classical` (古典論理ベース)の証明を行なっている。
+なお、`prove1` の完全性の証明（導出が存在するならばアルゴリズムが `true` を返すことの証明）には、
+排中律を用いた古典論理的な議論が含まれるため、`classical` スコープを使用している。
 
 ### 解き方の構造（完全性）
 
@@ -449,6 +464,8 @@ lemma prove1_complete (h : Γ ⇒ A) : prove1 Γ A := by
 
 健全性と完全性をまとめることで、`prove1` がシーケントの導出可能性と同値であることが示される。
 
+探索成功と導出可能性の同値をここでまとめる。
+
 ```lean
 @[grind .]
 lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
@@ -457,6 +474,8 @@ lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
 先ほど示した `prove1` と `prove2` の同値性により、
 最終的に自明に停止する証明探索アルゴリズムである
  `prove2` もシーケントの導出可能性と同値であることがわかる。
+
+停止する探索 `prove2` についても同値を記録する。
 
 ```lean
 @[grind .]
@@ -467,6 +486,8 @@ theorem prove2_iff_sequent : prove2 Γ A ↔ Γ ⇒ A := by grind
 それが対象とする論理体系の導出可能性と同値であるため、
 Lambek計算の証明可能性が決定可能（Decidable）であることが結論づけられる。
 
+この同値から `Decidable` instance が入る。
+
 ```lean
 instance : Decidable (Γ ⇒ A) :=
   decidable_of_iff (prove2 Γ A) (by grind)
@@ -475,10 +496,14 @@ instance : Decidable (Γ ⇒ A) :=
 この決定可能性のインスタンスにより、具体的なシーケントに対して Lean の `decide` タクティクを用いて
 自動的に証明探索・判定を行わせることが可能になる。
 
+最後に `decide` が動く具体例を置く。
+
 ```lean
 example : [Tp.rdiv (Tp.atom "q") (Tp.atom "p"), Tp.atom "p"] ⇒ Tp.atom "q" :=
   by decide
 ```
+
+最後に名前空間を閉じる。
 
 ```lean
 end Mathling.Lambek.ProductFree.Right

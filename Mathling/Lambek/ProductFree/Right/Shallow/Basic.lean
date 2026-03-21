@@ -1,295 +1,312 @@
-import Mathlib.Data.Nat.Basic
-import Mathlib.Data.List.Basic
-import LiterateLean
+    import Mathlib.Data.List.Basic
+    import Mathlib.Data.Nat.Basic
+    import Mathling.Lambek.ProductFree.Right.Basic
+    import LiterateLean
+
+# Right-Shallow Fragment of Product-Free Lambek Calculus
+
+このファイルでは、積を持たない Lambek 計算の right-shallow 断片を定義する。
+right-shallow 断片では、右除法の分母は原子式に限定される。
+
+基本的なメタ理論は `Mathling.Lambek.ProductFree.Right.Basic` に翻訳して再利用する。
 
 ```lean
 namespace Mathling.Lambek.ProductFree.Right.Shallow
+```
+
+この literate ファイルでは、style と heartbeat に関する設定を独立した Lean コードブロックに分けて置く。
+
+```lean
 set_option linter.style.emptyLine false
 set_option linter.style.whitespace false
 set_option linter.style.setOption false
 set_option linter.style.maxHeartbeats false
 ```
 
-## 論理式の定義
+まず、right-shallow 断片の論理式を定義する。
 
 ```lean
 @[grind cases]
 inductive Tp where
   | atom (name : String) : Tp
-  | rdiv (B A : String)  : Tp
+  | rdiv (B : String) (A : String) : Tp
   deriving Repr, DecidableEq
+```
 
+原子式の記法を導入する。
+
+```lean
 prefix:65 "#" => Tp.atom
+```
+
+右除法の記法を導入する。
+
+```lean
 infixl:60 " ⧸ " => Tp.rdiv
 ```
 
-## シーケント体系の定義
-
-```lean
-@[grind intro]
-inductive Sequent : List Tp → Tp → Prop where
-  | ax : Sequent [A] A
-  | rdiv_r :
-      Γ ≠ [] →
-      Sequent (Γ ++ [# A]) (# B) →
-      Sequent Γ (B ⧸ A)
-  | rdiv_l :
-      Sequent Δ (# A) →
-      Sequent (Γ ++ [# B] ++ Λ) C →
-      Sequent (Γ ++ [B ⧸ A] ++ Δ ++ Λ) C
-
-infixl:50 " ⇒ " => Sequent
-```
-
-## 次数（Degree）の定義
+次数は shallow な構文に合わせて定義する。
 
 ```lean
 @[grind =]
 def tp_degree : Tp → Nat
-  | # _     => 1
-  | _ ⧸ _   => 3
+  | Tp.atom _ => 1
+  | Tp.rdiv _ _ => 3
+```
 
+文脈の次数は要素ごとの次数の和である。
+
+```lean
 @[grind =]
 def list_degree : List Tp → Nat
-  | []        => 0
-  | A :: Γ    => tp_degree A + list_degree Γ
+  | [] => 0
+  | A :: Γ => tp_degree A + list_degree Γ
+```
 
+連結に対する加法性も先に示す。
+
+```lean
 @[grind =]
 lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
   induction Γ <;> grind
 ```
 
-## シーケントの基本的な性質
+## 一般 right 断片への翻訳
+
+right-shallow の定理は right 断片への翻訳から得る。
+
+各 shallow 論理式を right 断片へ写す。
+
+```lean
+def Tp.toRight : Tp → Mathling.Lambek.ProductFree.Right.Tp
+  | .atom name => Mathling.Lambek.ProductFree.Right.Tp.atom name
+  | .rdiv B A =>
+      Mathling.Lambek.ProductFree.Right.Tp.rdiv
+        (Mathling.Lambek.ProductFree.Right.Tp.atom B)
+        (Mathling.Lambek.ProductFree.Right.Tp.atom A)
+```
+
+文脈も同じ写像で翻訳する。
+
+```lean
+def ctxToRight : List Tp → List Mathling.Lambek.ProductFree.Right.Tp :=
+  List.map Tp.toRight
+```
+
+空文脈の翻訳は自明である。
+
+```lean
+@[simp] lemma ctxToRight_nil : ctxToRight [] = [] := rfl
+```
+
+先頭要素を付けた文脈の翻訳も簡約できる。
+
+```lean
+@[simp] lemma ctxToRight_cons :
+    ctxToRight (A :: Γ) = A.toRight :: ctxToRight Γ := rfl
+```
+
+連結についても翻訳が分配される。
+
+```lean
+@[simp] lemma ctxToRight_append :
+    ctxToRight (Γ ++ Δ) = ctxToRight Γ ++ ctxToRight Δ := by
+  simp [ctxToRight]
+```
+
+shallow シーケントは right 断片のシーケントとして実装する。
+
+```lean
+def Sequent (Γ : List Tp) (A : Tp) : Prop :=
+  Mathling.Lambek.ProductFree.Right.Sequent (ctxToRight Γ) A.toRight
+```
+
+## shallow 規則
+
+以下では shallow 規則をまとめる名前空間を開く。
+
+```lean
+namespace Sequent
+```
+
+公理規則は翻訳先の公理そのものである。
+
+```lean
+theorem ax : Sequent [A] A := by
+  simpa [Sequent, ctxToRight, Tp.toRight] using
+    (Mathling.Lambek.ProductFree.Right.Sequent.ax :
+      Mathling.Lambek.ProductFree.Right.Sequent [A.toRight] A.toRight)
+```
+
+右導入規則は right 断片側の定理を持ち上げる。
+
+```lean
+theorem rdiv_r
+  (h_ne : Γ ≠ [])
+  (h : Sequent (Γ ++ [Tp.atom A]) (Tp.atom B)) :
+  Sequent Γ (Tp.rdiv B A) := by
+  have h_ne_right : ctxToRight Γ ≠ [] := by
+    cases Γ <;> simp at h_ne ⊢
+  have h_right :
+      Mathling.Lambek.ProductFree.Right.Sequent
+        (ctxToRight Γ ++ [Mathling.Lambek.ProductFree.Right.Tp.atom A])
+        (Mathling.Lambek.ProductFree.Right.Tp.atom B) := by
+    simpa [Sequent, ctxToRight, Tp.toRight] using h
+  simpa [Sequent, ctxToRight, Tp.toRight] using
+    (Mathling.Lambek.ProductFree.Right.Sequent.rdiv_r
+      (Γ := ctxToRight Γ)
+      (A := Mathling.Lambek.ProductFree.Right.Tp.atom A)
+      (B := Mathling.Lambek.ProductFree.Right.Tp.atom B)
+      h_ne_right h_right)
+```
+
+左導入規則も翻訳先からそのまま再利用する。
+
+```lean
+theorem rdiv_l
+  (h_arg : Sequent Δ (Tp.atom A))
+  (h_main : Sequent (Γ ++ [Tp.atom B] ++ Λ) C) :
+  Sequent (Γ ++ [Tp.rdiv B A] ++ Δ ++ Λ) C := by
+  have h_main_right :
+      Mathling.Lambek.ProductFree.Right.Sequent
+        (ctxToRight Γ ++ [Mathling.Lambek.ProductFree.Right.Tp.atom B] ++ ctxToRight Λ)
+        C.toRight := by
+    simpa [Sequent, ctxToRight, Tp.toRight, List.append_assoc] using h_main
+  simpa [Sequent, ctxToRight, Tp.toRight, List.append_assoc] using
+    (Mathling.Lambek.ProductFree.Right.Sequent.rdiv_l
+      (Δ := ctxToRight Δ)
+      (A := Mathling.Lambek.ProductFree.Right.Tp.atom A)
+      (Γ := ctxToRight Γ)
+      (B := Mathling.Lambek.ProductFree.Right.Tp.atom B)
+      (Λ := ctxToRight Λ)
+      (C := C.toRight)
+      h_arg h_main_right)
+```
+
+規則定義の名前空間をここで閉じる。
+
+```lean
+end Sequent
+```
+
+読みやすさのため shallow 断片側の記法を与える。
+
+```lean
+infixl:50 " ⇒ " => Sequent
+```
+
+## 基本補題と主要定理
+
+導出可能なシーケントは空文脈を持たない。
 
 ```lean
 @[grind =>]
-lemma nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
-  induction h <;> grind [List.append_eq_nil_iff]
+lemma nonempty_premises
+  (h : Mathling.Lambek.ProductFree.Right.Shallow.Sequent Γ A) : Γ ≠ [] := by
+  cases Γ with
+  | nil =>
+      simpa [Sequent, ctxToRight] using
+        (Mathling.Lambek.ProductFree.Right.nonempty_premises h)
+  | cons => simp
+```
 
+非空文脈を含む連結もやはり非空である。
+
+```lean
 @[grind =>]
 lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
-  grind only [List.append_eq_nil_iff]
+  cases Γ <;> simp at h ⊢
 ```
 
-## リスト分割に関する補題
+カット許容性は right 断片での結果を翻訳して得る。
 
 ```lean
-lemma list_split_2_cases
-  (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂) :
-  (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂) ∨
-  (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R) := by
-  simp only [List.append_assoc] at h
-  rcases List.append_eq_append_iff.mp h with ⟨m, rfl, hm⟩ | ⟨m, rfl, hm⟩
-  · simp [List.cons_eq_append_iff] at hm
-    grind
-  · grind
-
-lemma list_split_3_cases
-  (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃) :
-  (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂ ++ Δ₃) ∨
-  (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R ++ Δ₃) ∨
-  (∃ L R, Δ₃ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ Δ₂ ++ L ∧ Γ₂ = R) := by
-  rcases list_split_2_cases (by simpa using h)
-    with ⟨R, h1, h2⟩ | ⟨L, R, h1, h2, h3⟩
-  · grind
-  · rcases list_split_2_cases h1.symm with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
-
-lemma list_split_4_cases
-  (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃ ++ Δ₄) :
-  (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂ ++ Δ₃ ++ Δ₄)
-  ∨ (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R ++ Δ₃ ++ Δ₄)
-  ∨ (∃ L R, Δ₃ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ Δ₂ ++ L ∧ Γ₂ = R ++ Δ₄)
-  ∨ (∃ L R, Δ₄ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ Δ₂ ++ Δ₃ ++ L ∧ Γ₂ = R) := by
-  rcases list_split_2_cases (by simpa using h)
-    with ⟨R, h1, h2⟩ | ⟨L, R, h1, h2, h3⟩
-  · grind
-  · rcases list_split_3_cases (by simpa using h1.symm)
-    with ⟨R', h4, h5⟩ | ⟨L', R', h4, h5, h6⟩ | ⟨L', R', h4, h5, h6⟩ <;> grind
-
-lemma rdiv_princ_decomp {L R : List Tp} {B_res A_arg B_left A_left : String}
-  (h : [B_res ⧸ A_arg] = L ++ [B_left ⧸ A_left] ++ R) :
-  L = [] ∧ R = [] ∧ B_res = B_left ∧ A_arg = A_left := by
-  grind [List.singleton_eq_append_iff]
-
-```
-
-## カット除去定理（演繹の許容性）
-
-```lean
-set_option maxHeartbeats 1000000 in
-@[grind =>]
 theorem cut_admissible
-  (d_left : Γ ⇒ A)
-  (d_right : Δ ++ [A] ++ Λ ⇒ B) :
-  Δ ++ Γ ++ Λ ⇒ B := by
-    let deg := list_degree (Δ ++ Γ ++ Λ) + tp_degree A + tp_degree B
-    generalize h_n : deg = n
-    induction n using Nat.strong_induction_on generalizing Γ Δ Λ A B
-    next n ih =>
-      subst h_n
-      cases d_left with
-      | ax => grind
-      | rdiv_r h_ne_L d_inner_L =>
-        rename_i A_left B_left
-        have h_der_A : Γ ⇒ B_left ⧸ A_left := by grind
-        generalize d_right_eq_x : Δ ++ [B_left ⧸ A_left] ++ Λ = ContextRight at d_right
-        cases d_right with
-        | ax => grind only [List.cons_eq_cons, List.append_assoc, List.append_cons,
-          List.append_eq_nil_iff, List.append_eq_singleton_iff, Sequent.rdiv_r]
-        | rdiv_r h_ne_R d_inner_R =>
-          rename_i C D
-          let m := list_degree (Δ ++ Γ ++ Λ ++ [# C]) +
-              tp_degree (B_left ⧸ A_left) + tp_degree (# D)
-          have h_deg_lt : m < deg := by
-            grind only [list_degree, tp_degree, list_degree_traversible]
-          have d_cut_result_ih : Δ ++ Γ ++ (Λ ++ [# C]) ⇒ # D := 
-            ih m h_deg_lt h_der_A (by
-              rw [← d_right_eq_x] at d_inner_R
-              have h : Δ ++ [B_left ⧸ A_left] ++ (Λ ++ [# C]) =
-                  (Δ ++ [B_left ⧸ A_left] ++ Λ) ++ [# C] := by
-                simp only [List.append_assoc]
-              rw [h]
-              exact d_inner_R) (by grind only [list_degree, tp_degree, list_degree_traversible])
-          have d_cut_result : (Δ ++ Γ ++ Λ) ++ [# C] ⇒ # D := by
-            have h : Δ ++ Γ ++ (Λ ++ [# C]) = (Δ ++ Γ ++ Λ) ++ [# C] := by
-              simp only [List.append_assoc]
-            rw [← h]
-            exact d_cut_result_ih
-          have h_ax : Δ ++ Γ ++ Λ ≠ [] := by grind [nonempty_append]
-          exact Sequent.rdiv_r h_ax d_cut_result
-        | rdiv_l d_arg d_main =>
-          rename_i Δ_arg A_arg Γ_L B_res Γ_R
-          rcases list_split_4_cases d_right_eq_x
-            with ⟨R, rfl, rfl⟩
-               | ⟨L, R, h_princ, rfl, rfl⟩
-               | ⟨L, R, rfl, rfl, rfl⟩
-               | ⟨L, R, rfl, rfl, rfl⟩
-          · let m := list_degree (Δ ++ Γ ++ (R ++ [# B_res] ++ Γ_R)) + tp_degree (B_left ⧸ A_left) + tp_degree B
-            have h_deg_lt : m < deg := by
-              grind only [list_degree, tp_degree, list_degree_traversible]
-            have d_cut_main_ih : Δ ++ Γ ++ (R ++ [# B_res] ++ Γ_R) ⇒ B := 
-              ih m h_deg_lt h_der_A (by
-                have h : Δ ++ [B_left ⧸ A_left] ++ (R ++ [# B_res] ++ Γ_R) = (Δ ++ [B_left ⧸ A_left] ++ R) ++ [# B_res] ++ Γ_R := by simp only [List.append_assoc]
-                rw [h]
-                exact d_main) (by grind only [list_degree, tp_degree, list_degree_traversible])
-            have d_cut_main : Δ ++ Γ ++ R ++ [# B_res] ++ Γ_R ⇒ B := by
-              have h : Δ ++ Γ ++ (R ++ [# B_res] ++ Γ_R) = Δ ++ Γ ++ R ++ [# B_res] ++ Γ_R := by simp only [List.append_assoc]
-              rw [← h]
-              exact d_cut_main_ih
-            have h_eq : Δ ++ Γ ++ (R ++ [B_res ⧸ A_arg] ++ Δ_arg ++ Γ_R) = (Δ ++ Γ ++ R) ++ [B_res ⧸ A_arg] ++ Δ_arg ++ Γ_R := by
-              simp only [List.append_assoc]
-            rw [h_eq]
-            exact Sequent.rdiv_l (Λ := Γ_R) d_arg (by
-              have h2 : (Δ ++ Γ ++ R) ++ [# B_res] ++ Γ_R = Δ ++ Γ ++ R ++ [# B_res] ++ Γ_R := by simp only [List.append_assoc]
-              rw [h2]
-              exact d_cut_main)
-          · have h_decomp: L = [] ∧ R = [] ∧ B_res = B_left ∧ A_arg = A_left := rdiv_princ_decomp h_princ
-            rcases h_decomp with ⟨rfl, rfl, rfl, rfl⟩
-            clear h_princ 
-            let m0 := list_degree (Γ ++ Δ_arg ++ []) + tp_degree (# A_arg) + tp_degree (# B_res)
-            have h_deg_lt0 : m0 < deg := by
-              grind only [list_degree, tp_degree, list_degree_traversible]
-            have d_cut1_ih : Γ ++ Δ_arg ++ [] ⇒ # B_res :=
-              ih m0 h_deg_lt0 d_arg (by
-                have h : Γ ++ [# A_arg] ++ [] = Γ ++ [# A_arg] := by simp only [List.append_nil]
-                rw [h]
-                exact d_inner_L) (by grind only [list_degree, tp_degree, list_degree_traversible])
-            have d_cut1 : Γ ++ Δ_arg ⇒ # B_res := by
-              have h : Γ ++ Δ_arg ++ [] = Γ ++ Δ_arg := by
-                simp only [List.append_nil, List.append_assoc]
-              rw [← h]
-              exact d_cut1_ih
-            let m1 := list_degree (Γ_L ++ (Γ ++ Δ_arg) ++ Γ_R) + tp_degree (# B_res) + tp_degree B
-            have h_deg_lt1 : m1 < deg := by
-              grind only [list_degree, tp_degree, list_degree_traversible]
-            have d_cut2_ih : Γ_L ++ (Γ ++ Δ_arg) ++ Γ_R ⇒ B :=
-              ih m1 h_deg_lt1 d_cut1 d_main
-                (by grind only [list_degree, tp_degree, list_degree_traversible])
-            have d_cut2 : Γ_L ++ Γ ++ Δ_arg ++ Γ_R ⇒ B := by
-              have h : Γ_L ++ (Γ ++ Δ_arg) ++ Γ_R = Γ_L ++ Γ ++ Δ_arg ++ Γ_R := by simp only [List.append_assoc]
-              rw [← h]
-              exact d_cut2_ih
-            have h_eq : (Γ_L ++ []) ++ Γ ++ ([] ++ Δ_arg ++ Γ_R) = Γ_L ++ Γ ++ Δ_arg ++ Γ_R := by
-              simp only [List.append_nil, List.nil_append, List.append_assoc]
-            rw [h_eq]
-            exact d_cut2
-          · let m := list_degree (L ++ Γ ++ R) + tp_degree (B_left ⧸ A_left) + tp_degree (# A_arg)
-            have h_deg_lt : m < deg := by
-              grind only [list_degree, tp_degree, list_degree_traversible]
-            have d_cut_arg : L ++ Γ ++ R ⇒ # A_arg :=
-              ih m h_deg_lt h_der_A d_arg
-                (by grind only [list_degree, tp_degree, list_degree_traversible])
-            have h_eq : (Γ_L ++ [B_res ⧸ A_arg] ++ L) ++ Γ ++ (R ++ Γ_R) = Γ_L ++ [B_res ⧸ A_arg] ++ (L ++ Γ ++ R) ++ Γ_R := by
-              simp only [List.append_assoc]
-            rw [h_eq]
-            exact Sequent.rdiv_l (Λ := Γ_R) d_cut_arg d_main
-          · let m := list_degree (Γ_L ++ [# B_res] ++ L ++ Γ ++ Λ) + tp_degree (B_left ⧸ A_left) + tp_degree B
-            have h_deg_lt : m < deg := by
-              grind only [list_degree, tp_degree, list_degree_traversible]
-            have d_cut_main : Γ_L ++ [# B_res] ++ L ++ Γ ++ Λ ⇒ B := 
-              ih m h_deg_lt h_der_A (by
-                have h : Γ_L ++ [# B_res] ++ (L ++ [B_left ⧸ A_left] ++ Λ) = Γ_L ++ [# B_res] ++ L ++ [B_left ⧸ A_left] ++ Λ := by simp only [List.append_assoc]
-                rw [← h]
-                exact d_main) (by grind only [list_degree, tp_degree, list_degree_traversible])
-            have h_eq : (Γ_L ++ [B_res ⧸ A_arg] ++ Δ_arg ++ L) ++ Γ ++ Λ = Γ_L ++ [B_res ⧸ A_arg] ++ Δ_arg ++ (L ++ Γ ++ Λ) := by
-              simp only [List.append_assoc]
-            rw [h_eq]
-            exact Sequent.rdiv_l (Λ := L ++ Γ ++ Λ) d_arg (by
-              have h2 : Γ_L ++ [# B_res] ++ (L ++ Γ ++ Λ) = Γ_L ++ [# B_res] ++ L ++ Γ ++ Λ := by simp only [List.append_assoc]
-              rw [h2]
-              exact d_cut_main)
-      | rdiv_l d_arg d_main =>
-        rename_i Δ_arg A_arg Γ_L B_res Γ_R
-        let m := list_degree (Δ ++ Γ_L ++ [# B_res] ++ Γ_R ++ Λ) + tp_degree A + tp_degree B
-        have h_deg_lt : m < deg := by
-          grind only [list_degree, tp_degree, list_degree_traversible]
-        have d_restored_context_ih : Δ ++ (Γ_L ++ [# B_res] ++ Γ_R) ++ Λ ⇒ B := ih m h_deg_lt d_main d_right (by grind only [list_degree, tp_degree, list_degree_traversible])
-        have d_restored_context : Δ ++ Γ_L ++ [# B_res] ++ Γ_R ++ Λ ⇒ B := by
-          have h : Δ ++ (Γ_L ++ [# B_res] ++ Γ_R) ++ Λ = Δ ++ Γ_L ++ [# B_res] ++ Γ_R ++ Λ := by simp only [List.append_assoc]
-          rw [← h]
-          exact d_restored_context_ih
-        have h_goal : Δ ++ (Γ_L ++ [B_res ⧸ A_arg] ++ Δ_arg ++ Γ_R) ++ Λ = (Δ ++ Γ_L) ++ [B_res ⧸ A_arg] ++ Δ_arg ++ (Γ_R ++ Λ) := by
-          simp only [List.append_assoc]
-        rw [h_goal]
-        have h_premise : (Δ ++ Γ_L) ++ [# B_res] ++ (Γ_R ++ Λ) = Δ ++ Γ_L ++ [# B_res] ++ Γ_R ++ Λ := by
-          simp only [List.append_assoc]
-        exact Sequent.rdiv_l (Λ := Γ_R ++ Λ) d_arg (by rw [h_premise]; exact d_restored_context)
+  {Γ Δ Λ : List Tp} {A B : Tp}
+  (d_left : Mathling.Lambek.ProductFree.Right.Shallow.Sequent Γ A)
+  (d_right : Mathling.Lambek.ProductFree.Right.Shallow.Sequent (Δ ++ [A] ++ Λ) B) :
+  Mathling.Lambek.ProductFree.Right.Shallow.Sequent (Δ ++ Γ ++ Λ) B := by
+  have d_left_right :
+      Mathling.Lambek.ProductFree.Right.Sequent (ctxToRight Γ) A.toRight := by
+    simpa [Sequent, ctxToRight, Tp.toRight] using d_left
+  have d_right_right :
+      Mathling.Lambek.ProductFree.Right.Sequent
+        (ctxToRight Δ ++ [A.toRight] ++ ctxToRight Λ) B.toRight := by
+    simpa [Sequent, ctxToRight, Tp.toRight, List.append_assoc] using d_right
+  have h_cut :
+      Mathling.Lambek.ProductFree.Right.Sequent
+        (ctxToRight Δ ++ ctxToRight Γ ++ ctxToRight Λ) B.toRight := by
+    exact Mathling.Lambek.ProductFree.Right.cut_admissible d_left_right d_right_right
+  simpa [Sequent, ctxToRight, Tp.toRight, List.append_assoc] using h_cut
 ```
 
-## 除法の逆転可能性（Invertibility）
+右除法の右規則の逆転可能性も再輸出する。
 
 ```lean
-@[grind =>]
-theorem rdiv_invertible {Γ : List Tp} {B A : String} (h : Γ ⇒ (B ⧸ A)) :
-  Γ ++ [# A] ⇒ # B := by
-    have a: [# A] ⇒ # A := by grind
-    have b: [# B] ⇒ # B := by grind
-    have c: [] ++ [B ⧸ A] ++ [# A] ++ [] ⇒ # B := by grind
-    grind
+theorem rdiv_invertible {Γ : List Tp} {B A : String}
+  (h : Mathling.Lambek.ProductFree.Right.Shallow.Sequent Γ (Tp.rdiv B A)) :
+  Mathling.Lambek.ProductFree.Right.Shallow.Sequent (Γ ++ [Tp.atom A]) (Tp.atom B) := by
+  simpa [Sequent, ctxToRight, Tp.toRight] using
+    (Mathling.Lambek.ProductFree.Right.rdiv_invertible
+      (Γ := ctxToRight Γ)
+      (A := Mathling.Lambek.ProductFree.Right.Tp.atom A)
+      (B := Mathling.Lambek.ProductFree.Right.Tp.atom B)
+      h)
 ```
 
-## 原子式に関する性質
+原子式だけを見分ける述語を定義する。
 
 ```lean
 @[grind]
 def is_atom : Tp → Prop
   | Tp.atom _ => True
-  | _   => False
-
-@[grind =>]
-theorem atom_generation
-  (h_ctx : ∀ x ∈ Γ, is_atom x)
-  (h_der : Γ ⇒ Tp.atom s) :
-    Γ = [Tp.atom s] := by
-  cases h_der with
-  | ax =>
-      grind
-  | rdiv_l d_arg d_main =>
-      rename_i Δ A Γ₁ B Λ
-      have hbad : is_atom (B ⧸ A) := by grind
-      grind
+  | _ => False
 ```
+
+原子式のみの文脈から導出できる原子式は公理の場合に限られる。
+
+```lean
+theorem atom_generation {Γ : List Tp} {s : String}
+  (h_ctx : ∀ x ∈ Γ, is_atom x)
+  (h_der : Mathling.Lambek.ProductFree.Right.Shallow.Sequent Γ (Tp.atom s)) :
+  Γ = [Tp.atom s] := by
+  have h_ctx_right :
+      ∀ x ∈ ctxToRight Γ, Mathling.Lambek.ProductFree.Right.is_atom x := by
+    intro x hx
+    rcases List.mem_map.mp hx with ⟨y, hy, rfl⟩
+    cases y with
+    | atom name =>
+        simp [Tp.toRight, Mathling.Lambek.ProductFree.Right.is_atom]
+    | rdiv B A =>
+        have : False := by simpa [is_atom] using h_ctx _ hy
+        contradiction
+  have h_right :
+      ctxToRight Γ = [Mathling.Lambek.ProductFree.Right.Tp.atom s] := by
+    have h_der_right :
+        Mathling.Lambek.ProductFree.Right.Sequent (ctxToRight Γ)
+          (Mathling.Lambek.ProductFree.Right.Tp.atom s) := by
+      simpa [Sequent, ctxToRight, Tp.toRight] using h_der
+    simpa [Sequent, ctxToRight, Tp.toRight] using
+      (Mathling.Lambek.ProductFree.Right.atom_generation h_ctx_right h_der_right)
+  cases Γ with
+  | nil =>
+      simp [ctxToRight] at h_right
+  | cons x xs =>
+      cases x with
+      | atom name =>
+          cases xs with
+          | nil =>
+              simpa [ctxToRight, Tp.toRight] using h_right
+          | cons y ys =>
+              simp [ctxToRight] at h_right
+      | rdiv B A =>
+          simp [ctxToRight, Tp.toRight] at h_right
+```
+
+最後に名前空間を閉じる。
 
 ```lean
 end Mathling.Lambek.ProductFree.Right.Shallow
 ```
+
+<!-- vim: set filetype=markdown : -->
