@@ -1,13 +1,6 @@
-import Mathlib.Data.List.Basic
-import Mathlib.Data.Nat.Basic
 import Mathling.Lambek.ProductFree.Basic
 
 namespace Mathling.Lambek.ProductFree.Right.Shallow
-
-set_option linter.style.emptyLine false
-set_option linter.style.whitespace false
-set_option linter.style.setOption false
-set_option linter.style.maxHeartbeats false
 
 @[grind cases]
 inductive Tp where

@@ -1,14 +1,7 @@
-import Mathlib.Data.Bool.Basic
-import Mathlib.Data.List.Basic
 import Mathling.Lambek.ProductFree.Left.Basic
 import Mathling.Lambek.ProductFree.Decidable
 
 namespace Mathling.Lambek.ProductFree.Left
-
-set_option linter.style.emptyLine false
-set_option linter.style.whitespace false
-set_option linter.style.setOption false
-set_option linter.style.maxHeartbeats false
 
 @[grind .]
 def prove1 (Γ : List Tp) (A : Tp) : Bool :=
@@ -61,7 +54,7 @@ lemma prove1_complete {Γ : List Tp} {A : Tp} (h : Γ ⇒ A) : prove1 Γ A := by
 
 @[grind .]
 lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := by
-  constructor <;> [exact fun a => prove1_sound a; apply prove1_complete]
+  constructor <;> [apply prove1_sound; apply prove1_complete]
 
 @[grind .]
 theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by

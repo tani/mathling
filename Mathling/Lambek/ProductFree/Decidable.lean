@@ -1,14 +1,7 @@
 import Mathlib.Data.Bool.Basic
-import Mathlib.Data.List.Basic
 import Mathling.Lambek.ProductFree.Basic
-import Lean.LibrarySuggestions.Default
 
 namespace Mathling.Lambek.ProductFree
-
-set_option linter.style.emptyLine false
-set_option linter.style.whitespace false
-set_option linter.style.setOption false
-set_option linter.style.maxHeartbeats false
 
 @[grind]
 def splits {α} : List α → List (List α × List α)
@@ -178,7 +171,8 @@ lemma proveAux_sound (h : proveAux n Γ A) : prove1 Γ A := by
         · right
           rcases h_cand with ⟨c, hc_mem, hc_val⟩
           simp only [List.any_eq_true]
-          refine ⟨⟨c, hc_mem⟩, by exact List.mem_attach (candidates Γ) ⟨c, hc_mem⟩, ?_⟩
+          refine ⟨⟨c, hc_mem⟩, ?_, ?_⟩
+          · exact List.mem_attach (candidates Γ) ⟨c, hc_mem⟩
           grind
       | ldiv A' B => grind
       | rdiv B A' => grind
@@ -277,17 +271,21 @@ lemma prove1_complete (h : Γ ⇒ A) : prove1 Γ A := by
             rename_i Δ A Γ₁ B Λ
             simp only [Bool.or_eq_true, List.any_eq_true]
             right
-            refine ⟨⟨Cand.rdiv Γ₁ B A Δ Λ, by exact candidates_rdiv_mem Γ₁ Δ Λ A B⟩, by simp, ?_⟩
+            refine ⟨⟨Cand.rdiv Γ₁ B A Δ Λ, ?_⟩, by simp, ?_⟩
+            · exact candidates_rdiv_mem Γ₁ Δ Λ A B
             grind
         | ldiv_l d_arg d_main =>
             rename_i Δ A Γ₁ B Λ
             simp only [Bool.or_eq_true, List.any_eq_true]
             right
-            refine ⟨⟨Cand.ldiv Γ₁ Δ A B Λ, by exact candidates_ldiv_mem Γ₁ Δ Λ A B⟩, by simp, ?_⟩
+            refine ⟨⟨Cand.ldiv Γ₁ Δ A B Λ, ?_⟩, by simp, ?_⟩
+            · exact candidates_ldiv_mem Γ₁ Δ Λ A B
             grind
     | ldiv A' B => grind
     | rdiv B A' => grind
-  exact fun h => (fun {b} => Bool.eq_false_imp_eq_true.mp) fun a => hp (list_degree Γ + tp_degree A) Γ A rfl h
+  exact fun h =>
+    (fun {b} => Bool.eq_false_imp_eq_true.mp) fun a =>
+      hp (list_degree Γ + tp_degree A) Γ A rfl h
 
 @[grind .]
 lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
@@ -296,7 +294,7 @@ lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
 theorem prove2_iff_sequent : prove2 Γ A ↔ Γ ⇒ A := by grind
 
 instance : Decidable (Γ ⇒ A) :=
-  decidable_of_iff (prove2 Γ A) (by exact prove2_iff_sequent)
+  decidable_of_iff (prove2 Γ A) prove2_iff_sequent
 
 example : [Tp.atom "p", Tp.ldiv (Tp.atom "p") (Tp.atom "q")] ⇒ Tp.atom "q" :=
   by decide
@@ -370,8 +368,8 @@ lemma translatedProve1_iff_Sequent
     {Γ : List α} {A : α} :
     translatedProve1 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by
   constructor
-  · exact fun a => translatedProve1_sound toProductFree a
-  · exact fun a => translatedProve1_complete toProductFree a
+  · exact translatedProve1_sound toProductFree
+  · exact translatedProve1_complete toProductFree
 
 theorem translatedProve2_iff_Sequent
     (toProductFree : α → Tp)
