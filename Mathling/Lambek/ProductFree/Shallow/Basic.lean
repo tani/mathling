@@ -147,11 +147,11 @@ lemma nonempty_premises
   | nil =>
       simpa [Sequent, ctxToProductFree] using
         (Mathling.Lambek.ProductFree.nonempty_premises h)
-  | cons => simp
+  | cons head tail => exact List.cons_ne_nil head tail
 
 @[grind =>]
 lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
-  cases Γ <;> simp at h ⊢
+  exact ProductFree.nonempty_append h
 
 @[grind =>]
 theorem cut_admissible
@@ -206,10 +206,10 @@ theorem atom_generation
         simp [Tp.toProductFree, Mathling.Lambek.ProductFree.is_atom]
     | ldiv A B =>
         have : False := by simpa [is_atom] using h_ctx _ hy
-        contradiction
+        exact False.elim this
     | rdiv B A =>
         have : False := by simpa [is_atom] using h_ctx _ hy
-        contradiction
+        exact False.elim this
   have h_pf :
       ctxToProductFree Γ = [Mathling.Lambek.ProductFree.Tp.atom s] := by
     simpa [Sequent, ctxToProductFree, Tp.toProductFree] using

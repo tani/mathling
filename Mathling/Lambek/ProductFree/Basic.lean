@@ -110,10 +110,10 @@ theorem cut_admissible
     next n ih =>
       subst h_n
       cases d_left with
-      | ax => grind
+      | ax => exact ((fun a => d_right) ∘ fun a => A) A
       | ldiv_r h_ne_L d_inner_L =>
         rename_i A₁ A₂
-        have h_der_A : Γ ⇒ A₁ ⧹ A₂ := by grind
+        have h_der_A : Γ ⇒ A₁ ⧹ A₂ := by exact Sequent.ldiv_r h_ne_L d_inner_L
         generalize d_right_eq_x : Δ ++ [A₁ ⧹ A₂] ++ Λ = ContextRight at d_right
         cases d_right with
         | ax =>
@@ -124,7 +124,7 @@ theorem cut_admissible
           let m := list_degree ([C] ++ Δ ++ Γ ++ Λ) + tp_degree (A₁ ⧹ A₂) + tp_degree D
           have h_deg_lt : m < deg := by grind
           have d_permuted_inner : [C] ++ Δ ++ [ A₁ ⧹ A₂ ] ++ Λ ⇒ D := by grind
-          have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by grind
+          have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by exact Function.const (List Tp) (ih m h_deg_lt h_der_A d_permuted_inner rfl) Γ
           grind
         | rdiv_r h_ne_R d_inner_R =>
           rename_i C D
@@ -144,18 +144,18 @@ theorem cut_admissible
                    + tp_degree (A₁ ⧹ A₂) + tp_degree B
             have h_deg_lt : m < deg := by grind
             have d_cut_main : Δ ++ Γ ++ R ++ [B_res] ++ Γ_R ⇒ B := by grind
-            have d_reconstructed : Δ ++ Γ ++ R ++ Δ_arg ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
+            have d_reconstructed : Δ ++ Γ ++ R ++ Δ_arg ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by exact Sequent.ldiv_l d_arg d_cut_main
             grind
           · let m := list_degree (L ++ Γ ++ R) + tp_degree A_arg + tp_degree B
             have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
             have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
-            have d_reconstructed : Γ_L ++ (L ++ Γ ++ R) ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
+            have d_reconstructed : Γ_L ++ (L ++ Γ ++ R) ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by exact Sequent.ldiv_l d_cut_arg d_main
             grind
           · have h_eq_decomp: [A_arg ⧹ B_res] = L ++ [A₁ ⧹ A₂] ++ R
                               → L = [] ∧ R = [] ∧ A_arg = A₁ ∧ B_res = A₂ := by
               grind [List.singleton_eq_append_iff]
-            have h_decomp: L = [] ∧ R = [] ∧ A_arg = A₁ ∧ B_res = A₂ := by grind
+            have h_decomp: L = [] ∧ R = [] ∧ A_arg = A₁ ∧ B_res = A₂ := by exact And.symm ((fun {a b} => And.comm.mp) (h_eq_decomp h_princ))
             let m1 := list_degree (Γ_L ++ ([A₁] ++ Γ) ++ Γ_R) + tp_degree A₂ + tp_degree B
             have h_deg_lt_princ : m1 < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
@@ -184,18 +184,18 @@ theorem cut_admissible
           · let m := list_degree (L ++ Γ ++ R) + tp_degree (A₁ ⧹ A₂) + tp_degree A_arg
             have h_deg_lt : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
-            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
-            have d_reconstructed : Γ_L ++ [B_res ⧸ A_arg] ++ (L ++ Γ ++ R) ++ Γ_R ⇒ B := by grind
+            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by exact Function.const (List Tp) (ih m h_deg_lt h_der_A d_arg rfl) Γ
+            have d_reconstructed : Γ_L ++ [B_res ⧸ A_arg] ++ (L ++ Γ ++ R) ++ Γ_R ⇒ B := by exact Sequent.rdiv_l (ih m h_deg_lt h_der_A d_arg rfl) d_main
             grind
           · let m := list_degree (Γ_L ++ [B_res] ++ L ++ Γ ++ Λ) + tp_degree (A₁ ⧹ A₂) + tp_degree B
             have h_deg_lt : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
             have d_cut_main : Γ_L ++ [B_res] ++ L ++ [A₁ ⧹ A₂] ++ Λ ⇒ B := by grind
-            have d_reconstructed : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by grind
+            have d_reconstructed : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by exact Function.const (List Tp) (ih m h_deg_lt h_der_A d_cut_main rfl) Γ
             grind
       | rdiv_r h_ne_L d_inner_L =>
         rename_i A₁ A₂
-        have h_der_A : Γ ⇒ A₂ ⧸ A₁ := by grind
+        have h_der_A : Γ ⇒ A₂ ⧸ A₁ := by exact Sequent.rdiv_r h_ne_L d_inner_L
         generalize d_right_eq_x : Δ ++ [A₂ ⧸ A₁] ++ Λ = ContextRight at d_right
         cases d_right with
         | ax => grind only [nonempty_append, List.cons_eq_cons, List.append_assoc, List.append_cons,
@@ -206,7 +206,7 @@ theorem cut_admissible
           have h_deg_lt : m < deg := by
             grind only [list_degree, tp_degree, list_degree_traversible]
           have d_permuted_inner : [C] ++ Δ ++ [ A₂ ⧸ A₁ ] ++ Λ ⇒ D := by grind
-          have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by grind
+          have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by exact Function.const (List Tp) (ih m h_deg_lt h_der_A d_permuted_inner rfl) Γ
           grind
         | rdiv_r h_ne_R d_inner_R =>
           rename_i C D
@@ -228,13 +228,13 @@ theorem cut_admissible
             have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
             have d_cut_main : Δ ++ Γ ++ R ++ [B_res] ++ Γ_R ⇒ B := by grind
-            have d_reconstructed : Δ ++ Γ ++ R ++ Δ_arg ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
+            have d_reconstructed : Δ ++ Γ ++ R ++ Δ_arg ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by exact Sequent.ldiv_l d_arg d_cut_main
             grind
           · let m := list_degree (L ++ Γ ++ R) + tp_degree A_arg + tp_degree B
             have h_deg_lt : m < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
             have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
-            have d_reconstructed : Γ_L ++ (L ++ Γ ++ R) ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by grind
+            have d_reconstructed : Γ_L ++ (L ++ Γ ++ R) ++ [A_arg ⧹ B_res] ++ Γ_R ⇒ B := by exact Sequent.ldiv_l d_cut_arg d_main
             grind
           · grind [List.singleton_eq_append_iff]
           · let m := list_degree (Γ_L ++ [B_res] ++ L ++ Γ ++ Λ) + tp_degree (A₂ ⧸ A₁) + tp_degree B
@@ -259,7 +259,7 @@ theorem cut_admissible
           · have h_eq_decomp: [B_res ⧸ A_arg] = L ++ [A₂ ⧸ A₁] ++ R
                               → L = [] ∧ R = [] ∧ B_res = A₂ ∧ A_arg = A₁ := by
               grind [List.singleton_eq_append_iff]
-            have h_decomp: L = [] ∧ R = [] ∧ B_res = A₂ ∧ A_arg = A₁ := by grind
+            have h_decomp: L = [] ∧ R = [] ∧ B_res = A₂ ∧ A_arg = A₁ := by exact And.symm ((fun {a b} => And.comm.mp) (h_eq_decomp h))
             let m1 := list_degree (Γ_L ++ (Γ ++ [A₁]) ++ Γ_R) + tp_degree A₂ + tp_degree B
             have h_deg_lt_princ : m1 < deg := by
               grind only [list_degree, tp_degree, list_degree_traversible]
@@ -268,14 +268,14 @@ theorem cut_admissible
           · let m := list_degree (L ++ Γ ++ R) + tp_degree (A₂ ⧸ A₁) + tp_degree A_arg
             have h_deg_lt : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
-            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by grind
-            have d_reconstructed : Γ_L ++ [B_res ⧸ A_arg] ++ (L ++ Γ ++ R) ++ Γ_R ⇒ B := by grind
+            have d_cut_arg : L ++ Γ ++ R ⇒ A_arg := by exact Function.const (List Tp) (ih m h_deg_lt h_der_A d_arg rfl) Γ
+            have d_reconstructed : Γ_L ++ [B_res ⧸ A_arg] ++ (L ++ Γ ++ R) ++ Γ_R ⇒ B := by exact Sequent.rdiv_l (ih m h_deg_lt h_der_A d_arg rfl) d_main
             grind
           · let m := list_degree (Γ_L ++ [B_res] ++ L ++ Γ ++ Λ) + tp_degree (A₂ ⧸ A₁) + tp_degree B
             have h_deg_lt : m < deg := by
               grind only [list_degree_traversible, list_degree, tp_degree]
             have d_cut_main : Γ_L ++ [B_res] ++ L ++ [A₂ ⧸ A₁] ++ Λ ⇒ B := by grind
-            have d_reconstructed : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by grind
+            have d_reconstructed : Γ_L ++ [B_res] ++ L ++ Γ ++ Λ ⇒ B := by exact Function.const (List Tp) (ih m h_deg_lt h_der_A d_cut_main rfl) Γ
             grind
       | rdiv_l d_arg d_main =>
         rename_i Γ_L Γ_R  Δ_arg A_arg B_res
@@ -295,16 +295,16 @@ theorem cut_admissible
 @[grind =>]
 theorem ldiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (A ⧹ B)) :
   [A] ++ Γ ⇒ B := by
-    have a: [A] ⇒ A := by grind
-    have b: [B] ⇒ B := by grind
+    have a: [A] ⇒ A := by exact Sequent.ax
+    have b: [B] ⇒ B := by exact Sequent.ax
     have c: [] ++ [A] ++ [A ⧹ B] ++ [] ⇒ B := by grind
     grind
 
 @[grind =>]
 theorem rdiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (B ⧸ A)) :
   Γ ++ [A] ⇒ B := by
-    have a: [A] ⇒ A := by grind
-    have b: [B] ⇒ B := by grind
+    have a: [A] ⇒ A := by exact Sequent.ax
+    have b: [B] ⇒ B := by exact Sequent.ax
     have c: [] ++ [B ⧸ A] ++ ([A] ++ []) ⇒ B := by grind
     grind
 
@@ -320,7 +320,7 @@ theorem atom_generation
     Γ = [Tp.atom s] := by
   cases h_der with
   | ax =>
-      grind
+      exact List.singleton_inj.mpr rfl
   | rdiv_l d_arg d_main =>
       rename_i Δ A Γ₁ B Λ
       have hbad : is_atom (B ⧸ A) := by grind

@@ -106,11 +106,11 @@ lemma nonempty_premises (h : _root_.Mathling.Lambek.ProductFree.Right.Sequent Γ
   | nil =>
       simpa [Sequent, ctxToProductFree] using
         (_root_.Mathling.Lambek.ProductFree.nonempty_premises h)
-  | cons => simp
+  | cons head tail => exact List.cons_ne_nil head tail
 
 @[grind =>]
 lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
-  exact _root_.Mathling.Lambek.ProductFree.translatedNonemptyAppend h
+  exact ProductFree.nonempty_append h
 
 theorem cut_admissible
   {Γ Δ Λ : List Tp} {A B : Tp}
@@ -154,7 +154,7 @@ theorem atom_generation {Γ : List Tp} {s : String}
         simp [Tp.toProductFree, _root_.Mathling.Lambek.ProductFree.is_atom]
     | rdiv B A =>
         have : False := by simpa [is_atom] using h_ctx _ hy
-        contradiction
+        exact False.elim this
   have h_pf :
       ctxToProductFree Γ = [_root_.Mathling.Lambek.ProductFree.Tp.atom s] := by
     simpa [Sequent, ctxToProductFree, Tp.toProductFree] using

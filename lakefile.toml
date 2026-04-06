@@ -26,3 +26,13 @@ rev = "v4.28.0"
 
 [[lean_lib]]
 name = "Mathling"
+
+[[lean_exe]]
+name = "tryAtEachStep"
+root = "tryAtEachStep"
+supportInterpreter = true
+
+[[lean_exe]]
+name = "tryAtEachStepInDirectory"
+root = "tryAtEachStepInDirectory"
+supportInterpreter = true

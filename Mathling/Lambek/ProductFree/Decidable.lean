@@ -29,7 +29,7 @@ lemma splits_mem {α} (Γ Δ : List α) : (Γ, Δ) ∈ splits (Γ ++ Δ) := by
       apply List.mem_cons_of_mem
       refine List.mem_map.mpr ?_
       refine ⟨(xs, Δ), ih, ?_⟩
-      simp
+      exact Prod.ext rfl rfl
 
 @[grind]
 def picks {α} : List α → List (List α × α × List α)
@@ -51,7 +51,7 @@ lemma picks_mem {α} (Γ Δ : List α) (a : α) :
       refine List.mem_map.mpr ?_
       refine ⟨(xs, a, Δ), ?_, ?_⟩
       · simpa [List.append_assoc] using ih
-      · simp
+      · exact Prod.ext rfl rfl
 
 @[grind]
 inductive Cand where
@@ -105,7 +105,7 @@ lemma candidates_ldiv_mem (Γ₁ Δ R : List Tp) (A B : Tp) :
   unfold candidates
   refine List.mem_flatMap.mpr ?_
   refine ⟨(Γ₁ ++ Δ, A ⧹ B, R), ?_, ?_⟩
-  · grind
+  · exact picks_mem (Γ₁ ++ Δ) R (A ⧹ B)
   · refine List.mem_map.mpr ?_
     refine ⟨(Γ₁, Δ), ?_, ?_⟩ <;> grind
 
@@ -174,11 +174,11 @@ lemma proveAux_sound (h : proveAux n Γ A) : prove1 Γ A := by
         unfold prove1
         simp only [Bool.or_eq_true]
         rcases h with h_base | h_cand
-        · grind
+        · exact Or.symm (Or.inr h_base)
         · right
           rcases h_cand with ⟨c, hc_mem, hc_val⟩
           simp only [List.any_eq_true]
-          refine ⟨⟨c, hc_mem⟩, by simp, ?_⟩
+          refine ⟨⟨c, hc_mem⟩, by exact List.mem_attach (candidates Γ) ⟨c, hc_mem⟩, ?_⟩
           grind
       | ldiv A' B => grind
       | rdiv B A' => grind
@@ -192,7 +192,7 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
     unfold proveAux
     simp only [Bool.or_eq_true, decide_eq_true_eq, List.any_eq_true] at h ⊢
     rcases h with h_ax | h_left
-    · grind
+    · exact Or.symm (Or.inr h_ax)
     · right
       rcases h_left with ⟨⟨c, hc_mem⟩, -, hc_val⟩
       refine ⟨c, hc_mem, ?_⟩
@@ -229,7 +229,7 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
     simp only [Bool.and_eq_true] at h ⊢
     rcases h with ⟨h_ne, h_inner⟩
     constructor
-    · grind
+    · exact Bool.eq_false_imp_eq_true.mp fun a => h_ne
     · have h_eq :
         list_degree (A' :: Γ) + tp_degree B + 1 =
           list_degree Γ + tp_degree (A' ⧹ B) := by
@@ -241,7 +241,7 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
     simp only [Bool.and_eq_true] at h ⊢
     rcases h with ⟨h_ne, h_inner⟩
     constructor
-    · grind
+    · exact Bool.eq_false_imp_eq_true.mp fun a => h_ne
     · have h_eq :
         list_degree (Γ ++ [A']) + tp_degree B + 1 =
           list_degree Γ + tp_degree (B ⧸ A') := by
@@ -277,17 +277,17 @@ lemma prove1_complete (h : Γ ⇒ A) : prove1 Γ A := by
             rename_i Δ A Γ₁ B Λ
             simp only [Bool.or_eq_true, List.any_eq_true]
             right
-            refine ⟨⟨Cand.rdiv Γ₁ B A Δ Λ, by grind⟩, by simp, ?_⟩
+            refine ⟨⟨Cand.rdiv Γ₁ B A Δ Λ, by exact candidates_rdiv_mem Γ₁ Δ Λ A B⟩, by simp, ?_⟩
             grind
         | ldiv_l d_arg d_main =>
             rename_i Δ A Γ₁ B Λ
             simp only [Bool.or_eq_true, List.any_eq_true]
             right
-            refine ⟨⟨Cand.ldiv Γ₁ Δ A B Λ, by grind⟩, by simp, ?_⟩
+            refine ⟨⟨Cand.ldiv Γ₁ Δ A B Λ, by exact candidates_ldiv_mem Γ₁ Δ Λ A B⟩, by simp, ?_⟩
             grind
     | ldiv A' B => grind
     | rdiv B A' => grind
-  grind
+  exact fun h => (fun {b} => Bool.eq_false_imp_eq_true.mp) fun a => hp (list_degree Γ + tp_degree A) Γ A rfl h
 
 @[grind .]
 lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
@@ -296,7 +296,7 @@ lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
 theorem prove2_iff_sequent : prove2 Γ A ↔ Γ ⇒ A := by grind
 
 instance : Decidable (Γ ⇒ A) :=
-  decidable_of_iff (prove2 Γ A) (by grind)
+  decidable_of_iff (prove2 Γ A) (by exact prove2_iff_sequent)
 
 example : [Tp.atom "p", Tp.ldiv (Tp.atom "p") (Tp.atom "q")] ⇒ Tp.atom "q" :=
   by decide
@@ -370,8 +370,8 @@ lemma translatedProve1_iff_Sequent
     {Γ : List α} {A : α} :
     translatedProve1 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by
   constructor
-  · apply translatedProve1_sound toProductFree
-  · apply translatedProve1_complete toProductFree
+  · exact fun a => translatedProve1_sound toProductFree a
+  · exact fun a => translatedProve1_complete toProductFree a
 
 theorem translatedProve2_iff_Sequent
     (toProductFree : α → Tp)

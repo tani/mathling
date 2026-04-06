@@ -100,11 +100,11 @@ lemma nonempty_premises
   | nil =>
       simpa [Sequent, ctxToProductFree] using
         (_root_.Mathling.Lambek.ProductFree.nonempty_premises h)
-  | cons => simp
+  | cons head tail => exact List.cons_ne_nil head tail
 
 @[grind =>]
 lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
-  exact _root_.Mathling.Lambek.ProductFree.translatedNonemptyAppend h
+  exact ProductFree.nonempty_append h
 
 theorem cut_admissible
   {Γ Δ Λ : List Tp} {A B : Tp}

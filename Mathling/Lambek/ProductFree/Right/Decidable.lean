@@ -63,7 +63,7 @@ lemma prove1_complete {Γ : List Tp} {A : Tp} (h : Γ ⇒ A) : prove1 Γ A := by
 
 @[grind .]
 lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := by
-  constructor <;> [apply prove1_sound; apply prove1_complete]
+  constructor <;> [exact fun a => prove1_sound a; apply prove1_complete]
 
 @[grind .]
 theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
