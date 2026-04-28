@@ -13,7 +13,9 @@ prefix:65 "#" => Category.atomic
 infixr:65 " / " => Category.slash Direction.forward
 infixr:65 " \\ " => Category.slash Direction.backward
 
-structure CategorialGrammar (α : Type _) (σ : Type _) where
+structure CategorialGrammar where
+  α : Type _
+  σ : Type _
   lexicon : σ → Category α → Prop
   start : Category α
 
