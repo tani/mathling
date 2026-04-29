@@ -1,21 +1,12 @@
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Set.Basic
 
-inductive Direction
-| forward
-| backward
-
-inductive Category (α : Type _)
-| atomic (a : α)
-| slash (d : Direction) (l r : Category α)
+inductive Category where
+  | atomic (name : String)
+  | forward (a b : Category)
+  | backward (a b : Category)
 
 prefix:65 "#" => Category.atomic
-infixr:65 " / " => Category.slash Direction.forward
-infixr:65 " \\ " => Category.slash Direction.backward
-
-structure CategorialGrammar where
-  α : Type _
-  σ : Type _
-  lexicon : σ → Category α → Prop
-  start : Category α
+infixr:65 " / " => Category.forward
+infixr:65 " \\ " => Category.backward
 
