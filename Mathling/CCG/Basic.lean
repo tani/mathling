@@ -1,3 +1,4 @@
+@[grind cases]
 inductive Category where
   | atomic (name : String)
   | forward (a b : Category)
