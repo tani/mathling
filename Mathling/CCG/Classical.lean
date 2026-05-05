@@ -1,6 +1,6 @@
 import Mathling.CCG.Basic
 
-namespace Mathling
+namespace Classical
 
 inductive Reduce : List Category → List Category → Prop where
   | forward (Γ : List Category) (u v : Category) (Γ' : List Category) :
@@ -33,4 +33,4 @@ def reduceCore (l r : List Category) : List (List Category) :=
 def reduce (cats : List Category) : List (List Category) :=
   reduceCore [] cats
 
-end Mathling
+end Classical
