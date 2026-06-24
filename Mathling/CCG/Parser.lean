@@ -94,4 +94,14 @@ example :
     parseWithDepth 1 [# "s" ⧸ # "np", # "np"] (# "s") = true := by
   decide
 
+/-- Closed CCG sequents can be proved by running the bounded recognizer. -/
+example :
+    [# "s" ⧸ # "np", # "np"] ⇒ccg # "s" := by
+  exact parseWithDepth_sound (depthLimit := 1) (by decide)
+
+/-- Closed bounded recognition failures can also be checked by computation. -/
+example :
+    parseWithDepth 1 [# "np"] (# "s") = false := by
+  decide
+
 end Mathling.CCG
