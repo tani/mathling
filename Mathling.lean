@@ -10,3 +10,6 @@ import Mathling.Lambek.ProductFree.Left.Shallow.Basic
 import Mathling.Lambek.ProductFree.Left.Shallow.Decidable
 import Mathling.Lambek.ProductFree.Shallow.Basic
 import Mathling.Lambek.ProductFree.Shallow.Decidable
+
+import Mathling.CCG.Basic
+import Mathling.CCG.Decidability
