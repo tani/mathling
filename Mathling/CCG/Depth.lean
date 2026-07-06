@@ -7,14 +7,23 @@ import Mathlib.Data.Fintype.Prod
 /-!
 # Depth-counting layer for CCG derivation trees
 
-This file adds the node-addressed infrastructure needed by the paper's
-branch/zone counting proof, and proves the executable finite-candidate depth
-counting theorem that is used as the safe bridge toward `ChartNormalFormComplete`.
+This file proves the branch-counting theorem: in any derivation tree whose
+invisible trace pieces all have a visible boundary, every node category has
+depth at most `H = V + V*r` (`depthBound`), where `V` is the visible budget
+and `r` the trace-degree constant.
 
-The hard graph-theoretic theorem “size-minimal + no bad invisible pieces ⇒ every
-node category is in the paper candidate set” is exposed as an explicit
-certificate (`DerivationTree.NodeCategoriesContainedIn`).  From that certificate, this module proves
-that all node categories have depth at most the paper bound `H = depthBound`.
+The counting is a pigeonhole along one constructor branch of one node
+category:
+
+* visible occurrences on the branch: at most `V` (`visibleSlots`);
+* invisible occurrences: coded injectively by
+  `(visible-boundary slot, trace-neighbour slot)` — injective because equal
+  codes force the same trace piece, and one piece never meets a branch twice
+  (`sameInvisibleTraceComponent_forbids_strictPrefix_branch`).
+
+The only remaining input is boundary elimination for size-minimal trees
+(`BoundaryFreeInvisiblePieceElimination`); everything downstream of it here is
+proved.
 -/
 
 set_option linter.style.longLine false
@@ -544,61 +553,63 @@ theorem Rule.toChartRule_of_candidate
 paper: if every node category of a tree has already been shown to lie in the
 paper candidate set, then every node category has depth at most the paper bound. -/
 theorem DerivationTree.depth_counting_of_candidate_categories
-    {q r : Nat} {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (hcat : t.NodeCategoriesContainedIn (categoryPool Γ A (depthBound q r Γ A))) :
-    ∀ B ∈ t.nodeCategories, B.depth ≤ depthBound q r Γ A := by
+    {r : Nat} {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
+    (hcat : t.NodeCategoriesContainedIn (categoryPool Γ A (depthBound r Γ A))) :
+    ∀ B ∈ t.nodeCategories, B.depth ≤ depthBound r Γ A := by
   intro B hB
   exact depth_le_of_mem_categoryPool (hcat B hB)
 
-/-! ## The actual pigeonhole core of the paper depth count
+/-! ## The pigeonhole core of the depth count
 
-The paper's depth bound
+The sharp depth bound
 
-`H = V + q * r * V * (V + 1)`
+`H = V + V * r`
 
-comes from a finite pigeonhole argument along a single root-to-leaf branch:
+comes from a finite pigeonhole argument along a single root-to-leaf constructor
+branch of one node category:
 
 * at most `V` visible occurrences occur on the branch;
-* visible occurrences split the branch into at most `V+1` visible-free zones;
-* in one zone, an invisible occurrence is classified by
-  `(interface state, trace-degree slot, visible-boundary slot)`, giving
-  `q * r * V` possibilities;
-* a repeated code in one zone would be a repeatable pair, hence is forbidden in
-  a size-minimal tree.
+* every invisible occurrence lies in an invisible trace piece with a visible
+  boundary (this is the boundary-elimination theorem for size-minimal trees),
+  so it is classified by the pair
+  `(visible-boundary slot, trace-neighbour slot)`, giving `V * r` codes;
+* the code is injective on one branch: equal codes force the two occurrences
+  into the *same* invisible trace piece, but trace components preserve the
+  addressed subcategory while strict descent along a branch strictly decreases
+  constructor count (`sameInvisibleTraceComponent_forbids_strictPrefix_branch`),
+  so two distinct branch positions can never share a piece.
 
-The theorem below is this pigeonhole count in a fully executable/finite form.
-It is independent of the still-separate geometric work of constructing the
-code from concrete trace pieces and branch zones.
+The last point is why no interface-state factor `q`, no zone factor `V+1`, and
+no repeatable-pair contraction are needed: the draft paper's repeatable pairs
+(two same-piece occurrences on one branch) cannot exist at all.
 -/
 
-/-- The finite code used by the paper's branch-counting argument.
+/-- The finite code used by the branch-counting argument.
 
 The components are, in order:
 
-* interface-state code (`q` choices),
-* trace-neighbour/degree code (`r` choices),
 * visible-boundary code (`V` choices),
-* visible-free-zone code (`V+1` choices).
+* trace-neighbour/degree code (`r` choices).
 -/
-abbrev BranchCode (q r V : Nat) :=
-  (((Fin q × Fin r) × Fin V) × Fin (V + 1))
+abbrev BranchCode (r V : Nat) :=
+  Fin V × Fin r
 
 @[simp]
-theorem card_BranchCode (q r V : Nat) :
-    Fintype.card (BranchCode q r V) = q * r * V * (V + 1) := by
-  simp [BranchCode, Fintype.card_prod, Fintype.card_fin, Nat.mul_assoc]
+theorem card_BranchCode (r V : Nat) :
+    Fintype.card (BranchCode r V) = V * r := by
+  simp [BranchCode, Fintype.card_prod, Fintype.card_fin]
 
 /-- Invisible branch occurrences are bounded by the number of paper codes, once
 the code assignment is injective.
 
-This is the no-repeatable-pair pigeonhole principle used in the paper: if two
-invisible occurrences had the same code, they would form the repeated
-`(piece, interface-state)` configuration in the same visible-free zone. -/
-theorem branch_invisible_count_le_code {α : Type} {q r V : Nat}
+If two invisible occurrences on one branch had the same code, they would lie
+in the same invisible trace piece — which is impossible for distinct branch
+positions, so the code is injective and the count is bounded by `V * r`. -/
+theorem branch_invisible_count_le_code {α : Type} {r V : Nat}
     (xs : List α) (visible : α → Bool) (hnodup : xs.Nodup)
-    (code : {x // x ∈ xs.filter (fun a => !visible a)} → BranchCode q r V)
+    (code : {x // x ∈ xs.filter (fun a => !visible a)} → BranchCode r V)
     (hinj : Function.Injective code) :
-    (xs.filter (fun a => !visible a)).length ≤ q * r * V * (V + 1) := by
+    (xs.filter (fun a => !visible a)).length ≤ V * r := by
   let inv := xs.filter (fun a => !visible a)
   have hinvNodup : inv.Nodup := hnodup.filter (fun a => !visible a)
   have hattach : inv.attach.Nodup := (List.nodup_attach).2 hinvNodup
@@ -608,17 +619,13 @@ theorem branch_invisible_count_le_code {α : Type} {q r V : Nat}
 
 /-- **Depth-counting pigeonhole bound.**  A branch with at most `V` visible
 occurrences and injectively coded invisible occurrences has length at most the
-paper bound `V + q*r*V*(V+1)`.
-
-This is the formal, axiom-free core of the zone-counting step.  The remaining
-paper-specific task is to instantiate `code` from actual trace pieces,
-interface states and visible boundaries of a size-minimal CCG derivation tree. -/
-theorem branch_depth_counting_from_codes {α : Type} {q r V : Nat}
+sharp bound `V + V*r`. -/
+theorem branch_depth_counting_from_codes {α : Type} {r V : Nat}
     (xs : List α) (visible : α → Bool) (hnodup : xs.Nodup)
     (hvisible : (xs.filter visible).length ≤ V)
-    (code : {x // x ∈ xs.filter (fun a => !visible a)} → BranchCode q r V)
+    (code : {x // x ∈ xs.filter (fun a => !visible a)} → BranchCode r V)
     (hinj : Function.Injective code) :
-    xs.length ≤ V + q * r * V * (V + 1) := by
+    xs.length ≤ V + V * r := by
   have hsplit := List.length_eq_length_filter_add (l := xs) visible
   have hinv := branch_invisible_count_le_code xs visible hnodup code hinj
   omega
@@ -666,11 +673,11 @@ theorem traceDegreeLimit : TraceDegreeLimit 64 := by
       rw [ho'', hoeq]
     exact List.mem_filterMap.mpr ⟨o'.key, hkey, hfind⟩
 
-/-- The explicit certificate produced by the future full trace/zone counting
-argument.  It states exactly the finite-candidate membership needed for the
-safe depth-counting theorem above. -/
-def NodeCategoryBoundCertificate (q r : Nat) {Γ : List Category} {A : Category} (t : DerivationTree Γ A) : Prop :=
-  t.NodeCategoriesContainedIn (categoryPool Γ A (depthBound q r Γ A))
+/-- The explicit certificate produced by the branch-counting argument.  It
+states exactly the finite-candidate membership needed for the safe
+depth-counting theorem above. -/
+def NodeCategoryBoundCertificate (r : Nat) {Γ : List Category} {A : Category} (t : DerivationTree Γ A) : Prop :=
+  t.NodeCategoriesContainedIn (categoryPool Γ A (depthBound r Γ A))
 
 /-- Boundary-free invisible-piece elimination target for atom-minimal trees.
 This is the paper step showing that a size-minimal derivation cannot contain an
@@ -725,23 +732,6 @@ theorem List.finIndexOfMem_eq_iff {α : Type} [BEq α] [LawfulBEq α]
   · intro h
     subst h
     rfl
-
-/-- Finite interface-state code at a branch position. -/
-def interfaceStateIndexOnBranch {Γ : List Category} {A : Category}
-    {t : DerivationTree Γ A} (o : Occurrence t) (branchEnd : CategoryPath) :
-    Fin InterfaceStateCount :=
-  InterfaceState.code (interfaceStateOnBranch o branchEnd)
-    (interfaceStateOnBranch_mem_all o branchEnd)
-
-/-- Equality of branch-interface codes is exactly equality of branch-interface
-states. -/
-theorem interfaceStateIndexOnBranch_eq_iff {Γ : List Category} {A : Category}
-    {t : DerivationTree Γ A} {o₁ o₂ : Occurrence t} {branchEnd : CategoryPath} :
-    interfaceStateIndexOnBranch o₁ branchEnd =
-        interfaceStateIndexOnBranch o₂ branchEnd ↔
-      interfaceStateOnBranch o₁ branchEnd =
-        interfaceStateOnBranch o₂ branchEnd := by
-  exact InterfaceState.code_eq_iff
 
 /-- Finite index of a visible slot key in the explicit visible-slot list. -/
 def visibleSlotIndex {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
@@ -1114,56 +1104,6 @@ theorem branchPrefixOccurrences_visibleSlot_count_le_visibleBound
   rw [DerivationTree.length_visibleSlots] at hle
   exact hle
 
-/-- Visible slot keys that occur before a branch prefix, in the executable
-prefix-spine order. -/
-def branchPrefixVisibleBeforeKeys
-    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (e : DerivationTree.TreeNode t)
-    {p : CategoryPath} (q : {q : CategoryPath // q ∈ CategoryPath.prefixes p}) :
-    List Occurrence.Key :=
-  (((CategoryPath.prefixes p).take ((CategoryPath.prefixes p).idxOf q.1)).map
-    (fun r => ({ nodePath := e.nodePath, categoryPath := r } : Occurrence.Key))).filter
-      (fun k => decide (k ∈ t.visibleSlots))
-
-/-- The number of visible slots before any branch prefix is bounded by the
-global visible budget. -/
-theorem branchPrefixVisibleBeforeKeys_length_le_visibleBound
-    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (e : DerivationTree.TreeNode t)
-    {p : CategoryPath} (q : {q : CategoryPath // q ∈ CategoryPath.prefixes p}) :
-    (branchPrefixVisibleBeforeKeys e q).length ≤ visibleBound Γ A := by
-  unfold branchPrefixVisibleBeforeKeys
-  let ps := (CategoryPath.prefixes p).take ((CategoryPath.prefixes p).idxOf q.1)
-  let ks := ps.map
-    (fun r => ({ nodePath := e.nodePath, categoryPath := r } : Occurrence.Key))
-  have hpsNodup : ps.Nodup := by
-    exact ((CategoryPath.prefixes p).take_prefix
-      ((CategoryPath.prefixes p).idxOf q.1)).nodup (CategoryPath.prefixes_nodup p)
-  have hksNodup : ks.Nodup := by
-    refine hpsNodup.map ?_
-    intro r₁ r₂ h
-    exact congrArg Occurrence.Key.categoryPath h
-  have hnodup : (ks.filter (fun k => decide (k ∈ t.visibleSlots))).Nodup :=
-    hksNodup.filter _
-  have hsub :
-      ∀ k ∈ ks.filter (fun k => decide (k ∈ t.visibleSlots)), k ∈ t.visibleSlots := by
-    intro k hk
-    exact of_decide_eq_true (List.mem_filter.mp hk).2
-  have hle := List.Nodup.length_le_of_subset_list hnodup hsub
-  rw [DerivationTree.length_visibleSlots] at hle
-  exact hle
-
-/-- Visible-free-zone index of a branch prefix, represented by the number of
-visible slots before it. -/
-def branchPrefixZoneIndex
-    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (e : DerivationTree.TreeNode t)
-    {p : CategoryPath} (q : {q : CategoryPath // q ∈ CategoryPath.prefixes p}) :
-    Fin (visibleBound Γ A + 1) :=
-  ⟨(branchPrefixVisibleBeforeKeys e q).length, by
-    have hle := branchPrefixVisibleBeforeKeys_length_le_visibleBound e q
-    omega⟩
-
 /-- The concrete branch code attached to one prefix occurrence, once a visible
 boundary witness has been chosen for that invisible occurrence. -/
 def branchPrefixCodeOfPrefix
@@ -1173,47 +1113,11 @@ def branchPrefixCodeOfPrefix
     {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions)
     (q : {q : CategoryPath // q ∈ CategoryPath.prefixes p})
     (W : BoundaryCodeWitness N (branchPrefixOccurrence e hend q)) :
-    BranchCode InterfaceStateCount r (visibleBound Γ A) :=
-  (((interfaceStateIndexOnBranch (branchPrefixOccurrence e hend q) (p ++ [false]),
-      W.neighbourIndex), W.visibleIndex), branchPrefixZoneIndex e q)
+    BranchCode r (visibleBound Γ A) :=
+  (W.visibleIndex, W.neighbourIndex)
 
-/-- Equal branch codes have equal branch-interface states. -/
-theorem branchPrefixCodeOfPrefix_eq_interface
-    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    {r : Nat} {N : TraceNeighbourChoice t r}
-    (e : DerivationTree.TreeNode t)
-    {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions)
-    (q₁ q₂ : {q : CategoryPath // q ∈ CategoryPath.prefixes p})
-    (W₁ : BoundaryCodeWitness N (branchPrefixOccurrence e hend q₁))
-    (W₂ : BoundaryCodeWitness N (branchPrefixOccurrence e hend q₂))
-    (hcode :
-      branchPrefixCodeOfPrefix e hend q₁ W₁ =
-        branchPrefixCodeOfPrefix e hend q₂ W₂) :
-    interfaceStateOnBranch (branchPrefixOccurrence e hend q₁) (p ++ [false]) =
-      interfaceStateOnBranch (branchPrefixOccurrence e hend q₂) (p ++ [false]) := by
-  have hindex :
-      interfaceStateIndexOnBranch (branchPrefixOccurrence e hend q₁) (p ++ [false]) =
-        interfaceStateIndexOnBranch (branchPrefixOccurrence e hend q₂) (p ++ [false]) :=
-    congrArg (fun c : BranchCode InterfaceStateCount r (visibleBound Γ A) => c.1.1.1) hcode
-  exact (interfaceStateIndexOnBranch_eq_iff).mp hindex
-
-/-- Equal branch codes have equal visible-free-zone indices. -/
-theorem branchPrefixCodeOfPrefix_eq_zone
-    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    {r : Nat} {N : TraceNeighbourChoice t r}
-    (e : DerivationTree.TreeNode t)
-    {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions)
-    (q₁ q₂ : {q : CategoryPath // q ∈ CategoryPath.prefixes p})
-    (W₁ : BoundaryCodeWitness N (branchPrefixOccurrence e hend q₁))
-    (W₂ : BoundaryCodeWitness N (branchPrefixOccurrence e hend q₂))
-    (hcode :
-      branchPrefixCodeOfPrefix e hend q₁ W₁ =
-        branchPrefixCodeOfPrefix e hend q₂ W₂) :
-    branchPrefixZoneIndex e q₁ = branchPrefixZoneIndex e q₂ :=
-  congrArg (fun c : BranchCode InterfaceStateCount r (visibleBound Γ A) => c.2) hcode
-
-/-- Equal boundary components of branch codes put the two prefix occurrences in
-the same invisible trace component. -/
+/-- Equal branch codes put the two prefix occurrences in the same invisible
+trace component. -/
 theorem branchPrefixCodeOfPrefix_eq_same_piece
     {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
     {r : Nat} {N : TraceNeighbourChoice t r}
@@ -1229,9 +1133,9 @@ theorem branchPrefixCodeOfPrefix_eq_same_piece
       (branchPrefixOccurrence e hend q₁)
       (branchPrefixOccurrence e hend q₂) := by
   have hvisible : W₁.visibleIndex = W₂.visibleIndex :=
-    congrArg (fun c : BranchCode InterfaceStateCount r (visibleBound Γ A) => c.1.2) hcode
+    congrArg (fun c : BranchCode r (visibleBound Γ A) => c.1) hcode
   have hneighbour : W₁.neighbourIndex = W₂.neighbourIndex :=
-    congrArg (fun c : BranchCode InterfaceStateCount r (visibleBound Γ A) => c.1.1.2) hcode
+    congrArg (fun c : BranchCode r (visibleBound Γ A) => c.2) hcode
   exact BoundaryCodeWitness.same_piece_of_same_indices W₁ W₂ hvisible hneighbour
 
 /-- If an occurrence key is outside the visible-slot over-approximation, then
@@ -1267,18 +1171,18 @@ branch occurrences have been injectively coded by interface state, trace
 neighbour, visible boundary, and visible-free zone. -/
 theorem branchPrefixOccurrences_length_le_depthBound_of_code
     {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    {q r : Nat} (e : DerivationTree.TreeNode t)
+    {r : Nat} (e : DerivationTree.TreeNode t)
     {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions)
     (code :
       {o // o ∈ (branchPrefixOccurrences e hend).filter
         (fun a => !decide (a.key ∈ t.visibleSlots))} →
-        BranchCode q r (visibleBound Γ A))
+        BranchCode r (visibleBound Γ A))
     (hinj : Function.Injective code) :
-    (branchPrefixOccurrences e hend).length ≤ depthBound q r Γ A := by
+    (branchPrefixOccurrences e hend).length ≤ depthBound r Γ A := by
   have hcount := branch_depth_counting_from_codes
     (xs := branchPrefixOccurrences e hend)
     (visible := fun o => decide (o.key ∈ t.visibleSlots))
-    (q := q) (r := r) (V := visibleBound Γ A)
+    (r := r) (V := visibleBound Γ A)
     (branchPrefixOccurrences_nodup e hend)
     (branchPrefixOccurrences_visibleSlot_count_le_visibleBound e hend)
     code hinj
@@ -1316,18 +1220,18 @@ theorem branchPrefixAttach_visibleSlot_count_le_visibleBound
 prefixes bounds the length of the whole constructor branch. -/
 theorem branchPrefixAttach_length_le_depthBound_of_code
     {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    {q r : Nat} (e : DerivationTree.TreeNode t)
+    {r : Nat} (e : DerivationTree.TreeNode t)
     {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions)
     (code :
       {x // x ∈ ((CategoryPath.prefixes p).attach).filter
         (fun q => !decide ((branchPrefixOccurrence e hend q).key ∈ t.visibleSlots))} →
-        BranchCode q r (visibleBound Γ A))
+        BranchCode r (visibleBound Γ A))
     (hinj : Function.Injective code) :
-    p.length + 1 ≤ depthBound q r Γ A := by
+    p.length + 1 ≤ depthBound r Γ A := by
   have hcount := branch_depth_counting_from_codes
     (xs := (CategoryPath.prefixes p).attach)
     (visible := fun q => decide ((branchPrefixOccurrence e hend q).key ∈ t.visibleSlots))
-    (q := q) (r := r) (V := visibleBound Γ A)
+    (r := r) (V := visibleBound Γ A)
     ((List.nodup_attach).mpr (CategoryPath.prefixes_nodup p))
     (branchPrefixAttach_visibleSlot_count_le_visibleBound e hend)
     code hinj
@@ -1412,7 +1316,7 @@ theorem branchPrefixCode_injective
     ∃ code :
       {x // x ∈ ((CategoryPath.prefixes p).attach).filter
         (fun q => !decide ((branchPrefixOccurrence e hend q).key ∈ t.visibleSlots))} →
-        BranchCode InterfaceStateCount r (visibleBound Γ A),
+        BranchCode r (visibleBound Γ A),
       Function.Injective code := by
   classical
   obtain ⟨N⟩ := traceDegreeLimit_nonempty_choice (t := t) htrace
@@ -1424,7 +1328,7 @@ theorem branchPrefixCode_injective
     intro x
     exact branchPrefixBoundaryCodeWitness_nonempty_of_prefix hboundary e hend x
   let W := fun x : {x // x ∈ domain} => Classical.choice (hW x)
-  let code : {x // x ∈ domain} → BranchCode InterfaceStateCount r (visibleBound Γ A) :=
+  let code : {x // x ∈ domain} → BranchCode r (visibleBound Γ A) :=
     fun x => branchPrefixCodeOfPrefix e hend x.1 (W x)
   refine ⟨code, ?_⟩
   intro x y hcode
@@ -1460,91 +1364,9 @@ theorem branchPrefix_length_le_depthBound
     (htrace : TraceDegreeLimit r)
     (e : DerivationTree.TreeNode t)
     {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions) :
-    p.length + 1 ≤ depthBound InterfaceStateCount r Γ A := by
+    p.length + 1 ≤ depthBound r Γ A := by
   obtain ⟨code, hinj⟩ := branchPrefixCode_injective hboundary htrace e hend
   exact branchPrefixAttach_length_le_depthBound_of_code e hend code hinj
-
-/-- The band slice determined by two invisible prefix occurrences on one
-branch, assuming the segment between them is visible-free. -/
-def branchBandSliceOfPrefixes {Γ : List Category} {A : Category}
-    {t : DerivationTree Γ A} (e : DerivationTree.TreeNode t)
-    {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions)
-    (q₁ q₂ : {q : CategoryPath // q ∈ CategoryPath.prefixes p})
-    (hstrict : q₁.1.StrictPrefix q₂.1)
-    (hinv₁ : (branchPrefixOccurrence e hend q₁).Invisible)
-    (hinv₂ : (branchPrefixOccurrence e hend q₂).Invisible)
-    (hfree :
-      VisibleFreeSegment
-        (branchPrefixOccurrence e hend q₁)
-        (branchPrefixOccurrence e hend q₂)) :
-    BandSlice t where
-  topOcc := branchPrefixOccurrence e hend q₁
-  botOcc := branchPrefixOccurrence e hend q₂
-  same_node := rfl
-  strict := hstrict
-  top_invisible := hinv₁
-  bot_invisible := hinv₂
-  removed_invisible := hfree
-
-/-- Two invisible prefix occurrences with the same branch interface state and a
-visible-free segment form the branch-counting repeated-interface predicate on
-the extended branch endpoint.  This is not a paper repeatable pair unless the
-same-invisible-piece transport evidence is supplied separately. -/
-theorem repeatedInterfaceSliceOnBranchOfPrefixes {Γ : List Category} {A : Category}
-    {t : DerivationTree Γ A} (e : DerivationTree.TreeNode t)
-    {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions)
-    (q₁ q₂ : {q : CategoryPath // q ∈ CategoryPath.prefixes p})
-    (hstrict : q₁.1.StrictPrefix q₂.1)
-    (hinv₁ : (branchPrefixOccurrence e hend q₁).Invisible)
-    (hinv₂ : (branchPrefixOccurrence e hend q₂).Invisible)
-    (hinterface :
-      interfaceStateOnBranch (branchPrefixOccurrence e hend q₁) (p ++ [false]) =
-        interfaceStateOnBranch (branchPrefixOccurrence e hend q₂) (p ++ [false]))
-    (hfree :
-      VisibleFreeSegment
-        (branchPrefixOccurrence e hend q₁)
-        (branchPrefixOccurrence e hend q₂)) :
-    RepeatedInterfaceSliceOnBranch
-      (branchPrefixOccurrence e hend q₁)
-      (branchPrefixOccurrence e hend q₂) :=
-  RepeatedInterfaceSliceOnBranch.ofSlice
-    (branchBandSliceOfPrefixes e hend q₁ q₂ hstrict hinv₁ hinv₂ hfree)
-    (p ++ [false])
-    (CategoryPath.mem_prefixes_strictPrefix_snoc q₁.2 false)
-    (CategoryPath.mem_prefixes_strictPrefix_snoc q₂.2 false)
-    hinterface
-
-/-- If no slot-classified visible key occurs strictly between two branch
-prefixes, then the actual occurrence segment between them is visible-free. -/
-theorem visibleFreeSegment_of_no_visibleSlots_between
-    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (e : DerivationTree.TreeNode t)
-    {p : CategoryPath} (hend : p ∈ e.nodeCategory.constructorPositions)
-    (q₁ q₂ : {q : CategoryPath // q ∈ CategoryPath.prefixes p})
-    (hnoVisibleSlot :
-      ∀ q : {q : CategoryPath // q ∈ CategoryPath.prefixes p},
-        q₁.1.StrictPrefix q.1 → q.1.StrictPrefix q₂.1 →
-          (branchPrefixOccurrence e hend q).key ∉ t.visibleSlots) :
-    VisibleFreeSegment
-      (branchPrefixOccurrence e hend q₁)
-      (branchPrefixOccurrence e hend q₂) := by
-  intro o hnode hbetween hvisible
-  have hkeyVisible : o.key ∈ t.visibleSlots := visibleSlotsComplete o hvisible
-  have hq2prefix : q₂.1.Prefix p := CategoryPath.mem_prefixes_prefix q₂.2
-  have homidPrefix : o.categoryPath.Prefix p :=
-    CategoryPath.Prefix.trans hbetween.2.prefix hq2prefix
-  have homidMem : o.categoryPath ∈ CategoryPath.prefixes p :=
-    CategoryPath.mem_prefixes_of_prefix homidPrefix
-  let qmid : {q : CategoryPath // q ∈ CategoryPath.prefixes p} :=
-    ⟨o.categoryPath, homidMem⟩
-  have hkeyEq : (branchPrefixOccurrence e hend qmid).key = o.key := by
-    have hnodeE : o.nodePath = e.nodePath := by
-      simpa [branchPrefixOccurrence] using hnode
-    change ({ nodePath := e.nodePath, categoryPath := o.categoryPath } : Occurrence.Key) =
-      ({ nodePath := o.nodePath, categoryPath := o.categoryPath } : Occurrence.Key)
-    rw [← hnodeE]
-  have hnot := hnoVisibleSlot qmid hbetween.1 hbetween.2
-  exact hnot (by simpa [hkeyEq] using hkeyVisible)
 
 /-- Slot-classified visible branch keys are bounded by the paper visible
 budget.  This uses the executable `visibleSlots` over-approximation rather than
@@ -1568,101 +1390,50 @@ theorem branch_visibleSlot_count_le_visibleBound
   rw [DerivationTree.length_visibleSlots] at hle
   exact hle
 
-/-- Every node category of `t` has depth at most the paper bound. -/
-def DerivationTree.NodeCategoriesDepthBounded (q r : Nat) {Γ : List Category} {A : Category} (t : DerivationTree Γ A) : Prop :=
-  ∀ B ∈ t.nodeCategories, B.depth ≤ depthBound q r Γ A
+/-- Every node category of `t` has depth at most the bound `H = V + V*r`. -/
+def DerivationTree.NodeCategoriesDepthBounded (r : Nat) {Γ : List Category} {A : Category} (t : DerivationTree Γ A) : Prop :=
+  ∀ B ∈ t.nodeCategories, B.depth ≤ depthBound r Γ A
 
 /-- Constructor-position branch lengths in every node category are bounded by
-the paper depth bound.  This is the local form naturally produced by the
-branch/zone counting argument. -/
-def DerivationTree.NodeConstructorPositionsBounded (q r : Nat)
+the depth bound.  This is the local form naturally produced by the
+branch-counting argument. -/
+def DerivationTree.NodeConstructorPositionsBounded (r : Nat)
     {Γ : List Category} {A : Category} (t : DerivationTree Γ A) : Prop :=
   ∀ B ∈ t.nodeCategories, ∀ p, p ∈ B.constructorPositions →
-    p.length + 1 ≤ depthBound q r Γ A
+    p.length + 1 ≤ depthBound r Γ A
 
 /-- Bounded constructor-position branch lengths imply bounded node-category
 depths. -/
 theorem DerivationTree.nodeCategoriesDepthBounded_of_constructorPositionsBounded
-    {q r : Nat} {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (hbranches : t.NodeConstructorPositionsBounded q r) :
-    t.NodeCategoriesDepthBounded q r := by
+    {r : Nat} {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
+    (hbranches : t.NodeConstructorPositionsBounded r) :
+    t.NodeCategoriesDepthBounded r := by
   intro B hB
-  exact Category.depth_le_of_constructorPosition_length B (depthBound q r Γ A)
+  exact Category.depth_le_of_constructorPosition_length B (depthBound r Γ A)
     (hbranches B hB)
 
-/-- The concrete normal-form output needed from the trace/zone counting proof:
+/-- The concrete normal-form output needed from the counting proof:
 an explicit derivation tree using only problem atoms and whose node categories
 are bounded by `H`. -/
-def DepthBoundedNormalForm (q r : Nat) : Prop :=
+def DepthBoundedNormalForm (r : Nat) : Prop :=
   ∀ {Γ : List Category} {A : Category}, Γ ⇒ccg A →
-    ∃ t : DerivationTree Γ A, t.NodeCategoriesUseProblemAtoms ∧ t.NodeCategoriesDepthBounded q r
-
-/-- A stronger but often easier-to-prove normal-form obligation: find a
-problem-atom derivation tree whose total constructor-occurrence measure `size` is
-bounded by the paper bound.  Since every node depth is at most `size`, this implies
-`DepthBoundedNormalForm`. -/
-def SizeBoundedNormalForm (q r : Nat) : Prop :=
-  ∀ {Γ : List Category} {A : Category}, Γ ⇒ccg A →
-    ∃ t : DerivationTree Γ A, t.NodeCategoriesUseProblemAtoms ∧ t.size ≤ depthBound q r Γ A
-
-/-- The remaining graph-theoretic branch/zone counting theorem target.  It is
-separated from band contraction and boundary elimination: given a problem-atom
-tree with no boundary-free invisible pieces, no repeatable pair, and a
-trace-degree budget, every node category is bounded by the paper's `H`. -/
-def BranchZoneCountingComplete (q r : Nat) : Prop :=
-  ∀ {Γ : List Category} {A : Category} {t : DerivationTree Γ A},
-    t.NodeCategoriesUseProblemAtoms →
-      NoBoundarylessInvisibleComponents t →
-        ¬ HasRepeatablePairOnBranch t →
-          TraceDegreeLimit r →
-            t.NodeCategoriesDepthBounded q r
-
-/-- More local branch/zone counting target: prove the branch-length bound for
-each constructor position in each node category.  The pure category theorem
-`Category.depth_le_of_constructorPosition_length` then converts this to
-`BranchZoneCountingComplete`. -/
-def BranchConstructorPositionCountingComplete (q r : Nat) : Prop :=
-  ∀ {Γ : List Category} {A : Category} {t : DerivationTree Γ A},
-    t.NodeCategoriesUseProblemAtoms →
-      NoBoundarylessInvisibleComponents t →
-        ¬ HasRepeatablePairOnBranch t →
-          TraceDegreeLimit r →
-            t.NodeConstructorPositionsBounded q r
-
-/-- Constructor-position branch counting implies the node-depth branch/zone
-counting theorem. -/
-theorem branchZoneCountingComplete_of_constructorPositionCounting
-    {q r : Nat} (hcount : BranchConstructorPositionCountingComplete q r) :
-    BranchZoneCountingComplete q r := by
-  intro Γ A t hatoms hboundary hnoRepeat htrace
-  exact t.nodeCategoriesDepthBounded_of_constructorPositionsBounded
-    (hcount hatoms hboundary hnoRepeat htrace)
-
-/-- A size-bounded normal-form theorem implies the depth-bounded tree theorem. -/
-theorem depthBoundedNormalForm_of_sizeBoundedNormalForm
-    {q r : Nat} (hmu : SizeBoundedNormalForm q r) :
-    DepthBoundedNormalForm q r := by
-  intro Γ A hDerives
-  obtain ⟨t, hatoms, hmuBound⟩ := hmu hDerives
-  refine ⟨t, hatoms, ?_⟩
-  intro B hB
-  exact le_trans (DerivationTree.depth_le_size_of_mem_nodeCategories hB) hmuBound
+    ∃ t : DerivationTree Γ A, t.NodeCategoriesUseProblemAtoms ∧ t.NodeCategoriesDepthBounded r
 
 /-- Problem-atom and depth bounds on every node category imply the finite
 candidate-set certificate. -/
 theorem DerivationTree.nodeCategoryBoundCertificate_of_atoms_depth
-    {q r : Nat} {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
+    {r : Nat} {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
     (hatoms : t.NodeCategoriesUseProblemAtoms)
-    (hdepth : t.NodeCategoriesDepthBounded q r) :
-    NodeCategoryBoundCertificate q r t := by
+    (hdepth : t.NodeCategoriesDepthBounded r) :
+    NodeCategoryBoundCertificate r t := by
   intro B hB
   exact mem_categoryPool_of_atoms_depth (hatoms B hB) (hdepth B hB)
 
 /-- A bounded normal-form tree theorem finalizes `NodeCategoryBoundComplete`. -/
 theorem nodeCategoryBoundComplete_of_depthBoundedNormalForm
-    {q r : Nat} (hbounded : DepthBoundedNormalForm q r) :
+    {r : Nat} (hbounded : DepthBoundedNormalForm r) :
     ∀ {Γ : List Category} {A : Category}, Γ ⇒ccg A →
-      ∃ t : DerivationTree Γ A, NodeCategoryBoundCertificate q r t := by
+      ∃ t : DerivationTree Γ A, NodeCategoryBoundCertificate r t := by
   intro Γ A hDerives
   obtain ⟨t, hatoms, hdepth⟩ := hbounded hDerives
   exact ⟨t, t.nodeCategoryBoundCertificate_of_atoms_depth hatoms hdepth⟩
@@ -1759,28 +1530,21 @@ theorem nodeCategoriesContainedIn_right_of_binary
 
 end DerivationTree
 
-/-- The branch counting argument no longer needs repeatable-pair elimination:
-boundaryless invisible components plus the fixed trace-degree bound already
-bound every constructor-position branch. -/
+/-- **Branch counting.**  The counting argument needs no repeatable-pair
+elimination: boundaryless-invisible-component elimination plus the fixed
+trace-degree bound already bound every constructor-position branch by
+`H = V + V*r`. -/
 theorem nodeConstructorPositionsBounded_of_boundary_trace
     {r : Nat} {Γ : List Category} {A : Category}
     {t : DerivationTree Γ A}
     (hboundary : NoBoundarylessInvisibleComponents t)
     (htrace : TraceDegreeLimit r) :
-    t.NodeConstructorPositionsBounded InterfaceStateCount r := by
+    t.NodeConstructorPositionsBounded r := by
   intro B hB p hp
   obtain ⟨e, _heMem, heCat⟩ := DerivationTree.nodeCategory_mem_nodeEntries t hB
   have hp' : p ∈ e.nodeCategory.constructorPositions := by
     simpa [heCat] using hp
   exact branchPrefix_length_le_depthBound hboundary htrace e hp'
-
-/-- Constructor-position branch counting at the interface-state count used by
-the paper code. -/
-theorem branchConstructorPositionCountingComplete_interfaceStateCount
-    {r : Nat} :
-    BranchConstructorPositionCountingComplete InterfaceStateCount r := by
-  intro Γ A t _hatoms hboundary _hnoRepeat htrace B hB p hp
-  exact nodeConstructorPositionsBounded_of_boundary_trace hboundary htrace B hB p hp
 
 namespace AtomRestrictedDerivable
 
@@ -1910,14 +1674,15 @@ theorem boundaryFreeInvisiblePieceElimination_of_replaceable_or_protected_piece_
     (boundaryFreeInvisiblePieceContractsFromPieces_of_replaceable_or_protected
       hreplace hprotected)
 
-/-- Boundary-free-piece elimination alone, together with a trace-degree bound,
-now gives the depth-bounded normal form.  The branch-counting proof no longer
-uses repeatable-pair elimination. -/
+/-- Boundary-free-piece elimination, together with a trace-degree bound,
+gives the depth-bounded normal form.  The branch-counting proof does not use
+repeatable-pair elimination: repeatable pairs cannot occur at all, because two
+occurrences on one branch never share a trace piece. -/
 theorem depthBoundedNormalForm_of_boundaryElimination_and_trace
     {r : Nat}
     (hboundary : BoundaryFreeInvisiblePieceElimination)
     (htrace : TraceDegreeLimit r) :
-    DepthBoundedNormalForm InterfaceStateCount r := by
+    DepthBoundedNormalForm r := by
   intro Γ A hDerives
   obtain ⟨t, hatoms, hmin⟩ := hDerives.exists_minimalProblemAtomDerivationTree
   have hnoBoundary : NoBoundarylessInvisibleComponents t :=
@@ -1932,7 +1697,7 @@ theorem depthBoundedNormalForm_of_pieceContracts_and_trace
     {r : Nat}
     (hpieces : BoundaryFreeInvisiblePieceContractsFromPieces)
     (htrace : TraceDegreeLimit r) :
-    DepthBoundedNormalForm InterfaceStateCount r :=
+    DepthBoundedNormalForm r :=
   depthBoundedNormalForm_of_boundaryElimination_and_trace
     (boundaryFreeInvisiblePieceElimination_of_piece_contracts hpieces)
     htrace
@@ -1944,61 +1709,11 @@ theorem depthBoundedNormalForm_of_replaceable_or_protected_piece_contracts_and_t
     (hreplace : BoundaryFreeReplaceableInvisiblePieceContractsFromPieces)
     (hprotected : BoundaryFreeProtectedSkeletonPieceContracts)
     (htrace : TraceDegreeLimit r) :
-    DepthBoundedNormalForm InterfaceStateCount r :=
+    DepthBoundedNormalForm r :=
   depthBoundedNormalForm_of_boundaryElimination_and_trace
     (boundaryFreeInvisiblePieceElimination_of_replaceable_or_protected_piece_contracts
       hreplace hprotected)
     htrace
-
-
-/-- Atom-minimal trees have no raw repeatable pair once the remaining
-paper theorem `AllRepeatablePairsContract` is available. -/
-theorem Derivable.minimalProblemAtom_no_repeatablePair_of_contractibility
-    (hrep : AllRepeatablePairsContract)
-    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (hatoms : t.NodeCategoriesUseProblemAtoms)
-    (hmin : ∀ t' : DerivationTree Γ A,
-      t'.NodeCategoriesUseProblemAtoms → t.size ≤ t'.size) :
-    ¬ HasRepeatablePairOnBranch t := by
-  intro hpair
-  obtain ⟨o₁, o₂, hp⟩ := hpair
-  obtain ⟨hp⟩ := hp
-  obtain ⟨w⟩ := hrep hp
-  have ht'Atoms : w.target.NodeCategoriesUseProblemAtoms :=
-    w.preserves_problem_atoms hatoms
-  have hle := hmin w.target ht'Atoms
-  have hlt := w.size_lt
-  omega
-
-/-- Every derivable sequent has a problem-atom minimal tree, and such a tree has
-no raw repeatable pair once the remaining paper `rep-band` theorem is available. -/
-theorem Derivable.exists_minimalProblemAtom_no_repeatablePair_of_contractibility
-    (hrep : AllRepeatablePairsContract)
-    {Γ : List Category} {A : Category} (h : Γ ⇒ccg A) :
-    ∃ t : DerivationTree Γ A,
-      t.NodeCategoriesUseProblemAtoms ∧ ¬ HasRepeatablePairOnBranch t := by
-  obtain ⟨t, hatoms, hmin⟩ := h.exists_minimalProblemAtomDerivationTree
-  exact ⟨t, hatoms,
-    Derivable.minimalProblemAtom_no_repeatablePair_of_contractibility hrep hatoms hmin⟩
-
-/-- Band contraction, boundary elimination and branch/zone counting together
-produce the depth-bounded normal form consumed by the finite parser layer.  This
-is the formal assembly point for paper steps 1--5; each hard paper lemma remains
-a named hypothesis instead of being hidden behind an axiom or a vacuous theorem. -/
-theorem depthBoundedNormalForm_of_branchZoneCounting
-    {q r : Nat}
-    (hrep : AllRepeatablePairsContract)
-    (hboundary : BoundaryFreeInvisiblePieceElimination)
-    (hcount : BranchZoneCountingComplete q r)
-    (htrace : TraceDegreeLimit r) :
-    DepthBoundedNormalForm q r := by
-  intro Γ A hDerives
-  obtain ⟨t, hatoms, hmin⟩ := hDerives.exists_minimalProblemAtomDerivationTree
-  have hboundaryFree : NoBoundarylessInvisibleComponents t :=
-    hboundary hatoms hmin
-  have hnoRepeat : ¬ HasRepeatablePairOnBranch t :=
-    Derivable.minimalProblemAtom_no_repeatablePair_of_contractibility hrep hatoms hmin
-  exact ⟨t, hatoms, hcount hatoms hboundaryFree hnoRepeat htrace⟩
 
 /-- If every node category of a tree lies in a fixed candidate set, then the
 tree can be read as a `ChartDerivable` derivation over that same candidate set.
@@ -2053,29 +1768,9 @@ theorem DerivationTree.toChartDerivable_of_containedNodeCategories
 finite-candidate-aware derivation over the paper candidate set for the whole
 problem. -/
 theorem DerivationTree.toChartDerivable_of_nodeCategoryBoundCertificate
-    {Γ : List Category} {A : Category} (t : DerivationTree Γ A) {q r : Nat}
-    (hcert : NodeCategoryBoundCertificate q r t) :
-    ChartDerivable (categoryPool Γ A (depthBound q r Γ A)) Γ A :=
+    {Γ : List Category} {A : Category} (t : DerivationTree Γ A) {r : Nat}
+    (hcert : NodeCategoryBoundCertificate r t) :
+    ChartDerivable (categoryPool Γ A (depthBound r Γ A)) Γ A :=
   DerivationTree.toChartDerivable_of_containedNodeCategories t hcert
-
-/-- A paper depth-counting certificate implies the advertised node-category
-depth bound.  The hard counting work is exactly the production of `hcert`; this
-lemma only reads the certificate through finite-candidate soundness. -/
-theorem DerivationTree.depth_bound_of_certificate
-    {q r : Nat} {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (hcert : NodeCategoryBoundCertificate q r t) :
-    ∀ B ∈ t.nodeCategories, B.depth ≤ depthBound q r Γ A :=
-  DerivationTree.depth_counting_of_candidate_categories hcert
-
-/-- A tree whose nodes all satisfy the paper depth bound. -/
-def DepthBoundedTree (q r : Nat) (Γ : List Category) (A : Category) : Prop :=
-  ∃ t : DerivationTree Γ A, ∀ B ∈ t.nodeCategories, B.depth ≤ depthBound q r Γ A
-
-/-- A paper depth-counting certificate yields a depth-bounded tree. -/
-theorem Derivable.exists_depthBoundedDerivationTree_of_certificate
-    {q r : Nat} {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
-    (hcert : NodeCategoryBoundCertificate q r t) :
-    DepthBoundedTree q r Γ A :=
-  ⟨t, DerivationTree.depth_bound_of_certificate hcert⟩
 
 end Mathling.CCG

@@ -241,19 +241,17 @@ def parseWithDepthLimitAndFuel (depthLimit fuel : Nat) (Γ : List Category) (goa
   let K := categoryPool Γ goal depthLimit
   decideWithFuel K fuel Γ goal
 
-/-- Bounded parser using the schematic paper bound `H = V + q*r*V*(V+1)`.
+/-- Bounded parser using the sharp bound `H = V + V*r`.
 
-The constants `q` and `r` are rule-system constants in the paper: `q` bounds
-interface states and `r` bounds trace degree.  This definition is not evaluated
-by default, because the resulting finite set can be very large. -/
+The constant `r` is a rule-system constant bounding trace degree. -/
 @[grind =]
-def parseWithCompleteBound (q r : Nat) (Γ : List Category) (goal : Category) : Bool :=
-  parseWithDepthLimit (depthBound q r Γ goal) Γ goal
+def parseWithCompleteBound (r : Nat) (Γ : List Category) (goal : Category) : Bool :=
+  parseWithDepthLimit (depthBound r Γ goal) Γ goal
 
-/-- Fuel-explicit parser using the schematic paper depth bound. -/
+/-- Fuel-explicit parser using the sharp depth bound. -/
 @[grind =]
-def parseWithCompleteBoundAndFuel (q r fuel : Nat) (Γ : List Category) (goal : Category) : Bool :=
-  parseWithDepthLimitAndFuel (depthBound q r Γ goal) fuel Γ goal
+def parseWithCompleteBoundAndFuel (r fuel : Nat) (Γ : List Category) (goal : Category) : Bool :=
+  parseWithDepthLimitAndFuel (depthBound r Γ goal) fuel Γ goal
 
 /-- Parsing with a fixed depth bound is sound for the inductive derivability relation. -/
 @[grind =>]
@@ -263,8 +261,8 @@ theorem parseWithDepthLimit_sound {depthLimit : Nat} {Γ : List Category} {goal 
 
 /-- Parsing with the schematic paper bound is sound for the inductive derivability relation. -/
 @[grind =>]
-theorem parseWithCompleteBound_sound {q r : Nat} {Γ : List Category} {goal : Category}
-    (h : parseWithCompleteBound q r Γ goal = true) : Γ ⇒ccg goal :=
+theorem parseWithCompleteBound_sound {r : Nat} {Γ : List Category} {goal : Category}
+    (h : parseWithCompleteBound r Γ goal = true) : Γ ⇒ccg goal :=
   parseWithDepthLimit_sound h
 
 /-- Fuel-explicit parsing with a fixed depth bound is sound. -/
@@ -275,8 +273,8 @@ theorem parseWithDepthLimitAndFuel_sound {depthLimit fuel : Nat} {Γ : List Cate
 
 /-- Fuel-explicit parsing with the schematic paper bound is sound. -/
 @[grind =>]
-theorem parseWithCompleteBoundAndFuel_sound {q r fuel : Nat} {Γ : List Category} {goal : Category}
-    (h : parseWithCompleteBoundAndFuel q r fuel Γ goal = true) : Γ ⇒ccg goal :=
+theorem parseWithCompleteBoundAndFuel_sound {r fuel : Nat} {Γ : List Category} {goal : Category}
+    (h : parseWithCompleteBoundAndFuel r fuel Γ goal = true) : Γ ⇒ccg goal :=
   parseWithDepthLimitAndFuel_sound h
 
 /-- If the paper's bounded-normal-form transformation has produced a derivation
@@ -295,16 +293,16 @@ theorem parseWithDepthLimit_complete_of_chartDerivable {depthLimit : Nat} {Γ : 
   decideWithFuel_complete_fuelFor_of_chartDerivable (categoryPool Γ goal depthLimit) h
 
 /-- The corresponding statement for the paper depth bound `H(Γ,goal)`. -/
-theorem exists_parseWithCompleteBoundAndFuel_of_chartDerivable {q r : Nat} {Γ : List Category} {goal : Category}
-    (h : ChartDerivable (categoryPool Γ goal (depthBound q r Γ goal)) Γ goal) :
-    ∃ fuel, parseWithCompleteBoundAndFuel q r fuel Γ goal = true :=
+theorem exists_parseWithCompleteBoundAndFuel_of_chartDerivable {r : Nat} {Γ : List Category} {goal : Category}
+    (h : ChartDerivable (categoryPool Γ goal (depthBound r Γ goal)) Γ goal) :
+    ∃ fuel, parseWithCompleteBoundAndFuel r fuel Γ goal = true :=
   exists_parseWithDepthLimitAndFuel_of_chartDerivable h
 
 /-- The paper-bound parser with its concrete fuel is complete for a derivation
 already living inside the paper candidate set. -/
-theorem parseWithCompleteBound_complete_of_chartDerivable {q r : Nat} {Γ : List Category} {goal : Category}
-    (h : ChartDerivable (categoryPool Γ goal (depthBound q r Γ goal)) Γ goal) :
-    parseWithCompleteBound q r Γ goal = true :=
+theorem parseWithCompleteBound_complete_of_chartDerivable {r : Nat} {Γ : List Category} {goal : Category}
+    (h : ChartDerivable (categoryPool Γ goal (depthBound r Γ goal)) Γ goal) :
+    parseWithCompleteBound r Γ goal = true :=
   parseWithDepthLimit_complete_of_chartDerivable h
 
 /-! ## Worked examples -/

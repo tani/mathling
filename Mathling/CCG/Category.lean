@@ -110,11 +110,22 @@ def problemAtomNames (Γ : List Category) (goal : Category) : List String :=
 def visibleBound (Γ : List Category) (goal : Category) : Nat :=
   contextConstructors Γ + goal.constructors + 3 * (Γ.length - 1)
 
-/-- The schematic depth bound `H = V + q*r*V*(V+1)` from the paper. -/
+/-- The depth bound `H = V + V*r`.
+
+A root-to-leaf constructor branch of an intermediate category carries at most
+`V` visible occurrences.  Every invisible occurrence lies in an invisible trace
+piece; trace edges preserve the addressed subcategory, so a piece meets one
+branch at most once, and a piece with a visible boundary is determined by a
+pair (visible occurrence, trace-neighbour slot) — at most `V*r` choices.
+Hence every branch has length at most `V + V*r`.
+
+This sharpens the draft paper's `H = V + q*r*V*(V+1)`: the interface-state
+factor `q` and the zone factor `V+1` are unnecessary, because two distinct
+occurrences on one branch can never lie in the same trace piece at all. -/
 @[grind =]
-def depthBound (q r : Nat) (Γ : List Category) (goal : Category) : Nat :=
+def depthBound (r : Nat) (Γ : List Category) (goal : Category) : Nat :=
   let V := visibleBound Γ goal
-  V + q * r * V * (V + 1)
+  V + V * r
 
 /-- One step of the category generator over an already finite list. -/
 @[grind =]
