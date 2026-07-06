@@ -1570,4 +1570,311 @@ theorem sizeReduction_appLeft_of_compSpineLeft
       simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
       exact Or.inr (Or.inl hY))
 
+/-! ## Structure of a crossing piece under a root application
+
+For a root forward application `C/B, B ⇒ C`, a boundary-free piece can enter
+the premise roots only inside the canceled argument `B`: a left-premise
+occurrence in the result part `false :: ·` is trace-linked to the visible tree
+root, and the functor's root position `[]` is principal.  Moreover every
+crossing occurrence carries its metavariable partner on the other premise
+inside the piece.  Consequently:
+
+* the canceled premise cannot be a leaf (its occurrences are visible);
+* if the functor premise is a type raise, the root is a collapse redex
+  (spine of length zero); the other type raise is impossible by typing.
+
+So the crossing case of a root application is open **only when the functor
+premise is binary-rooted**.  The mirror statements hold for `appLeft`.
+-/
+
+/-- Under a root `appRight`, a crossing occurrence on the functor side lies in
+the argument part `true :: ·` of `C ⧸ B`. -/
+theorem InvisiblePiece.appRight_left_in_argument
+    {Γ Δ : List Category} {C B : Category}
+    {t₁ : DerivationTree Γ (C ⧸ B)} {t₂ : DerivationTree Δ B}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.appRight)}
+    (hfree : BoundaryFree P)
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.appRight)}
+    (ho : o ∈ P.carrier) (hnp : o.nodePath = [TreeStep.left]) :
+    ∃ q, o.categoryPath = true :: q := by
+  have hcat : o.nodeCategory = C ⧸ B := by
+    have h := o.nodeAt
+    rw [hnp] at h
+    have h' : C ⧸ B = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  cases hcp : o.categoryPath with
+  | nil =>
+      exfalso
+      apply P.all_invisible o ho
+      right; right
+      rw [hnp, hcp]
+      exact DerivationTree.PrincipalConstructor.appRight_left t₁ t₂
+  | cons b q =>
+      cases b with
+      | true => exact ⟨q, rfl⟩
+      | false =>
+          exfalso
+          obtain ⟨X, Y, hXY⟩ := o.isConstructor
+          have hconsRoot : ∃ X Y,
+              C.subcategoryAt? q = some (X ⧸ Y) ∨
+              C.subcategoryAt? q = some (X ⧹ Y) := by
+            refine ⟨X, Y, ?_⟩
+            rw [hcat, hcp] at hXY
+            simpa using hXY
+          let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appRight) :=
+            { nodePath := []
+              nodeCategory := C
+              nodeAt := rfl
+              categoryPath := q
+              isConstructor := hconsRoot }
+          have hedge : TraceEdge o o' :=
+            Or.inl (Or.inl (LocalTraceEdge.appRight_C (p := q) hnp hcp rfl rfl))
+          exact hfree o ho o' (Or.inl rfl) hedge
+
+/-- Under a root `appRight`, a crossing occurrence on the argument side has its
+metavariable partner on the functor side inside the piece. -/
+theorem InvisiblePiece.appRight_partner_of_right
+    {Γ Δ : List Category} {C B : Category}
+    {t₁ : DerivationTree Γ (C ⧸ B)} {t₂ : DerivationTree Δ B}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.appRight)}
+    (hfree : BoundaryFree P)
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.appRight)}
+    (ho : o ∈ P.carrier) (hnp : o.nodePath = [TreeStep.right]) :
+    ∃ o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appRight),
+      o' ∈ P.carrier ∧ o'.nodePath = [TreeStep.left] ∧
+        o'.categoryPath = true :: o.categoryPath := by
+  have hcat : o.nodeCategory = B := by
+    have h := o.nodeAt
+    rw [hnp] at h
+    have h' : B = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hcons : ∃ X Y,
+      (C ⧸ B).subcategoryAt? (true :: o.categoryPath) = some (X ⧸ Y) ∨
+      (C ⧸ B).subcategoryAt? (true :: o.categoryPath) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat] at hXY
+    simpa using hXY
+  let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appRight) :=
+    { nodePath := [TreeStep.left]
+      nodeCategory := C ⧸ B
+      nodeAt := by simp [DerivationTree.categoryAt?]
+      categoryPath := true :: o.categoryPath
+      isConstructor := hcons }
+  have hedge : TraceEdge o o' :=
+    Or.inr (Or.inl (LocalTraceEdge.appRight_B (p := o.categoryPath) rfl rfl hnp rfl))
+  by_cases hv : o'.Visible
+  · exact absurd hedge (hfree o ho o' hv)
+  · exact ⟨o', P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩, rfl, rfl⟩
+
+/-- Under a root `appRight`, a crossing occurrence on the functor side has its
+metavariable partner on the argument side inside the piece. -/
+theorem InvisiblePiece.appRight_partner_of_left
+    {Γ Δ : List Category} {C B : Category}
+    {t₁ : DerivationTree Γ (C ⧸ B)} {t₂ : DerivationTree Δ B}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.appRight)}
+    (hfree : BoundaryFree P)
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.appRight)}
+    (ho : o ∈ P.carrier) (hnp : o.nodePath = [TreeStep.left]) :
+    ∃ q, o.categoryPath = true :: q ∧
+      ∃ o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appRight),
+        o' ∈ P.carrier ∧ o'.nodePath = [TreeStep.right] ∧ o'.categoryPath = q := by
+  obtain ⟨q, hq⟩ := InvisiblePiece.appRight_left_in_argument hfree ho hnp
+  have hcat : o.nodeCategory = C ⧸ B := by
+    have h := o.nodeAt
+    rw [hnp] at h
+    have h' : C ⧸ B = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hcons : ∃ X Y,
+      B.subcategoryAt? q = some (X ⧸ Y) ∨ B.subcategoryAt? q = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hq] at hXY
+    simpa using hXY
+  let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appRight) :=
+    { nodePath := [TreeStep.right]
+      nodeCategory := B
+      nodeAt := by simp [DerivationTree.categoryAt?]
+      categoryPath := q
+      isConstructor := hcons }
+  have hedge : TraceEdge o o' :=
+    Or.inl (Or.inl (LocalTraceEdge.appRight_B (p := q) hnp hq rfl rfl))
+  by_cases hv : o'.Visible
+  · exact absurd hedge (hfree o ho o' hv)
+  · exact ⟨q, hq, o', P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩, rfl, rfl⟩
+
+/-- A boundary-free crossing piece is impossible under a root `appRight` with a
+leaf functor premise. -/
+theorem InvisiblePiece.crossing_appRight_functor_leaf_false
+    {Δ : List Category} {C B : Category}
+    {t₂ : DerivationTree Δ B}
+    {P : InvisiblePiece (DerivationTree.binary (DerivationTree.leaf (C ⧸ B)) t₂ Rule.appRight)}
+    (hfree : BoundaryFree P)
+    (hcross : ∃ o : Occurrence (DerivationTree.binary (DerivationTree.leaf (C ⧸ B)) t₂ Rule.appRight),
+      o ∈ P.carrier ∧ (o.nodePath = [TreeStep.left] ∨ o.nodePath = [TreeStep.right])) :
+    False := by
+  obtain ⟨o, ho, hside⟩ := hcross
+  rcases hside with hnp | hnp
+  · exact P.all_invisible o ho (Or.inr (Or.inl (by rw [hnp]; trivial)))
+  · obtain ⟨o', ho', hnp', _⟩ := InvisiblePiece.appRight_partner_of_right hfree ho hnp
+    exact P.all_invisible o' ho' (Or.inr (Or.inl (by rw [hnp']; trivial)))
+
+/-! Mirror statements for a root backward application `A, A⧹C ⇒ C`. -/
+
+/-- Under a root `appLeft`, a crossing occurrence on the argument-functor side
+lies in the canceled part `false :: ·` of `A ⧹ C`. -/
+theorem InvisiblePiece.appLeft_right_in_argument
+    {Γ Δ : List Category} {A C : Category}
+    {t₁ : DerivationTree Γ A} {t₂ : DerivationTree Δ (A ⧹ C)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.appLeft)}
+    (hfree : BoundaryFree P)
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.appLeft)}
+    (ho : o ∈ P.carrier) (hnp : o.nodePath = [TreeStep.right]) :
+    ∃ q, o.categoryPath = false :: q := by
+  have hcat : o.nodeCategory = A ⧹ C := by
+    have h := o.nodeAt
+    rw [hnp] at h
+    have h' : A ⧹ C = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  cases hcp : o.categoryPath with
+  | nil =>
+      exfalso
+      apply P.all_invisible o ho
+      right; right
+      rw [hnp, hcp]
+      exact DerivationTree.PrincipalConstructor.appLeft_right t₁ t₂
+  | cons b q =>
+      cases b with
+      | false => exact ⟨q, rfl⟩
+      | true =>
+          exfalso
+          obtain ⟨X, Y, hXY⟩ := o.isConstructor
+          have hconsRoot : ∃ X Y,
+              C.subcategoryAt? q = some (X ⧸ Y) ∨
+              C.subcategoryAt? q = some (X ⧹ Y) := by
+            refine ⟨X, Y, ?_⟩
+            rw [hcat, hcp] at hXY
+            simpa using hXY
+          let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appLeft) :=
+            { nodePath := []
+              nodeCategory := C
+              nodeAt := rfl
+              categoryPath := q
+              isConstructor := hconsRoot }
+          have hedge : TraceEdge o o' :=
+            Or.inl (Or.inl (LocalTraceEdge.appLeft_C (p := q) hnp hcp rfl rfl))
+          exact hfree o ho o' (Or.inl rfl) hedge
+
+/-- Under a root `appLeft`, a crossing occurrence on the plain-argument side
+has its metavariable partner on the argument-functor side inside the piece. -/
+theorem InvisiblePiece.appLeft_partner_of_left
+    {Γ Δ : List Category} {A C : Category}
+    {t₁ : DerivationTree Γ A} {t₂ : DerivationTree Δ (A ⧹ C)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.appLeft)}
+    (hfree : BoundaryFree P)
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.appLeft)}
+    (ho : o ∈ P.carrier) (hnp : o.nodePath = [TreeStep.left]) :
+    ∃ o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appLeft),
+      o' ∈ P.carrier ∧ o'.nodePath = [TreeStep.right] ∧
+        o'.categoryPath = false :: o.categoryPath := by
+  have hcat : o.nodeCategory = A := by
+    have h := o.nodeAt
+    rw [hnp] at h
+    have h' : A = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hcons : ∃ X Y,
+      (A ⧹ C).subcategoryAt? (false :: o.categoryPath) = some (X ⧸ Y) ∨
+      (A ⧹ C).subcategoryAt? (false :: o.categoryPath) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat] at hXY
+    simpa using hXY
+  let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appLeft) :=
+    { nodePath := [TreeStep.right]
+      nodeCategory := A ⧹ C
+      nodeAt := by simp [DerivationTree.categoryAt?]
+      categoryPath := false :: o.categoryPath
+      isConstructor := hcons }
+  have hedge : TraceEdge o o' :=
+    Or.inl (Or.inl (LocalTraceEdge.appLeft_A (p := o.categoryPath) hnp rfl rfl rfl))
+  by_cases hv : o'.Visible
+  · exact absurd hedge (hfree o ho o' hv)
+  · exact ⟨o', P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩, rfl, rfl⟩
+
+/-- Under a root `appLeft`, a crossing occurrence on the argument-functor side
+has its metavariable partner on the plain-argument side inside the piece. -/
+theorem InvisiblePiece.appLeft_partner_of_right
+    {Γ Δ : List Category} {A C : Category}
+    {t₁ : DerivationTree Γ A} {t₂ : DerivationTree Δ (A ⧹ C)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.appLeft)}
+    (hfree : BoundaryFree P)
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.appLeft)}
+    (ho : o ∈ P.carrier) (hnp : o.nodePath = [TreeStep.right]) :
+    ∃ q, o.categoryPath = false :: q ∧
+      ∃ o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appLeft),
+        o' ∈ P.carrier ∧ o'.nodePath = [TreeStep.left] ∧ o'.categoryPath = q := by
+  obtain ⟨q, hq⟩ := InvisiblePiece.appLeft_right_in_argument hfree ho hnp
+  have hcat : o.nodeCategory = A ⧹ C := by
+    have h := o.nodeAt
+    rw [hnp] at h
+    have h' : A ⧹ C = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hcons : ∃ X Y,
+      A.subcategoryAt? q = some (X ⧸ Y) ∨ A.subcategoryAt? q = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hq] at hXY
+    simpa using hXY
+  let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.appLeft) :=
+    { nodePath := [TreeStep.left]
+      nodeCategory := A
+      nodeAt := by simp [DerivationTree.categoryAt?]
+      categoryPath := q
+      isConstructor := hcons }
+  have hedge : TraceEdge o o' :=
+    Or.inr (Or.inl (LocalTraceEdge.appLeft_A (p := q) rfl rfl hnp hq))
+  by_cases hv : o'.Visible
+  · exact absurd hedge (hfree o ho o' hv)
+  · exact ⟨q, hq, o', P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩, rfl, rfl⟩
+
+/-- A boundary-free crossing piece is impossible under a root `appLeft` with a
+leaf argument-functor premise. -/
+theorem InvisiblePiece.crossing_appLeft_argument_leaf_false
+    {Γ : List Category} {A C : Category}
+    {t₁ : DerivationTree Γ A}
+    {P : InvisiblePiece (DerivationTree.binary t₁ (DerivationTree.leaf (A ⧹ C)) Rule.appLeft)}
+    (hfree : BoundaryFree P)
+    (hcross : ∃ o : Occurrence (DerivationTree.binary t₁ (DerivationTree.leaf (A ⧹ C)) Rule.appLeft),
+      o ∈ P.carrier ∧ (o.nodePath = [TreeStep.left] ∨ o.nodePath = [TreeStep.right])) :
+    False := by
+  obtain ⟨o, ho, hside⟩ := hcross
+  rcases hside with hnp | hnp
+  · obtain ⟨o', ho', hnp', _⟩ := InvisiblePiece.appLeft_partner_of_left hfree ho hnp
+    exact P.all_invisible o' ho' (Or.inr (Or.inl (by rw [hnp']; trivial)))
+  · exact P.all_invisible o ho (Or.inr (Or.inl (by rw [hnp]; trivial)))
+
+/-- The crossing case of a root `appRight` with a `T>` functor premise is the
+collapse redex (spine of length zero). -/
+theorem crossing_appRight_reduces_of_functor_typeRaise
+    {Γ Δ : List Category} {A₀ C₀ : Category}
+    (u : DerivationTree Γ A₀) (t₂ : DerivationTree Δ (A₀ ⧹ C₀)) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary (DerivationTree.typeRaiseRight C₀ u) t₂ Rule.appRight)) :=
+  sizeReduction_appRight_of_compSpineRight (CompSpineRight.raise u) t₂
+
+/-- The crossing case of a root `appLeft` with a `T<` argument premise is the
+mirror collapse redex. -/
+theorem crossing_appLeft_reduces_of_argument_typeRaise
+    {Γ Δ : List Category} {A₀ C₀ : Category}
+    (w : DerivationTree Δ (C₀ ⧸ A₀)) (u : DerivationTree Γ A₀) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary w (DerivationTree.typeRaiseLeft C₀ u) Rule.appLeft)) :=
+  sizeReduction_appLeft_of_compSpineLeft (CompSpineLeft.raise u) w
+
 end Mathling.CCG

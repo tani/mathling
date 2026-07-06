@@ -722,6 +722,25 @@ $x_1\,(x_2\,(\cdots\,(u \mathbin{<} z)))$ に縮約でき，
 「相殺構造（一般には合成スパインとは限らない）の存在」を導き，
 その一般の相殺構造に対して band 削除を構成する部分である．
 
+\medskip
+\noindent\textbf{横断 piece の構造（application の場合，Lean 証明済み）．}
+根の規則が application（$>$ または $<$）のとき，横断 piece は
+消去される引数範疇 $B$ の内部にしか入れない：
+functor 前提の結果部（$C/B$ の $C$ 側）の occurrence は
+根（visible）へ trace 接続するため boundary-free に反し，
+前提根の位置 $\epsilon$ は principal（visible）である．
+さらに横断 occurrence のメタ変数パートナー
+（$>$ の $B$-コピー対 $([\mathrm{L}], 1{\cdot}q) \leftrightarrow ([\mathrm{R}], q)$）
+は必ず piece に属する．
+帰結として：(i) 消去される側の前提が\textbf{葉}なら横断 piece は存在しない
+（葉の occurrence は visible）；
+(ii) functor 前提が\textbf{型上げ}なら根が collapse 冗長対（スパイン長 $0$）．
+すなわち application の横断ケースが未解決なのは
+\textbf{functor 前提が二項規則で作られている場合のみ}である．
+【Lean: \lean{appRight\_left\_in\_argument},
+\lean{appRight\_partner\_of\_\{left,right\}},
+\lean{crossing\_appRight\_functor\_leaf\_false} と各鏡像】
+
 \begin{lemma}[境界消去]
 \label{lem:boundary}
 未解決補題~\ref{conj:protected} を仮定する．
