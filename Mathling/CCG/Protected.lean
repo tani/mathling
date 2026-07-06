@@ -1877,4 +1877,673 @@ theorem crossing_appLeft_reduces_of_argument_typeRaise
       (DerivationTree.binary w (DerivationTree.typeRaiseLeft C₀ u) Rule.appLeft)) :=
   sizeReduction_appLeft_of_compSpineLeft (CompSpineLeft.raise u) w
 
+/-! ## Crossing pieces under root compositions
+
+For each of the four composition rules the same analysis pins a boundary-free
+crossing piece to the canceled middle category `B`: the result- and
+argument-part positions of each premise root trace-link to the visible tree
+root, the premise-root positions are principal, and the `B`-metavariable local
+edge forces a matched pair of occurrences on the two premises into the piece.
+-/
+
+/-- Under a root `compRight` (`C/B, B/A => C/A`), a boundary-free crossing
+piece contains a matched pair inside the canceled middle `B`. -/
+theorem InvisiblePiece.crossing_compRight_pair
+    {Γ Δ : List Category} {C B A : Category}
+    {t₁ : DerivationTree Γ (C ⧸ B)} {t₂ : DerivationTree Δ (B ⧸ A)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.compRight)}
+    (hfree : BoundaryFree P)
+    (hcross : ∃ o : Occurrence (DerivationTree.binary t₁ t₂ Rule.compRight),
+      o ∈ P.carrier ∧ (o.nodePath = [TreeStep.left] ∨ o.nodePath = [TreeStep.right])) :
+    ∃ p, ∃ o₁ o₂ : Occurrence (DerivationTree.binary t₁ t₂ Rule.compRight),
+      o₁ ∈ P.carrier ∧ o₂ ∈ P.carrier ∧
+      o₁.nodePath = [TreeStep.left] ∧ o₁.categoryPath = true :: p ∧
+      o₂.nodePath = [TreeStep.right] ∧ o₂.categoryPath = false :: p := by
+  obtain ⟨o, ho, hside⟩ := hcross
+  rcases hside with hnp | hnp
+  · have hcat : o.nodeCategory = C ⧸ B := by
+      have h := o.nodeAt
+      rw [hnp] at h
+      have h' : C ⧸ B = o.nodeCategory := by
+        simpa [DerivationTree.categoryAt?] using h
+      exact h'.symm
+    cases hcp : o.categoryPath with
+    | nil =>
+        exfalso
+        apply P.all_invisible o ho
+        right; right
+        rw [hnp, hcp]
+        exact DerivationTree.PrincipalConstructor.compRight_left t₁ t₂
+    | cons b q =>
+        cases b with
+        | false =>
+            exfalso
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hconsRoot : ∃ X Y,
+                (C ⧸ A).subcategoryAt? (false :: q) = some (X ⧸ Y) ∨
+                (C ⧸ A).subcategoryAt? (false :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.compRight) :=
+              { nodePath := []
+                nodeCategory := C ⧸ A
+                nodeAt := rfl
+                categoryPath := false :: q
+                isConstructor := hconsRoot }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.compRight_C (p := q) hnp hcp rfl rfl))
+            exact hfree o ho o' (Or.inl rfl) hedge
+        | true =>
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hcons : ∃ X Y,
+                (B ⧸ A).subcategoryAt? (false :: q) = some (X ⧸ Y) ∨
+                (B ⧸ A).subcategoryAt? (false :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.compRight) :=
+              { nodePath := [TreeStep.right]
+                nodeCategory := B ⧸ A
+                nodeAt := by simp [DerivationTree.categoryAt?]
+                categoryPath := false :: q
+                isConstructor := hcons }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.compRight_B (p := q) hnp hcp rfl rfl))
+            by_cases hv : o'.Visible
+            · exact absurd hedge (hfree o ho o' hv)
+            · exact ⟨q, o, o',
+                ho, P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩,
+                hnp, hcp, rfl, rfl⟩
+  · have hcat : o.nodeCategory = B ⧸ A := by
+      have h := o.nodeAt
+      rw [hnp] at h
+      have h' : B ⧸ A = o.nodeCategory := by
+        simpa [DerivationTree.categoryAt?] using h
+      exact h'.symm
+    cases hcp : o.categoryPath with
+    | nil =>
+        exfalso
+        apply P.all_invisible o ho
+        right; right
+        rw [hnp, hcp]
+        exact DerivationTree.PrincipalConstructor.compRight_right t₁ t₂
+    | cons b q =>
+        cases b with
+        | true =>
+            exfalso
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hconsRoot : ∃ X Y,
+                (C ⧸ A).subcategoryAt? (true :: q) = some (X ⧸ Y) ∨
+                (C ⧸ A).subcategoryAt? (true :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.compRight) :=
+              { nodePath := []
+                nodeCategory := C ⧸ A
+                nodeAt := rfl
+                categoryPath := true :: q
+                isConstructor := hconsRoot }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.compRight_A (p := q) hnp hcp rfl rfl))
+            exact hfree o ho o' (Or.inl rfl) hedge
+        | false =>
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hcons : ∃ X Y,
+                (C ⧸ B).subcategoryAt? (true :: q) = some (X ⧸ Y) ∨
+                (C ⧸ B).subcategoryAt? (true :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.compRight) :=
+              { nodePath := [TreeStep.left]
+                nodeCategory := C ⧸ B
+                nodeAt := by simp [DerivationTree.categoryAt?]
+                categoryPath := true :: q
+                isConstructor := hcons }
+            have hedge : TraceEdge o o' :=
+              Or.inr (Or.inl (LocalTraceEdge.compRight_B (p := q) rfl rfl hnp hcp))
+            by_cases hv : o'.Visible
+            · exact absurd hedge (hfree o ho o' hv)
+            · exact ⟨q, o', o,
+                P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩, ho,
+                rfl, rfl, hnp, hcp⟩
+
+
+/-- Under a root `compLeft` (`A⧹B, B⧹C => A⧹C`), a boundary-free crossing
+piece contains a matched pair inside the canceled middle `B`. -/
+theorem InvisiblePiece.crossing_compLeft_pair
+    {Γ Δ : List Category} {A B C : Category}
+    {t₁ : DerivationTree Γ (A ⧹ B)} {t₂ : DerivationTree Δ (B ⧹ C)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.compLeft)}
+    (hfree : BoundaryFree P)
+    (hcross : ∃ o : Occurrence (DerivationTree.binary t₁ t₂ Rule.compLeft),
+      o ∈ P.carrier ∧ (o.nodePath = [TreeStep.left] ∨ o.nodePath = [TreeStep.right])) :
+    ∃ p, ∃ o₁ o₂ : Occurrence (DerivationTree.binary t₁ t₂ Rule.compLeft),
+      o₁ ∈ P.carrier ∧ o₂ ∈ P.carrier ∧
+      o₁.nodePath = [TreeStep.left] ∧ o₁.categoryPath = true :: p ∧
+      o₂.nodePath = [TreeStep.right] ∧ o₂.categoryPath = false :: p := by
+  obtain ⟨o, ho, hside⟩ := hcross
+  rcases hside with hnp | hnp
+  · have hcat : o.nodeCategory = A ⧹ B := by
+      have h := o.nodeAt
+      rw [hnp] at h
+      have h' : A ⧹ B = o.nodeCategory := by
+        simpa [DerivationTree.categoryAt?] using h
+      exact h'.symm
+    cases hcp : o.categoryPath with
+    | nil =>
+        exfalso
+        apply P.all_invisible o ho
+        right; right
+        rw [hnp, hcp]
+        exact DerivationTree.PrincipalConstructor.compLeft_left t₁ t₂
+    | cons b q =>
+        cases b with
+        | false =>
+            exfalso
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hconsRoot : ∃ X Y,
+                (A ⧹ C).subcategoryAt? (false :: q) = some (X ⧸ Y) ∨
+                (A ⧹ C).subcategoryAt? (false :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.compLeft) :=
+              { nodePath := []
+                nodeCategory := A ⧹ C
+                nodeAt := rfl
+                categoryPath := false :: q
+                isConstructor := hconsRoot }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.compLeft_A (p := q) hnp hcp rfl rfl))
+            exact hfree o ho o' (Or.inl rfl) hedge
+        | true =>
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hcons : ∃ X Y,
+                (B ⧹ C).subcategoryAt? (false :: q) = some (X ⧸ Y) ∨
+                (B ⧹ C).subcategoryAt? (false :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.compLeft) :=
+              { nodePath := [TreeStep.right]
+                nodeCategory := B ⧹ C
+                nodeAt := by simp [DerivationTree.categoryAt?]
+                categoryPath := false :: q
+                isConstructor := hcons }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.compLeft_B (p := q) hnp hcp rfl rfl))
+            by_cases hv : o'.Visible
+            · exact absurd hedge (hfree o ho o' hv)
+            · exact ⟨q, o, o',
+                ho, P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩,
+                hnp, hcp, rfl, rfl⟩
+  · have hcat : o.nodeCategory = B ⧹ C := by
+      have h := o.nodeAt
+      rw [hnp] at h
+      have h' : B ⧹ C = o.nodeCategory := by
+        simpa [DerivationTree.categoryAt?] using h
+      exact h'.symm
+    cases hcp : o.categoryPath with
+    | nil =>
+        exfalso
+        apply P.all_invisible o ho
+        right; right
+        rw [hnp, hcp]
+        exact DerivationTree.PrincipalConstructor.compLeft_right t₁ t₂
+    | cons b q =>
+        cases b with
+        | true =>
+            exfalso
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hconsRoot : ∃ X Y,
+                (A ⧹ C).subcategoryAt? (true :: q) = some (X ⧸ Y) ∨
+                (A ⧹ C).subcategoryAt? (true :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.compLeft) :=
+              { nodePath := []
+                nodeCategory := A ⧹ C
+                nodeAt := rfl
+                categoryPath := true :: q
+                isConstructor := hconsRoot }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.compLeft_C (p := q) hnp hcp rfl rfl))
+            exact hfree o ho o' (Or.inl rfl) hedge
+        | false =>
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hcons : ∃ X Y,
+                (A ⧹ B).subcategoryAt? (true :: q) = some (X ⧸ Y) ∨
+                (A ⧹ B).subcategoryAt? (true :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.compLeft) :=
+              { nodePath := [TreeStep.left]
+                nodeCategory := A ⧹ B
+                nodeAt := by simp [DerivationTree.categoryAt?]
+                categoryPath := true :: q
+                isConstructor := hcons }
+            have hedge : TraceEdge o o' :=
+              Or.inr (Or.inl (LocalTraceEdge.compLeft_B (p := q) rfl rfl hnp hcp))
+            by_cases hv : o'.Visible
+            · exact absurd hedge (hfree o ho o' hv)
+            · exact ⟨q, o', o,
+                P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩, ho,
+                rfl, rfl, hnp, hcp⟩
+
+/-- Under a root `crossedRight` (`C/B, A⧹B => A⧹C`), a boundary-free crossing
+piece contains a matched pair inside the canceled middle `B`. -/
+theorem InvisiblePiece.crossing_crossedRight_pair
+    {Γ Δ : List Category} {C B A : Category}
+    {t₁ : DerivationTree Γ (C ⧸ B)} {t₂ : DerivationTree Δ (A ⧹ B)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.crossedRight)}
+    (hfree : BoundaryFree P)
+    (hcross : ∃ o : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedRight),
+      o ∈ P.carrier ∧ (o.nodePath = [TreeStep.left] ∨ o.nodePath = [TreeStep.right])) :
+    ∃ p, ∃ o₁ o₂ : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedRight),
+      o₁ ∈ P.carrier ∧ o₂ ∈ P.carrier ∧
+      o₁.nodePath = [TreeStep.left] ∧ o₁.categoryPath = true :: p ∧
+      o₂.nodePath = [TreeStep.right] ∧ o₂.categoryPath = true :: p := by
+  obtain ⟨o, ho, hside⟩ := hcross
+  rcases hside with hnp | hnp
+  · have hcat : o.nodeCategory = C ⧸ B := by
+      have h := o.nodeAt
+      rw [hnp] at h
+      have h' : C ⧸ B = o.nodeCategory := by
+        simpa [DerivationTree.categoryAt?] using h
+      exact h'.symm
+    cases hcp : o.categoryPath with
+    | nil =>
+        exfalso
+        apply P.all_invisible o ho
+        right; right
+        rw [hnp, hcp]
+        exact DerivationTree.PrincipalConstructor.crossedRight_left t₁ t₂
+    | cons b q =>
+        cases b with
+        | false =>
+            exfalso
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hconsRoot : ∃ X Y,
+                (A ⧹ C).subcategoryAt? (true :: q) = some (X ⧸ Y) ∨
+                (A ⧹ C).subcategoryAt? (true :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedRight) :=
+              { nodePath := []
+                nodeCategory := A ⧹ C
+                nodeAt := rfl
+                categoryPath := true :: q
+                isConstructor := hconsRoot }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.crossedRight_C (p := q) hnp hcp rfl rfl))
+            exact hfree o ho o' (Or.inl rfl) hedge
+        | true =>
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hcons : ∃ X Y,
+                (A ⧹ B).subcategoryAt? (true :: q) = some (X ⧸ Y) ∨
+                (A ⧹ B).subcategoryAt? (true :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedRight) :=
+              { nodePath := [TreeStep.right]
+                nodeCategory := A ⧹ B
+                nodeAt := by simp [DerivationTree.categoryAt?]
+                categoryPath := true :: q
+                isConstructor := hcons }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.crossedRight_B (p := q) hnp hcp rfl rfl))
+            by_cases hv : o'.Visible
+            · exact absurd hedge (hfree o ho o' hv)
+            · exact ⟨q, o, o',
+                ho, P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩,
+                hnp, hcp, rfl, rfl⟩
+  · have hcat : o.nodeCategory = A ⧹ B := by
+      have h := o.nodeAt
+      rw [hnp] at h
+      have h' : A ⧹ B = o.nodeCategory := by
+        simpa [DerivationTree.categoryAt?] using h
+      exact h'.symm
+    cases hcp : o.categoryPath with
+    | nil =>
+        exfalso
+        apply P.all_invisible o ho
+        right; right
+        rw [hnp, hcp]
+        exact DerivationTree.PrincipalConstructor.crossedRight_right t₁ t₂
+    | cons b q =>
+        cases b with
+        | false =>
+            exfalso
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hconsRoot : ∃ X Y,
+                (A ⧹ C).subcategoryAt? (false :: q) = some (X ⧸ Y) ∨
+                (A ⧹ C).subcategoryAt? (false :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedRight) :=
+              { nodePath := []
+                nodeCategory := A ⧹ C
+                nodeAt := rfl
+                categoryPath := false :: q
+                isConstructor := hconsRoot }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.crossedRight_A (p := q) hnp hcp rfl rfl))
+            exact hfree o ho o' (Or.inl rfl) hedge
+        | true =>
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hcons : ∃ X Y,
+                (C ⧸ B).subcategoryAt? (true :: q) = some (X ⧸ Y) ∨
+                (C ⧸ B).subcategoryAt? (true :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedRight) :=
+              { nodePath := [TreeStep.left]
+                nodeCategory := C ⧸ B
+                nodeAt := by simp [DerivationTree.categoryAt?]
+                categoryPath := true :: q
+                isConstructor := hcons }
+            have hedge : TraceEdge o o' :=
+              Or.inr (Or.inl (LocalTraceEdge.crossedRight_B (p := q) rfl rfl hnp hcp))
+            by_cases hv : o'.Visible
+            · exact absurd hedge (hfree o ho o' hv)
+            · exact ⟨q, o', o,
+                P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩, ho,
+                rfl, rfl, hnp, hcp⟩
+
+/-- Under a root `crossedLeft` (`B/A, B⧹C => C/A`), a boundary-free crossing
+piece contains a matched pair inside the canceled middle `B`. -/
+theorem InvisiblePiece.crossing_crossedLeft_pair
+    {Γ Δ : List Category} {B A C : Category}
+    {t₁ : DerivationTree Γ (B ⧸ A)} {t₂ : DerivationTree Δ (B ⧹ C)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ t₂ Rule.crossedLeft)}
+    (hfree : BoundaryFree P)
+    (hcross : ∃ o : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedLeft),
+      o ∈ P.carrier ∧ (o.nodePath = [TreeStep.left] ∨ o.nodePath = [TreeStep.right])) :
+    ∃ p, ∃ o₁ o₂ : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedLeft),
+      o₁ ∈ P.carrier ∧ o₂ ∈ P.carrier ∧
+      o₁.nodePath = [TreeStep.left] ∧ o₁.categoryPath = false :: p ∧
+      o₂.nodePath = [TreeStep.right] ∧ o₂.categoryPath = false :: p := by
+  obtain ⟨o, ho, hside⟩ := hcross
+  rcases hside with hnp | hnp
+  · have hcat : o.nodeCategory = B ⧸ A := by
+      have h := o.nodeAt
+      rw [hnp] at h
+      have h' : B ⧸ A = o.nodeCategory := by
+        simpa [DerivationTree.categoryAt?] using h
+      exact h'.symm
+    cases hcp : o.categoryPath with
+    | nil =>
+        exfalso
+        apply P.all_invisible o ho
+        right; right
+        rw [hnp, hcp]
+        exact DerivationTree.PrincipalConstructor.crossedLeft_left t₁ t₂
+    | cons b q =>
+        cases b with
+        | true =>
+            exfalso
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hconsRoot : ∃ X Y,
+                (C ⧸ A).subcategoryAt? (true :: q) = some (X ⧸ Y) ∨
+                (C ⧸ A).subcategoryAt? (true :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedLeft) :=
+              { nodePath := []
+                nodeCategory := C ⧸ A
+                nodeAt := rfl
+                categoryPath := true :: q
+                isConstructor := hconsRoot }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.crossedLeft_A (p := q) hnp hcp rfl rfl))
+            exact hfree o ho o' (Or.inl rfl) hedge
+        | false =>
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hcons : ∃ X Y,
+                (B ⧹ C).subcategoryAt? (false :: q) = some (X ⧸ Y) ∨
+                (B ⧹ C).subcategoryAt? (false :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedLeft) :=
+              { nodePath := [TreeStep.right]
+                nodeCategory := B ⧹ C
+                nodeAt := by simp [DerivationTree.categoryAt?]
+                categoryPath := false :: q
+                isConstructor := hcons }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.crossedLeft_B (p := q) hnp hcp rfl rfl))
+            by_cases hv : o'.Visible
+            · exact absurd hedge (hfree o ho o' hv)
+            · exact ⟨q, o, o',
+                ho, P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩,
+                hnp, hcp, rfl, rfl⟩
+  · have hcat : o.nodeCategory = B ⧹ C := by
+      have h := o.nodeAt
+      rw [hnp] at h
+      have h' : B ⧹ C = o.nodeCategory := by
+        simpa [DerivationTree.categoryAt?] using h
+      exact h'.symm
+    cases hcp : o.categoryPath with
+    | nil =>
+        exfalso
+        apply P.all_invisible o ho
+        right; right
+        rw [hnp, hcp]
+        exact DerivationTree.PrincipalConstructor.crossedLeft_right t₁ t₂
+    | cons b q =>
+        cases b with
+        | true =>
+            exfalso
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hconsRoot : ∃ X Y,
+                (C ⧸ A).subcategoryAt? (false :: q) = some (X ⧸ Y) ∨
+                (C ⧸ A).subcategoryAt? (false :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedLeft) :=
+              { nodePath := []
+                nodeCategory := C ⧸ A
+                nodeAt := rfl
+                categoryPath := false :: q
+                isConstructor := hconsRoot }
+            have hedge : TraceEdge o o' :=
+              Or.inl (Or.inl (LocalTraceEdge.crossedLeft_C (p := q) hnp hcp rfl rfl))
+            exact hfree o ho o' (Or.inl rfl) hedge
+        | false =>
+            obtain ⟨X, Y, hXY⟩ := o.isConstructor
+            have hcons : ∃ X Y,
+                (B ⧸ A).subcategoryAt? (false :: q) = some (X ⧸ Y) ∨
+                (B ⧸ A).subcategoryAt? (false :: q) = some (X ⧹ Y) := by
+              refine ⟨X, Y, ?_⟩
+              rw [hcat, hcp] at hXY
+              simpa using hXY
+            let o' : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedLeft) :=
+              { nodePath := [TreeStep.left]
+                nodeCategory := B ⧸ A
+                nodeAt := by simp [DerivationTree.categoryAt?]
+                categoryPath := false :: q
+                isConstructor := hcons }
+            have hedge : TraceEdge o o' :=
+              Or.inr (Or.inl (LocalTraceEdge.crossedLeft_B (p := q) rfl rfl hnp hcp))
+            by_cases hv : o'.Visible
+            · exact absurd hedge (hfree o ho o' hv)
+            · exact ⟨q, o', o,
+                P.closed o ho o' ⟨P.all_invisible o ho, hv, hedge⟩, ho,
+                rfl, rfl, hnp, hcp⟩
+
+
+/-! ## Subtree addressing
+
+Groundwork for chasing a crossing piece into arbitrary-depth premises:
+`SubtreeAt t π w` says `w` is the subtree of `t` at node address `π`.
+Occurrences and trace edges of the subtree lift to `t` along the address, so
+piece-membership facts can be transported between a subtree's local rule
+instance and the global piece.
+-/
+
+/-- `w` is the subtree of `t` at node address `π`. -/
+inductive DerivationTree.SubtreeAt :
+    {Γ : List Category} → {A : Category} → DerivationTree Γ A →
+      NodePath → {Δ : List Category} → {B : Category} → DerivationTree Δ B → Prop where
+  | refl {Γ : List Category} {A : Category} (t : DerivationTree Γ A) :
+      DerivationTree.SubtreeAt t [] t
+  | underUnaryRight {Γ Δ : List Category} {A B C : Category}
+      {u : DerivationTree Γ A} {π : NodePath} {w : DerivationTree Δ B}
+      (h : DerivationTree.SubtreeAt u π w) :
+      DerivationTree.SubtreeAt (DerivationTree.typeRaiseRight C u) (TreeStep.unary :: π) w
+  | underUnaryLeft {Γ Δ : List Category} {A B C : Category}
+      {u : DerivationTree Γ A} {π : NodePath} {w : DerivationTree Δ B}
+      (h : DerivationTree.SubtreeAt u π w) :
+      DerivationTree.SubtreeAt (DerivationTree.typeRaiseLeft C u) (TreeStep.unary :: π) w
+  | underBinaryLeft {Γ₁ Γ₂ Δ : List Category} {A B C X : Category}
+      {t₁ : DerivationTree Γ₁ A} {t₂ : DerivationTree Γ₂ B} {r : Rule A B C}
+      {π : NodePath} {w : DerivationTree Δ X}
+      (h : DerivationTree.SubtreeAt t₁ π w) :
+      DerivationTree.SubtreeAt (DerivationTree.binary t₁ t₂ r) (TreeStep.left :: π) w
+  | underBinaryRight {Γ₁ Γ₂ Δ : List Category} {A B C X : Category}
+      {t₁ : DerivationTree Γ₁ A} {t₂ : DerivationTree Γ₂ B} {r : Rule A B C}
+      {π : NodePath} {w : DerivationTree Δ X}
+      (h : DerivationTree.SubtreeAt t₂ π w) :
+      DerivationTree.SubtreeAt (DerivationTree.binary t₁ t₂ r) (TreeStep.right :: π) w
+
+namespace DerivationTree.SubtreeAt
+
+/-- Subtree addresses compose. -/
+theorem trans {Γ A Δ B Θ X : _} {t : DerivationTree Γ A} {π : NodePath}
+    {w : DerivationTree Δ B} {ρ : NodePath} {v : DerivationTree Θ X}
+    (h₁ : DerivationTree.SubtreeAt t π w) (h₂ : DerivationTree.SubtreeAt w ρ v) :
+    DerivationTree.SubtreeAt t (π ++ ρ) v := by
+  induction h₁ with
+  | refl t => exact h₂
+  | underUnaryRight h ih => exact .underUnaryRight (ih h₂)
+  | underUnaryLeft h ih => exact .underUnaryLeft (ih h₂)
+  | underBinaryLeft h ih => exact .underBinaryLeft (ih h₂)
+  | underBinaryRight h ih => exact .underBinaryRight (ih h₂)
+
+/-- Category lookup below a subtree address factors through the subtree. -/
+theorem categoryAt?_append {Γ A Δ B : _} {t : DerivationTree Γ A} {π : NodePath}
+    {w : DerivationTree Δ B} (h : DerivationTree.SubtreeAt t π w) (p : NodePath) :
+    t.categoryAt? (π ++ p) = w.categoryAt? p := by
+  induction h with
+  | refl t => rfl
+  | underUnaryRight h ih => exact ih
+  | underUnaryLeft h ih => exact ih
+  | underBinaryLeft h ih => exact ih
+  | underBinaryRight h ih => exact ih
+
+/-- Lift an occurrence of the subtree at `π` to an occurrence of `t`. -/
+def lift {Γ A Δ B : _} {t : DerivationTree Γ A} {π : NodePath}
+    {w : DerivationTree Δ B} (h : DerivationTree.SubtreeAt t π w)
+    (o : Occurrence w) : Occurrence t where
+  nodePath := π ++ o.nodePath
+  nodeCategory := o.nodeCategory
+  nodeAt := by rw [h.categoryAt?_append]; exact o.nodeAt
+  categoryPath := o.categoryPath
+  isConstructor := o.isConstructor
+
+@[simp]
+theorem lift_nodePath {Γ A Δ B : _} {t : DerivationTree Γ A} {π : NodePath}
+    {w : DerivationTree Δ B} (h : DerivationTree.SubtreeAt t π w) (o : Occurrence w) :
+    (h.lift o).nodePath = π ++ o.nodePath := rfl
+
+@[simp]
+theorem lift_categoryPath {Γ A Δ B : _} {t : DerivationTree Γ A} {π : NodePath}
+    {w : DerivationTree Δ B} (h : DerivationTree.SubtreeAt t π w) (o : Occurrence w) :
+    (h.lift o).categoryPath = o.categoryPath := rfl
+
+theorem lift_refl {Γ A : _} {t : DerivationTree Γ A} (o : Occurrence t) :
+    (DerivationTree.SubtreeAt.refl t).lift o = o :=
+  DerivationTree.CategoryOccurrence.eq_of_data rfl rfl rfl
+
+theorem lift_underUnaryRight {Γ Δ : List Category} {A B C : Category}
+    {u : DerivationTree Γ A} {π : NodePath} {w : DerivationTree Δ B}
+    (h : DerivationTree.SubtreeAt u π w) (o : Occurrence w) :
+    (DerivationTree.SubtreeAt.underUnaryRight (C := C) h).lift o =
+      (h.lift o).underUnaryRight C :=
+  DerivationTree.CategoryOccurrence.eq_of_data rfl rfl rfl
+
+theorem lift_underUnaryLeft {Γ Δ : List Category} {A B C : Category}
+    {u : DerivationTree Γ A} {π : NodePath} {w : DerivationTree Δ B}
+    (h : DerivationTree.SubtreeAt u π w) (o : Occurrence w) :
+    (DerivationTree.SubtreeAt.underUnaryLeft (C := C) h).lift o =
+      (h.lift o).underUnaryLeft C :=
+  DerivationTree.CategoryOccurrence.eq_of_data rfl rfl rfl
+
+theorem lift_underBinaryLeft {Γ₁ Γ₂ Δ : List Category} {A B C X : Category}
+    {t₁ : DerivationTree Γ₁ A} {t₂ : DerivationTree Γ₂ B} {r : Rule A B C}
+    {π : NodePath} {w : DerivationTree Δ X}
+    (h : DerivationTree.SubtreeAt t₁ π w) (o : Occurrence w) :
+    (DerivationTree.SubtreeAt.underBinaryLeft (t₂ := t₂) (r := r) h).lift o =
+      (h.lift o).underBinaryLeft r :=
+  DerivationTree.CategoryOccurrence.eq_of_data rfl rfl rfl
+
+theorem lift_underBinaryRight {Γ₁ Γ₂ Δ : List Category} {A B C X : Category}
+    {t₁ : DerivationTree Γ₁ A} {t₂ : DerivationTree Γ₂ B} {r : Rule A B C}
+    {π : NodePath} {w : DerivationTree Δ X}
+    (h : DerivationTree.SubtreeAt t₂ π w) (o : Occurrence w) :
+    (DerivationTree.SubtreeAt.underBinaryRight (t₁ := t₁) (r := r) h).lift o =
+      (h.lift o).underBinaryRight r :=
+  DerivationTree.CategoryOccurrence.eq_of_data rfl rfl rfl
+
+/-- Trace edges of a subtree lift to trace edges of the whole tree. -/
+theorem lift_traceEdge {Γ A Δ B : _} {t : DerivationTree Γ A} {π : NodePath}
+    {w : DerivationTree Δ B} (h : DerivationTree.SubtreeAt t π w) :
+    ∀ {o₁ o₂ : Occurrence w}, TraceEdge o₁ o₂ →
+      TraceEdge (h.lift o₁) (h.lift o₂) := by
+  induction h with
+  | refl t =>
+      intro o₁ o₂ he
+      rw [lift_refl o₁, lift_refl o₂]
+      exact he
+  | underUnaryRight h ih =>
+      intro o₁ o₂ he
+      rw [lift_underUnaryRight h o₁, lift_underUnaryRight h o₂]
+      exact TraceEdge.underUnaryRight _ (ih he)
+  | underUnaryLeft h ih =>
+      intro o₁ o₂ he
+      rw [lift_underUnaryLeft h o₁, lift_underUnaryLeft h o₂]
+      exact TraceEdge.underUnaryLeft _ (ih he)
+  | underBinaryLeft h ih =>
+      intro o₁ o₂ he
+      rw [lift_underBinaryLeft h o₁, lift_underBinaryLeft h o₂]
+      exact TraceEdge.underBinaryLeft _ (ih he)
+  | underBinaryRight h ih =>
+      intro o₁ o₂ he
+      rw [lift_underBinaryRight h o₁, lift_underBinaryRight h o₂]
+      exact TraceEdge.underBinaryRight _ (ih he)
+
+/-- A subtree whose own root is a leaf node sits at a leaf node of the whole
+tree.  In particular a leaf subtree does. -/
+theorem isLeafNode_of_isLeafNode {Γ A Δ B : _} {t : DerivationTree Γ A}
+    {π : NodePath} {w : DerivationTree Δ B}
+    (h : DerivationTree.SubtreeAt t π w) (hw : w.isLeafNode []) :
+    t.isLeafNode π := by
+  induction h with
+  | refl t => exact hw
+  | underUnaryRight h ih => exact ih hw
+  | underUnaryLeft h ih => exact ih hw
+  | underBinaryLeft h ih => exact ih hw
+  | underBinaryRight h ih => exact ih hw
+
+/-- A leaf subtree sits at a leaf node of the whole tree. -/
+theorem isLeafNode_of_leaf {Γ : List Category} {A X : Category}
+    {t : DerivationTree Γ A} {π : NodePath}
+    (h : DerivationTree.SubtreeAt t π (DerivationTree.leaf X)) :
+    t.isLeafNode π :=
+  h.isLeafNode_of_isLeafNode trivial
+
+end DerivationTree.SubtreeAt
+
 end Mathling.CCG

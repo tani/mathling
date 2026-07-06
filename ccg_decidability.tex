@@ -741,6 +741,24 @@ functor 前提の結果部（$C/B$ の $C$ 側）の occurrence は
 \lean{appRight\_partner\_of\_\{left,right\}},
 \lean{crossing\_appRight\_functor\_leaf\_false} と各鏡像】
 
+\medskip
+\noindent\textbf{合成規則の場合（Lean 証明済み）．}
+根の規則が合成（$B{>}$，$B{<}$，$Bx{>}$，$Bx{<}$）のときも同様に，
+横断 piece は消去される中間範疇 $B$ の内部に閉じ込められ，
+$B$-メタ変数コピーの対
+（$B{>}$: $([\mathrm{L}],1{\cdot}p)\leftrightarrow([\mathrm{R}],0{\cdot}p)$；
+$B{<}$: 同型；$Bx{>}$: $1{\cdot}p\leftrightarrow 1{\cdot}p$；
+$Bx{<}$: $0{\cdot}p\leftrightarrow 0{\cdot}p$）が必ず piece に属する
+【Lean: \lean{crossing\_\{compRight,compLeft,crossedRight,crossedLeft\}\_pair}】．
+
+\medskip
+\noindent\textbf{部分木アドレス化（Lean 証明済み）．}
+一般の追跡（piece を前提の内部へ辿る）のための基盤として，
+部分木の occurrence と trace 辺を任意深さのアドレスに沿って全体の木へ
+持ち上げる機構を形式化した
+【Lean: \lean{SubtreeAt}, \lean{SubtreeAt.lift\_traceEdge},
+\lean{SubtreeAt.trans}, \lean{SubtreeAt.isLeafNode\_of\_leaf}】．
+
 \begin{lemma}[境界消去]
 \label{lem:boundary}
 未解決補題~\ref{conj:protected} を仮定する．
