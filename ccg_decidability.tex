@@ -759,6 +759,25 @@ $Bx{<}$: $0{\cdot}p\leftrightarrow 0{\cdot}p$）が必ず piece に属する
 【Lean: \lean{SubtreeAt}, \lean{SubtreeAt.lift\_traceEdge},
 \lean{SubtreeAt.trans}, \lean{SubtreeAt.isLeafNode\_of\_leaf}】．
 
+\begin{lemma}[錨着補題]
+\label{lem:anchor}
+境界なし invisible trace piece は必ずある型上げ節点に触れる：
+piece はその節点の骨格位置または target コピー内部の位置の occurrence を含む．
+【Lean 証明済み: \lean{InvisiblePiece.typeRaiseAnchor}】
+\end{lemma}
+
+\begin{proof}[証明の概略]
+piece の任意の occurrence から，その節点を根とする部分木の構造帰納法で降下する．
+葉なら occurrence は visible で矛盾．二項規則の結論なら，
+結論のメタ変数コピーを通じて（合成の結論根は principal で矛盾），
+occurrence はいずれかの前提根の occurrence に trace 接続し，
+その endpoint は境界なし条件により piece に属する（visible なら境界違反）．
+型上げ節点では，位置が骨格または target コピーなら錨着，
+前提（$A$-）コピー内部なら前提へ降下する．
+降下は真に部分木を降りるので停止し，型上げ節点で錨着する．
+言い換えれば，\textbf{invisible な範疇素材の生成源は型上げのみ}である．
+\end{proof}
+
 \begin{lemma}[境界消去]
 \label{lem:boundary}
 未解決補題~\ref{conj:protected} を仮定する．
