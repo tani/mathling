@@ -20,42 +20,42 @@ set_option linter.style.setOption false
 
 /-- CCG categories: atoms, left division, and right division. -/
 @[grind cases]
-inductive Tp where
-  | atom (name : String) : Tp
-  | ldiv (A B : Tp) : Tp
-  | rdiv (A B : Tp) : Tp
+inductive Category where
+  | atom (name : String) : Category
+  | ldiv (A B : Category) : Category
+  | rdiv (A B : Category) : Category
   deriving Repr, DecidableEq
 
-namespace Tp
+namespace Category
 
-prefix:65 "#" => Tp.atom
-infixr:60 " ⧹ " => Tp.ldiv
-infixl:60 " ⧸ " => Tp.rdiv
+prefix:65 "#" => Category.atom
+infixr:60 " ⧹ " => Category.ldiv
+infixl:60 " ⧸ " => Category.rdiv
 
 /-- The depth `d(A)` from the proof: atoms have depth `0`. -/
 @[grind =]
-def depth : Tp → Nat
+def depth : Category → Nat
   | # _ => 0
   | A ⧹ B => Nat.max (depth A) (depth B) + 1
   | A ⧸ B => Nat.max (depth A) (depth B) + 1
 
 /-- The number `c(A)` of slash constructors in a category. -/
 @[grind =]
-def constructors : Tp → Nat
+def constructors : Category → Nat
   | # _ => 0
   | A ⧹ B => constructors A + constructors B + 1
   | A ⧸ B => constructors A + constructors B + 1
 
 /-- The atoms occurring in a category, with possible duplicates. -/
 @[grind =]
-def atoms : Tp → List String
+def atoms : Category → List String
   | # name => [name]
   | A ⧹ B => atoms A ++ atoms B
   | A ⧸ B => atoms A ++ atoms B
 
 /-- Homomorphic action of a map on atoms. -/
 @[grind =]
-def mapAtoms (f : String → String) : Tp → Tp
+def mapAtoms (f : String → String) : Category → Category
   | # name => # (f name)
   | A ⧹ B => mapAtoms f A ⧹ mapAtoms f B
   | A ⧸ B => mapAtoms f A ⧸ mapAtoms f B
@@ -65,60 +65,60 @@ theorem mapAtoms_atom (f : String → String) (name : String) :
     mapAtoms f (# name) = # (f name) := rfl
 
 @[simp, grind =]
-theorem mapAtoms_ldiv (f : String → String) (A B : Tp) :
+theorem mapAtoms_ldiv (f : String → String) (A B : Category) :
     mapAtoms f (A ⧹ B) = mapAtoms f A ⧹ mapAtoms f B := rfl
 
 @[simp, grind =]
-theorem mapAtoms_rdiv (f : String → String) (A B : Tp) :
+theorem mapAtoms_rdiv (f : String → String) (A B : Category) :
     mapAtoms f (A ⧸ B) = mapAtoms f A ⧸ mapAtoms f B := rfl
 
-end Tp
+end Category
 
-open Tp
+open Category
 
 /-- Constructor count of a context. -/
 @[grind =]
-def contextConstructors : List Tp → Nat
+def contextConstructors : List Category → Nat
   | [] => 0
   | A :: Γ => A.constructors + contextConstructors Γ
 
 /-- Maximum category depth in a context. -/
 @[grind =]
-def contextDepth : List Tp → Nat
+def contextDepth : List Category → Nat
   | [] => 0
   | A :: Γ => Nat.max A.depth (contextDepth Γ)
 
 /-- Atoms occurring in a context, with possible duplicates. -/
 @[grind =]
-def contextAtoms : List Tp → List String
+def contextAtoms : List Category → List String
   | [] => []
   | A :: Γ => A.atoms ++ contextAtoms Γ
 
 /-- Constructor counts are additive over context append. -/
 @[grind =]
-theorem contextConstructors_append (Γ Δ : List Tp) :
+theorem contextConstructors_append (Γ Δ : List Category) :
     contextConstructors (Γ ++ Δ) = contextConstructors Γ + contextConstructors Δ := by
   induction Γ <;> grind
 
 /-- Atoms occurring in the input and target of a recognition problem. -/
 @[grind =]
-def problemAtoms (Γ : List Tp) (goal : Tp) : List String :=
+def problemAtomNames (Γ : List Category) (goal : Category) : List String :=
   (contextAtoms Γ ++ goal.atoms).eraseDups
 
 /-- The visible-occurrence bound `V` used in the paper. -/
 @[grind =]
-def visibleBound (Γ : List Tp) (goal : Tp) : Nat :=
+def visibleBound (Γ : List Category) (goal : Category) : Nat :=
   contextConstructors Γ + goal.constructors + 3 * (Γ.length - 1)
 
 /-- The schematic depth bound `H = V + q*r*V*(V+1)` from the paper. -/
 @[grind =]
-def depthBound (q r : Nat) (Γ : List Tp) (goal : Tp) : Nat :=
+def depthBound (q r : Nat) (Γ : List Category) (goal : Category) : Nat :=
   let V := visibleBound Γ goal
   V + q * r * V * (V + 1)
 
 /-- One step of the category generator over an already finite list. -/
 @[grind =]
-def closeOnce (xs : List Tp) : List Tp :=
+def addOneLayer (xs : List Category) : List Category :=
   (xs ++ xs.flatMap (fun A => xs.flatMap (fun B => [A ⧹ B, A ⧸ B]))).eraseDups
 
 /-- All categories over `atoms` of depth at most the given bound.
@@ -126,13 +126,38 @@ def closeOnce (xs : List Tp) : List Tp :=
 This is intentionally simple and finite.  It is the finite set
 `K_{Γ,y}` of the blueprint when `atoms = Σ` and `depthLimit = H(Γ,y)`. -/
 @[grind =]
-def categoriesUpTo : Nat → List String → List Tp
+def categoriesWithDepthAtMost : Nat → List String → List Category
   | 0, atoms => (atoms.eraseDups.map (fun name => # name)).eraseDups
-  | n + 1, atoms => closeOnce (categoriesUpTo n atoms)
+  | n + 1, atoms => addOneLayer (categoriesWithDepthAtMost n atoms)
 
 /-- The finite candidate category set for an input/goal pair and a depth limit. -/
 @[grind =]
-def candidateCategories (Γ : List Tp) (goal : Tp) (depthLimit : Nat) : List Tp :=
-  categoriesUpTo depthLimit (problemAtoms Γ goal)
+def categoryPool (Γ : List Category) (goal : Category) (depthLimit : Nat) : List Category :=
+  categoriesWithDepthAtMost depthLimit (problemAtomNames Γ goal)
+
+namespace Category
+
+/-- Category depth is bounded by the number of slash constructors. -/
+@[grind =>]
+theorem depth_le_constructors : ∀ A : Category, A.depth ≤ A.constructors
+  | # _ => by simp [depth, constructors]
+  | A ⧹ B => by
+      have hA := depth_le_constructors A
+      have hB := depth_le_constructors B
+      simp only [depth, constructors]
+      exact Nat.succ_le_succ
+        (Nat.max_le.mpr ⟨
+          (le_trans hA (Nat.le_add_right A.constructors B.constructors)),
+          (le_trans hB (Nat.le_add_left B.constructors A.constructors))⟩)
+  | A ⧸ B => by
+      have hA := depth_le_constructors A
+      have hB := depth_le_constructors B
+      simp only [depth, constructors]
+      exact Nat.succ_le_succ
+        (Nat.max_le.mpr ⟨
+          (le_trans hA (Nat.le_add_right A.constructors B.constructors)),
+          (le_trans hB (Nat.le_add_left B.constructors A.constructors))⟩)
+
+end Category
 
 end Mathling.CCG

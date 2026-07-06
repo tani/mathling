@@ -56,32 +56,6 @@ def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
         (Mathling.Lambek.ProductFree.Tp.atom B)
 ```
 
-次数は一般断片の次数を通じて定義する。
-
-```lean
-@[grind =]
-def tp_degree (A : Tp) : Nat :=
-  Mathling.Lambek.ProductFree.translatedTpDegree Tp.toProductFree A
-```
-
-文脈の次数も一般断片側の定義を再利用する。
-
-```lean
-@[grind =]
-def list_degree (Γ : List Tp) : Nat :=
-  Mathling.Lambek.ProductFree.translatedListDegree Tp.toProductFree Γ
-```
-
-連結に対する加法性も一般断片から従う。
-
-```lean
-@[grind =]
-lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
-  simpa [list_degree] using
-    (Mathling.Lambek.ProductFree.translatedListDegree_traversible Tp.toProductFree
-      (Γ := Γ) (Δ := Δ))
-```
-
 ## 一般断片への翻訳
 
 left-shallow の定理は一般の product-free 断片への翻訳から得る。
@@ -186,27 +160,6 @@ infixl:50 " ⇒ " => Sequent
 ```
 
 ## 基本補題と主要定理
-
-導出可能なシーケントは空文脈を持たない。
-
-```lean
-@[grind =>]
-lemma nonempty_premises
-  (h : Sequent Γ A) : Γ ≠ [] := by
-  cases Γ with
-  | nil =>
-      simpa [Sequent, ctxToProductFree] using
-        (Mathling.Lambek.ProductFree.nonempty_premises h)
-  | cons => simp
-```
-
-非空文脈を含む連結もやはり非空である。
-
-```lean
-@[grind =>]
-lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
-  exact Mathling.Lambek.ProductFree.translatedNonemptyAppend h
-```
 
 カット許容性は left 断片での結果を翻訳して得る。
 
