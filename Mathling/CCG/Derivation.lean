@@ -23,6 +23,14 @@ inductive Rule : Category → Category → Category → Prop where
   | crossedRight : Rule (C ⧸ B) (A ⧹ B) (A ⧹ C)
   | crossedLeft : Rule (B ⧸ A) (B ⧹ C) (C ⧸ A)
 
+/-- Binary rules never increase category depth: the conclusion is at most as
+deep as the deeper premise.  Consequently unrestricted type raising is the
+*only* source of unbounded intermediate categories, and the whole decidability
+problem reduces to bounding type-raising targets. -/
+theorem Rule.depth_le {A B C : Category} (h : Rule A B C) :
+    C.depth ≤ Nat.max A.depth B.depth := by
+  cases h <;> simp [Category.depth] <;> grind
+
 /-!
 `Rule` is the mathematical rule relation.  For finite-chart completeness
 we also need the bookkeeping assertion that the schematic metavariables of a
