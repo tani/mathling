@@ -29,16 +29,19 @@ and `r = 64` is the proved trace-degree constant.
   (`boundaryFreeReplaceableInvisiblePieceContractsFromPieces`).
 
 **The single remaining obligation** is
-`CrossingBoundaryFreeSkeletonPieceHasRedex` (Protected.lean): a boundary-free
+`CrossingBoundaryFreeSkeletonPieceReduces` (Protected.lean): a boundary-free
 skeleton-carrying piece that touches a premise root of a root binary rule
-yields a collapse redex.  `Protected.lean` proves that every other case of
-`BoundaryFreeProtectedSkeletonPieceContracts` (leaf trees, unary roots,
-pieces strictly inside one premise) reduces to it by structural induction.
-Every route from the draft paper's band-contraction section that was
-previously kept alive here has been removed: the paper's repeatable pairs are
-unsatisfiable (trace components preserve the addressed subcategory, so a piece
-never meets a branch twice), so the counting needs no contraction of repeats,
-and the sharp bound `V + V*r` replaces `V + q*r*V*(V+1)`.
+yields a strictly smaller derivation of the same sequent.  `Protected.lean`
+proves that every other case of `BoundaryFreeProtectedSkeletonPieceContracts`
+(leaf trees, unary roots, pieces strictly inside one premise) reduces to it by
+structural induction, and proves the crossing conclusion itself for all
+composition spines ending in a type raise — the family that shows a single
+collapse redex does not suffice.  Every route from the draft paper's
+band-contraction section that was previously kept alive here has been removed:
+the paper's repeatable pairs are unsatisfiable (trace components preserve the
+addressed subcategory, so a piece never meets a branch twice), so the counting
+needs no contraction of repeats, and the sharp bound `V + V*r` replaces
+`V + q*r*V*(V+1)`.
 -/
 
 set_option linter.style.longLine false
@@ -161,7 +164,7 @@ theorem completeBoundParserComplete_of_protectedSkeletonPieceContracts
 piece touching a premise root of a root binary rule; that case is now the
 single remaining input to full parser completeness. -/
 theorem completeBoundParserComplete_of_crossing
-    (hcross : CrossingBoundaryFreeSkeletonPieceHasRedex) :
+    (hcross : CrossingBoundaryFreeSkeletonPieceReduces) :
     CompleteBoundParserComplete :=
   completeBoundParserComplete_of_protectedSkeletonPieceContracts
     (boundaryFreeProtectedSkeletonPieceContracts_of_crossing hcross)

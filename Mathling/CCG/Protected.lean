@@ -23,12 +23,39 @@ The strategy is structural induction on the derivation tree:
   hypothesis applies;
 * **binary root, crossing** — the piece touches a premise root of the root
   binary rule.  This is the genuinely hard remaining case, isolated below as
-  `CrossingBoundaryFreeSkeletonPieceHasRedex`; the direct-cancellation
-  instances (`T>` feeding `>`, `T<` feeding `<`) are the collapse redexes
-  already present in `Contracts`.
+  `CrossingBoundaryFreeSkeletonPieceReduces`.
 
 Everything except the crossing case is proved here, so the previous global
 obligation is strictly reduced to the crossing case.
+
+## Why the crossing conclusion is a size reduction, not a collapse redex
+
+An earlier formulation of the crossing case concluded `HasBandRedex`
+(a single `T>`-feeding-`>` or `T<`-feeding-`<` collapse step somewhere in the
+tree).  That formulation is **false**.  Counterexample: with `A₀ = C₀ ⧸ A'`,
+
+`t = appRight (compRight w₁ (typeRaiseRight C₀ u)) (typeRaiseLeft C₀ u₂)`
+
+where `w₁ : C ⧸ C₀`, `u : A₀`, `u₂ : A'`.  The three occurrences
+
+* inner `T>` skeleton `([left, right], [true])`,
+* the `⧹` of the argument slot in the composed functor `([left], [true])`,
+* outer `T<` skeleton `([right], [])`
+
+form a boundary-free invisible piece (their full trace neighbourhoods are
+exactly each other, via `compRight_A` and `appRight_B`), the piece crosses the
+root and contains protected skeletons — yet no subtree matches either collapse
+pattern: the type raise is separated from its application by a composition.
+A smaller derivation still exists, namely
+`appRight w₁ (appRight u u₂)`, but reaching it deletes the raised layer at
+*three* nodes simultaneously.  This is precisely the composed cancellation
+that band contraction was invented for.
+
+Accordingly the crossing case below concludes `Nonempty (SizeReduction _)`
+(same sequent, strictly smaller, no new atoms) rather than a one-step redex,
+and this file proves the corrected conclusion for the whole family that
+refutes the old one: composition spines ending in a type raise
+(`CompSpineRight.collapse`).
 -/
 
 set_option linter.style.longLine false
@@ -36,6 +63,118 @@ set_option linter.style.longLine false
 namespace Mathling.CCG
 
 open Category
+
+/-! ## Size reductions
+
+`ContractionWitness` fixes the problem-atom set of the ambient sequent, so it
+does not compose under congruence (a subtree has a different sequent).  The
+witness below carries the atom condition uniformly in the atom list, composes
+under all four tree contexts, and specializes to `ContractionWitness`.
+-/
+
+/-- A smaller derivation of the same sequent that introduces no new atoms. -/
+structure SizeReduction {Γ : List Category} {A : Category}
+    (t : DerivationTree Γ A) where
+  target : DerivationTree Γ A
+  size_lt : target.size < t.size
+  atoms : ∀ atomNames : List String,
+    (∀ B ∈ t.nodeCategories, UsesOnlyAtoms atomNames B) →
+      ∀ B ∈ target.nodeCategories, UsesOnlyAtoms atomNames B
+
+namespace SizeReduction
+
+/-- A single contraction step is a size reduction. -/
+def ofContracts {Γ : List Category} {A : Category}
+    {t t' : DerivationTree Γ A} (h : Contracts t t') : SizeReduction t where
+  target := t'
+  size_lt := h.size_lt
+  atoms := fun _ => h.preserves_nodeCategoriesUseOnlyAtoms
+
+/-- Size reductions specialize to contraction witnesses at the ambient
+problem-atom set. -/
+def toContractionWitness {Γ : List Category} {A : Category}
+    {t : DerivationTree Γ A} (w : SizeReduction t) : ContractionWitness t where
+  target := w.target
+  size_lt := w.size_lt
+  preserves_problem_atoms := fun h => w.atoms (problemAtomNames Γ A) h
+
+/-- Congruence: reduce inside a forward type-raising context. -/
+def underTypeRaiseRight {Γ : List Category} {A : Category} (C : Category)
+    {t : DerivationTree Γ A} (w : SizeReduction t) :
+    SizeReduction (DerivationTree.typeRaiseRight C t) where
+  target := DerivationTree.typeRaiseRight C w.target
+  size_lt := by
+    have := w.size_lt
+    simp only [DerivationTree.size_typeRaiseRight]
+    omega
+  atoms := by
+    intro names h B hB
+    simp only [DerivationTree.nodeCategories_typeRaiseRight, List.mem_cons] at hB
+    rcases hB with hB | hB
+    · exact h B (by simp [DerivationTree.nodeCategories_typeRaiseRight, hB])
+    · exact w.atoms names
+        (fun X hX => h X (by simp [DerivationTree.nodeCategories_typeRaiseRight, hX]))
+        B hB
+
+/-- Congruence: reduce inside a backward type-raising context. -/
+def underTypeRaiseLeft {Γ : List Category} {A : Category} (C : Category)
+    {t : DerivationTree Γ A} (w : SizeReduction t) :
+    SizeReduction (DerivationTree.typeRaiseLeft C t) where
+  target := DerivationTree.typeRaiseLeft C w.target
+  size_lt := by
+    have := w.size_lt
+    simp only [DerivationTree.size_typeRaiseLeft]
+    omega
+  atoms := by
+    intro names h B hB
+    simp only [DerivationTree.nodeCategories_typeRaiseLeft, List.mem_cons] at hB
+    rcases hB with hB | hB
+    · exact h B (by simp [DerivationTree.nodeCategories_typeRaiseLeft, hB])
+    · exact w.atoms names
+        (fun X hX => h X (by simp [DerivationTree.nodeCategories_typeRaiseLeft, hX]))
+        B hB
+
+/-- Congruence: reduce inside the left premise of a binary rule. -/
+def underBinaryLeft {Γ Δ : List Category} {A B C : Category}
+    {t₁ : DerivationTree Γ A} (t₂ : DerivationTree Δ B) (r : Rule A B C)
+    (w : SizeReduction t₁) :
+    SizeReduction (DerivationTree.binary t₁ t₂ r) where
+  target := DerivationTree.binary w.target t₂ r
+  size_lt := by
+    have := w.size_lt
+    simp only [DerivationTree.size_binary]
+    omega
+  atoms := by
+    intro names h X hX
+    simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append] at hX
+    rcases hX with hX | hX | hX
+    · exact h X (by simp [DerivationTree.nodeCategories_binary, hX])
+    · exact w.atoms names
+        (fun Y hY => h Y (by simp [DerivationTree.nodeCategories_binary, hY]))
+        X hX
+    · exact h X (by simp [DerivationTree.nodeCategories_binary, hX])
+
+/-- Congruence: reduce inside the right premise of a binary rule. -/
+def underBinaryRight {Γ Δ : List Category} {A B C : Category}
+    (t₁ : DerivationTree Γ A) {t₂ : DerivationTree Δ B} (r : Rule A B C)
+    (w : SizeReduction t₂) :
+    SizeReduction (DerivationTree.binary t₁ t₂ r) where
+  target := DerivationTree.binary t₁ w.target r
+  size_lt := by
+    have := w.size_lt
+    simp only [DerivationTree.size_binary]
+    omega
+  atoms := by
+    intro names h X hX
+    simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append] at hX
+    rcases hX with hX | hX | hX
+    · exact h X (by simp [DerivationTree.nodeCategories_binary, hX])
+    · exact h X (by simp [DerivationTree.nodeCategories_binary, hX])
+    · exact w.atoms names
+        (fun Y hY => h Y (by simp [DerivationTree.nodeCategories_binary, hY]))
+        X hX
+
+end SizeReduction
 
 /-! ## Leaf trees have only visible occurrences -/
 
@@ -1112,15 +1251,19 @@ theorem InvisiblePiece.restrict_binaryRight
 /-! ## The main reduction: everything except the crossing case -/
 
 /-- **The remaining crossing case.**  A boundary-free skeleton-carrying piece
-that touches a premise root of the root binary rule yields a collapse redex
-somewhere in the tree.
+that touches a premise root of the root binary rule yields a strictly smaller
+derivation of the same sequent.
 
-The direct-cancellation instances are immediate: if `t₁` is a `T>` node and
-`r = appRight` (or symmetrically `t₂` a `T<` node and `r = appLeft`), the root
-itself is the redex.  The open content is the composed case, where the
-canceled material passes through composition chains before meeting its
-cancellation partner. -/
-def CrossingBoundaryFreeSkeletonPieceHasRedex : Prop :=
+The conclusion must be a `SizeReduction`, not a single collapse redex: the
+counterexample in the module docstring exhibits a crossing boundary-free
+skeleton piece in a tree with no collapse redex at all, because the raised
+layer is separated from its application by a composition.  The
+direct-cancellation instances (`T>` feeding `>`, `T<` feeding `<`) and, more
+generally, every composition spine ending in a type raise
+(`sizeReduction_appRight_of_compSpineRight`,
+`sizeReduction_appLeft_of_compSpineLeft` below) are proved; the open content
+is deriving the cancellation shape from the piece structure. -/
+def CrossingBoundaryFreeSkeletonPieceReduces : Prop :=
   ∀ {Γ Δ : List Category} {A B C : Category}
     (t₁ : DerivationTree Γ A) (t₂ : DerivationTree Δ B) (r : Rule A B C)
     (P : InvisiblePiece (DerivationTree.binary t₁ t₂ r)),
@@ -1128,17 +1271,17 @@ def CrossingBoundaryFreeSkeletonPieceHasRedex : Prop :=
     (∃ o : Occurrence (DerivationTree.binary t₁ t₂ r), o ∈ P.carrier ∧ o.ProtectedUnarySkeleton) →
     (∃ o : Occurrence (DerivationTree.binary t₁ t₂ r), o ∈ P.carrier ∧
       (o.nodePath = [TreeStep.left] ∨ o.nodePath = [TreeStep.right])) →
-    HasBandRedex (DerivationTree.binary t₁ t₂ r)
+    Nonempty (SizeReduction (DerivationTree.binary t₁ t₂ r))
 
 /-- **Reduction to the crossing case.**  Assuming the crossing case, every
 derivation tree carrying a boundary-free invisible piece that contains a
-type-raising skeleton occurrence has a collapse redex. -/
-theorem hasBandRedex_of_boundaryFree_skeleton_piece
-    (hcross : CrossingBoundaryFreeSkeletonPieceHasRedex) :
+type-raising skeleton occurrence admits a size reduction. -/
+theorem sizeReduction_of_boundaryFree_skeleton_piece
+    (hcross : CrossingBoundaryFreeSkeletonPieceReduces) :
     ∀ {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
       (P : InvisiblePiece t), BoundaryFree P →
       (∃ o : Occurrence t, o ∈ P.carrier ∧ o.ProtectedUnarySkeleton) →
-      HasBandRedex t := by
+      Nonempty (SizeReduction t) := by
   intro Γ A t
   induction t with
   | leaf A =>
@@ -1149,14 +1292,14 @@ theorem hasBandRedex_of_boundaryFree_skeleton_piece
       intro P hfree hsk
       obtain ⟨o₀, ho₀, hsk₀⟩ := hsk
       obtain ⟨P', hfree', b, hb, hskb⟩ := P.restrict_typeRaiseRight hfree ho₀ hsk₀
-      obtain ⟨u', hc⟩ := ih P' hfree' ⟨b, hb, hskb⟩
-      exact ⟨_, Contracts.typeRaiseRight C hc⟩
+      obtain ⟨w⟩ := ih P' hfree' ⟨b, hb, hskb⟩
+      exact ⟨w.underTypeRaiseRight C⟩
   | typeRaiseLeft C u ih =>
       intro P hfree hsk
       obtain ⟨o₀, ho₀, hsk₀⟩ := hsk
       obtain ⟨P', hfree', b, hb, hskb⟩ := P.restrict_typeRaiseLeft hfree ho₀ hsk₀
-      obtain ⟨u', hc⟩ := ih P' hfree' ⟨b, hb, hskb⟩
-      exact ⟨_, Contracts.typeRaiseLeft C hc⟩
+      obtain ⟨w⟩ := ih P' hfree' ⟨b, hb, hskb⟩
+      exact ⟨w.underTypeRaiseLeft C⟩
   | binary t₁ t₂ r ih₁ ih₂ =>
       intro P hfree hsk
       by_cases hcrossing : ∃ o : Occurrence (DerivationTree.binary t₁ t₂ r),
@@ -1175,39 +1318,256 @@ theorem hasBandRedex_of_boundaryFree_skeleton_piece
         · exact absurd (Or.inl hnil) (P.all_invisible o₀ ho₀)
         · obtain ⟨P', hfree', b, hb, hskb⟩ :=
             P.restrict_binaryLeft hfree hnocross ho₀ hsk₀ hp₀
-          obtain ⟨t₁', hc⟩ := ih₁ P' hfree' ⟨b, hb, hskb⟩
-          exact ⟨_, Contracts.binaryLeft t₂ r hc⟩
+          obtain ⟨w⟩ := ih₁ P' hfree' ⟨b, hb, hskb⟩
+          exact ⟨w.underBinaryLeft t₂ r⟩
         · obtain ⟨P', hfree', b, hb, hskb⟩ :=
             P.restrict_binaryRight hfree hnocross ho₀ hsk₀ hp₀
-          obtain ⟨t₂', hc⟩ := ih₂ P' hfree' ⟨b, hb, hskb⟩
-          exact ⟨_, Contracts.binaryRight t₁ r hc⟩
+          obtain ⟨w⟩ := ih₂ P' hfree' ⟨b, hb, hskb⟩
+          exact ⟨w.underBinaryRight t₁ r⟩
 
-/-- **The protected-skeleton obligation, reduced to the crossing case.**
-Assuming the crossing case, boundary-free pieces containing a protected
-skeleton always contract: the collapse redex found by
-`hasBandRedex_of_boundaryFree_skeleton_piece` strictly decreases `size` and
-preserves the problem-atom invariant. -/
+/-- **The protected-skeleton obligation, reduced to the crossing case.** -/
 theorem boundaryFreeProtectedSkeletonPieceContracts_of_crossing
-    (hcross : CrossingBoundaryFreeSkeletonPieceHasRedex) :
+    (hcross : CrossingBoundaryFreeSkeletonPieceReduces) :
     BoundaryFreeProtectedSkeletonPieceContracts := by
   intro Γ A t hatoms P hfree hsk
-  obtain ⟨t', hc⟩ := hasBandRedex_of_boundaryFree_skeleton_piece hcross P hfree hsk
-  exact ⟨⟨t', hc.size_lt, hc.preserves_nodeCategoriesUseProblemAtoms⟩⟩
+  obtain ⟨w⟩ := sizeReduction_of_boundaryFree_skeleton_piece hcross P hfree hsk
+  exact ⟨w.toContractionWitness⟩
 
-/-! ## Discharged crossing instances: direct cancellation
+/-! ## Composed cancellation: composition spines ending in a type raise
 
-The two collapse redexes discharge the crossing case whenever the canceled
-type raise directly feeds its application.  They witness that the remaining
-open content of `CrossingBoundaryFreeSkeletonPieceHasRedex` is exactly the
-*composed* cancellation chains.
+The family that refutes the collapse-redex formulation is proved here for the
+corrected one.  A *forward composition spine* is a functor of the shape
+`x₁ ∘ (x₂ ∘ ( … ∘ T>_{C₀}(u)))`; applying it forward to an argument of the
+raised slot `A₀ ⧹ C₀` contracts to a cascade of plain applications, deleting
+the raised layer at every spine node simultaneously.  This is the
+transport-closed band deletion in the special case where the transported
+positions lie along one composition spine.
 -/
 
-/-- `T<` feeding `<` is a bare band redex. -/
-theorem hasBandRedex_collapseLeft
-    {Γ Δ : List Category} {A C : Category}
-    (w : DerivationTree Δ (C ⧸ A)) (s : DerivationTree Γ A) :
-    HasBandRedex
-      (DerivationTree.binary w (DerivationTree.typeRaiseLeft C s) Rule.appLeft) :=
-  ⟨DerivationTree.binary w s Rule.appRight, Contracts.collapseLeft w s⟩
+/-- Transport a derivation tree along an equality of leaf lists. -/
+def DerivationTree.castLeaves {Γ Γ' : List Category} {A : Category}
+    (h : Γ = Γ') (t : DerivationTree Γ A) : DerivationTree Γ' A :=
+  h ▸ t
+
+@[simp]
+theorem DerivationTree.size_castLeaves {Γ Γ' : List Category} {A : Category}
+    (h : Γ = Γ') (t : DerivationTree Γ A) :
+    (t.castLeaves h).size = t.size := by
+  subst h
+  rfl
+
+@[simp]
+theorem DerivationTree.nodeCategories_castLeaves {Γ Γ' : List Category} {A : Category}
+    (h : Γ = Γ') (t : DerivationTree Γ A) :
+    (t.castLeaves h).nodeCategories = t.nodeCategories := by
+  subst h
+  rfl
+
+/-- The root category of a tree is among its node categories. -/
+private theorem root_mem_nodeCategories' {Γ : List Category} {A : Category}
+    (t : DerivationTree Γ A) : A ∈ t.nodeCategories := by
+  cases t <;> simp [DerivationTree.nodeCategories]
+
+/-- A right spine of forward compositions ending in a forward type raise with
+target `C₀` over raised category `A₀`.  Every category on the spine has the
+raised argument slot `A₀ ⧹ C₀`. -/
+inductive CompSpineRight (A₀ C₀ : Category) :
+    {Γ : List Category} → {C : Category} →
+      DerivationTree Γ (C ⧸ (A₀ ⧹ C₀)) → Prop where
+  | raise {Γ : List Category} (u : DerivationTree Γ A₀) :
+      CompSpineRight A₀ C₀ (DerivationTree.typeRaiseRight C₀ u)
+  | comp {Γ₁ Γ₂ : List Category} {C' B : Category}
+      (x : DerivationTree Γ₁ (C' ⧸ B)) {G : DerivationTree Γ₂ (B ⧸ (A₀ ⧹ C₀))}
+      (hG : CompSpineRight A₀ C₀ G) :
+      CompSpineRight A₀ C₀ (DerivationTree.binary x G Rule.compRight)
+
+/-- **Spine collapse.**  Applying a forward composition spine to an argument of
+its raised slot contracts to a cascade of applications: the contractum saves at
+least the raised slot's constructors plus one, and introduces no new atoms. -/
+theorem CompSpineRight.collapse {A₀ C₀ : Category} :
+    ∀ {Γ : List Category} {C : Category} {F : DerivationTree Γ (C ⧸ (A₀ ⧹ C₀))},
+      CompSpineRight A₀ C₀ F →
+      ∀ {Δ : List Category} (z : DerivationTree Δ (A₀ ⧹ C₀)),
+      ∃ t' : DerivationTree (Γ ++ Δ) C,
+        t'.size + (A₀ ⧹ C₀).constructors + 1 ≤ F.size + z.size ∧
+        ∀ atomNames : List String,
+          (∀ B ∈ F.nodeCategories, UsesOnlyAtoms atomNames B) →
+          (∀ B ∈ z.nodeCategories, UsesOnlyAtoms atomNames B) →
+          ∀ B ∈ t'.nodeCategories, UsesOnlyAtoms atomNames B := by
+  intro Γ C F h
+  induction h with
+  | raise u =>
+      intro Δ z
+      refine ⟨DerivationTree.binary u z Rule.appLeft, ?_, ?_⟩
+      · simp only [DerivationTree.size_binary, DerivationTree.size_typeRaiseRight,
+          Category.constructors]
+        omega
+      · intro names hF hz B hB
+        simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+          List.mem_append] at hB
+        rcases hB with hB | hB | hB
+        · -- the new application node carries the raise target, a subcategory of the raise output
+          subst hB
+          have hout := hF _ (by
+            rw [DerivationTree.nodeCategories_typeRaiseRight]
+            exact List.mem_cons_self)
+          exact hout.rdiv_left
+        · exact hF B (by simp [DerivationTree.nodeCategories_typeRaiseRight, hB])
+        · exact hz B hB
+  | @comp Γ₁ Γ₂ _ B₁ x G hG ih =>
+      intro Δ z
+      obtain ⟨G', hsize, hatoms⟩ := ih z
+      refine ⟨(DerivationTree.binary x G' Rule.appRight).castLeaves
+        (List.append_assoc Γ₁ Γ₂ Δ).symm, ?_, ?_⟩
+      · rw [DerivationTree.size_castLeaves]
+        simp only [DerivationTree.size_binary, Category.constructors] at hsize ⊢
+        omega
+      · intro names hF hz B hB
+        rw [DerivationTree.nodeCategories_castLeaves] at hB
+        simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+          List.mem_append] at hB
+        rcases hB with hB | hB | hB
+        · -- the new application node carries `x`'s numerator, a subcategory of `x`'s root
+          subst hB
+          have hx := hF _ (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+              List.mem_append]
+            exact Or.inr (Or.inl (root_mem_nodeCategories' x)))
+          exact hx.rdiv_left
+        · exact hF B (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+              List.mem_append]
+            exact Or.inr (Or.inl hB))
+        · refine hatoms names ?_ hz B hB
+          intro Y hY
+          exact hF Y (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+              List.mem_append]
+            exact Or.inr (Or.inr hY))
+
+/-- The corrected crossing conclusion holds for every forward composition
+spine applied to its raised slot.  For a spine of length zero this is exactly
+the `collapseRight` redex; for longer spines no single collapse redex exists,
+and the reduction deletes the raised layer along the whole spine. -/
+theorem sizeReduction_appRight_of_compSpineRight
+    {A₀ C₀ : Category} {Γ Δ : List Category} {C : Category}
+    {F : DerivationTree Γ (C ⧸ (A₀ ⧹ C₀))}
+    (hF : CompSpineRight A₀ C₀ F) (z : DerivationTree Δ (A₀ ⧹ C₀)) :
+    Nonempty (SizeReduction (DerivationTree.binary F z Rule.appRight)) := by
+  obtain ⟨t', hsize, hatoms⟩ := hF.collapse z
+  refine ⟨{
+    target := t'
+    size_lt := by
+      simp only [DerivationTree.size_binary]
+      omega
+    atoms := ?_ }⟩
+  intro names h B hB
+  refine hatoms names ?_ ?_ B hB
+  · intro Y hY
+    exact h Y (by
+      simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+      exact Or.inr (Or.inl hY))
+  · intro Y hY
+    exact h Y (by
+      simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+      exact Or.inr (Or.inr hY))
+
+/-- A left spine of backward compositions ending in a backward type raise with
+target `C₀` over raised category `A₀`.  Mirror of `CompSpineRight`. -/
+inductive CompSpineLeft (A₀ C₀ : Category) :
+    {Γ : List Category} → {C : Category} →
+      DerivationTree Γ ((C₀ ⧸ A₀) ⧹ C) → Prop where
+  | raise {Γ : List Category} (u : DerivationTree Γ A₀) :
+      CompSpineLeft A₀ C₀ (DerivationTree.typeRaiseLeft C₀ u)
+  | comp {Γ₁ Γ₂ : List Category} {C' B : Category}
+      {G : DerivationTree Γ₁ ((C₀ ⧸ A₀) ⧹ B)} (y : DerivationTree Γ₂ (B ⧹ C'))
+      (hG : CompSpineLeft A₀ C₀ G) :
+      CompSpineLeft A₀ C₀ (DerivationTree.binary G y Rule.compLeft)
+
+/-- **Spine collapse (mirror).**  Applying an argument of the raised slot to a
+backward composition spine contracts to a cascade of applications. -/
+theorem CompSpineLeft.collapse {A₀ C₀ : Category} :
+    ∀ {Γ : List Category} {C : Category} {F : DerivationTree Γ ((C₀ ⧸ A₀) ⧹ C)},
+      CompSpineLeft A₀ C₀ F →
+      ∀ {Δ : List Category} (w : DerivationTree Δ (C₀ ⧸ A₀)),
+      ∃ t' : DerivationTree (Δ ++ Γ) C,
+        t'.size + (C₀ ⧸ A₀).constructors + 1 ≤ w.size + F.size ∧
+        ∀ atomNames : List String,
+          (∀ B ∈ F.nodeCategories, UsesOnlyAtoms atomNames B) →
+          (∀ B ∈ w.nodeCategories, UsesOnlyAtoms atomNames B) →
+          ∀ B ∈ t'.nodeCategories, UsesOnlyAtoms atomNames B := by
+  intro Γ C F h
+  induction h with
+  | raise u =>
+      intro Δ w
+      refine ⟨DerivationTree.binary w u Rule.appRight, ?_, ?_⟩
+      · simp only [DerivationTree.size_binary, DerivationTree.size_typeRaiseLeft,
+          Category.constructors]
+        omega
+      · intro names hF hw B hB
+        simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+          List.mem_append] at hB
+        rcases hB with hB | hB | hB
+        · subst hB
+          have hout := hF _ (by
+            rw [DerivationTree.nodeCategories_typeRaiseLeft]
+            exact List.mem_cons_self)
+          exact hout.ldiv_right
+        · exact hw B hB
+        · exact hF B (by simp [DerivationTree.nodeCategories_typeRaiseLeft, hB])
+  | @comp Γ₁ Γ₂ _ B₁ G y hG ih =>
+      intro Δ w
+      obtain ⟨G', hsize, hatoms⟩ := ih w
+      refine ⟨(DerivationTree.binary G' y Rule.appLeft).castLeaves
+        (List.append_assoc Δ Γ₁ Γ₂), ?_, ?_⟩
+      · rw [DerivationTree.size_castLeaves]
+        simp only [DerivationTree.size_binary, Category.constructors] at hsize ⊢
+        omega
+      · intro names hF hw B hB
+        rw [DerivationTree.nodeCategories_castLeaves] at hB
+        simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+          List.mem_append] at hB
+        rcases hB with hB | hB | hB
+        · subst hB
+          have hy := hF _ (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+              List.mem_append]
+            exact Or.inr (Or.inr (root_mem_nodeCategories' y)))
+          exact hy.ldiv_right
+        · refine hatoms names ?_ hw B hB
+          intro Y hY
+          exact hF Y (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+              List.mem_append]
+            exact Or.inr (Or.inl hY))
+        · exact hF B (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons,
+              List.mem_append]
+            exact Or.inr (Or.inr hB))
+
+/-- The corrected crossing conclusion holds for every backward composition
+spine applied to its raised slot. -/
+theorem sizeReduction_appLeft_of_compSpineLeft
+    {A₀ C₀ : Category} {Γ Δ : List Category} {C : Category}
+    {F : DerivationTree Γ ((C₀ ⧸ A₀) ⧹ C)}
+    (hF : CompSpineLeft A₀ C₀ F) (w : DerivationTree Δ (C₀ ⧸ A₀)) :
+    Nonempty (SizeReduction (DerivationTree.binary w F Rule.appLeft)) := by
+  obtain ⟨t', hsize, hatoms⟩ := hF.collapse w
+  refine ⟨{
+    target := t'
+    size_lt := by
+      simp only [DerivationTree.size_binary]
+      omega
+    atoms := ?_ }⟩
+  intro names h B hB
+  refine hatoms names ?_ ?_ B hB
+  · intro Y hY
+    exact h Y (by
+      simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+      exact Or.inr (Or.inr hY))
+  · intro Y hY
+    exact h Y (by
+      simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+      exact Or.inr (Or.inl hY))
 
 end Mathling.CCG
