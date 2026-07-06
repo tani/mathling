@@ -7,6 +7,7 @@ import Mathling.CCG.Occurrence
 import Mathling.CCG.Trace
 import Mathling.CCG.Band
 import Mathling.CCG.Depth
+import Mathling.CCG.Protected
 
 /-!
 # Basic definitions for the eight-rule CCG system
@@ -31,6 +32,9 @@ layers.  The contents were split into focused modules during refactoring:
 * `Mathling.CCG.Band` — the contraction relation and boundary-free
   invisible-piece elimination, replaceable case proved.
 * `Mathling.CCG.Depth` — the sharp branch-counting theorem H = V + V*r.
+* `Mathling.CCG.Protected` — the structural-induction reduction of the
+  protected-skeleton obligation to the root-crossing case
+  (`CrossingBoundaryFreeSkeletonPieceHasRedex`).
 
 Importing `Mathling.CCG.Basic` re-exports these layers, preserving the original public
 surface.

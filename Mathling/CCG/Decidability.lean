@@ -5,6 +5,7 @@ import Mathling.CCG.Parser
 import Mathling.CCG.Finite
 import Mathling.CCG.Atoms
 import Mathling.CCG.Depth
+import Mathling.CCG.Protected
 
 /-!
 # Decision procedure for the eight-rule CCG system
@@ -28,14 +29,16 @@ and `r = 64` is the proved trace-degree constant.
   (`boundaryFreeReplaceableInvisiblePieceContractsFromPieces`).
 
 **The single remaining obligation** is
-`BoundaryFreeProtectedSkeletonPieceContracts` (Band.lean): a size-minimal
-problem-atom tree cannot contain a boundary-free invisible trace piece that
-includes a protected type-raising skeleton constructor.  Every route from the
-draft paper's band-contraction section that was previously kept alive here has
-been removed: the paper's repeatable pairs are unsatisfiable (trace components
-preserve the addressed subcategory, so a piece never meets a branch twice), so
-the counting needs no contraction of repeats, and the sharp bound `V + V*r`
-replaces `V + q*r*V*(V+1)`.
+`CrossingBoundaryFreeSkeletonPieceHasRedex` (Protected.lean): a boundary-free
+skeleton-carrying piece that touches a premise root of a root binary rule
+yields a collapse redex.  `Protected.lean` proves that every other case of
+`BoundaryFreeProtectedSkeletonPieceContracts` (leaf trees, unary roots,
+pieces strictly inside one premise) reduces to it by structural induction.
+Every route from the draft paper's band-contraction section that was
+previously kept alive here has been removed: the paper's repeatable pairs are
+unsatisfiable (trace components preserve the addressed subcategory, so a piece
+never meets a branch twice), so the counting needs no contraction of repeats,
+and the sharp bound `V + V*r` replaces `V + q*r*V*(V+1)`.
 -/
 
 set_option linter.style.longLine false
@@ -152,6 +155,16 @@ theorem completeBoundParserComplete_of_protectedSkeletonPieceContracts
       boundaryFreeReplaceableInvisiblePieceContractsFromPieces
       hprotected
       traceDegreeLimit_traceNeighborLimit)
+
+/-- **Completeness from the crossing case alone.**  The structural induction of
+`Protected.lean` reduces the protected-skeleton obligation to the case of a
+piece touching a premise root of a root binary rule; that case is now the
+single remaining input to full parser completeness. -/
+theorem completeBoundParserComplete_of_crossing
+    (hcross : CrossingBoundaryFreeSkeletonPieceHasRedex) :
+    CompleteBoundParserComplete :=
+  completeBoundParserComplete_of_protectedSkeletonPieceContracts
+    (boundaryFreeProtectedSkeletonPieceContracts_of_crossing hcross)
 
 /-! ## Decidability -/
 
