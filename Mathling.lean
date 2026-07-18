@@ -13,3 +13,5 @@ import Mathling.Lambek.ProductFree.Shallow.Decidable
 
 import Mathling.CCG.Basic
 import Mathling.CCG.Decidability
+import Mathling.Automata.Basic
+import Mathling.Grammar.Basic
