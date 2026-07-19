@@ -77,16 +77,8 @@ theorem symbol_mem_symbol (a : α) : [a] ∈ language (symbol a) := by
 theorem nil_mem_star (r : RegularExpression α) : ([] : List α) ∈ language (star r) := by
   exact Language.nil_mem_kstar _
 
-private def isRegexWs (c : Char) : Bool :=
-  c == ' ' || c == '\t' || c == '\n' || c == '\r'
-
 private def isRegexReserved (c : Char) : Bool :=
-  c == '(' || c == ')' || c == '|' || c == '*' || c == 'ε' || c == '∅' || isRegexWs c
-
-/-- Drop leading ASCII whitespace. Structural recursion on the list. -/
-private def dropRegexWs : List Char → List Char
-  | [] => []
-  | c :: cs => if isRegexWs c then dropRegexWs cs else c :: cs
+  c == '(' || c == ')' || c == '|' || c == '*'
 
 /-- Intermediate parse result: a regex plus the unconsumed characters. -/
 private abbrev ParseState := Except String (RegularExpression Char × List Char)
@@ -105,7 +97,7 @@ mutual
     match fuel with
     | 0 => .error "expression too complex"
     | f + 1 =>
-      match dropRegexWs cs with
+      match cs with
       | '|' :: cs' =>
         match parseConcat f cs' with
         | .ok (nxt, rest) => parseUnionTail f (acc + nxt) rest
@@ -142,7 +134,7 @@ mutual
     match fuel with
     | 0 => (acc, cs)
     | f + 1 =>
-      match dropRegexWs cs with
+      match cs with
       | '*' :: cs' => parseStarTail f (star acc) cs'
       | cs' => (acc, cs')
 
@@ -150,31 +142,32 @@ mutual
     match fuel with
     | 0 => .error "expression too complex"
     | f + 1 =>
-      match dropRegexWs cs with
+      match cs with
       | '(' :: cs' =>
         match parseUnion f cs' with
         | .ok (inner, rest) =>
-          match dropRegexWs rest with
+          match rest with
           | ')' :: rest' => .ok (inner, rest')
           | _ => .error "expected ')'"
         | .error e => .error e
-      | 'ε' :: cs' => .ok (epsilon, cs')
-      | '∅' :: cs' => .ok (empty, cs')
       | c :: cs' =>
         if isRegexReserved c then .error "unexpected reserved character"
         else .ok (symbol c, cs')
       | [] => .error "unexpected end of input"
 end
 
-/-- Parse a string as a regular expression over `Char`. -/
+/-- Parse a string as a regular expression over `Char`; `""` denotes epsilon. -/
 def parse (s : String) : Except String (RegularExpression Char) :=
   let cs := s.toList
-  match parseUnion (4 * cs.length + 4) cs with
-  | .ok (r, rest) =>
-    match dropRegexWs rest with
-    | [] => .ok r
-    | _ => .error "unexpected trailing input"
-  | .error e => .error e
+  match cs with
+  | [] => .ok epsilon
+  | _ =>
+    match parseUnion (4 * cs.length + 4) cs with
+    | .ok (r, rest) =>
+      match rest with
+      | [] => .ok r
+      | _ => .error "unexpected trailing input"
+    | .error e => .error e
 
 /-- Parses a regular expression and decides whether it matches the input string.
 Malformed regular expressions do not match any input. -/
