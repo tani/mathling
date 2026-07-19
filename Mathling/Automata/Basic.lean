@@ -1,6 +1,7 @@
 import Mathling.Automata.Conversions
 import Mathling.Automata.RegularExpression
 import Mathling.Automata.Minimization
+import Mathling.Automata.Pumping
 
 /-!
 # Automata

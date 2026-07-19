@@ -3,6 +3,7 @@ import Mathling.Grammar.LeftLinear
 import Mathling.Grammar.Linear
 import Mathling.Grammar.ChomskyNormal
 import Mathling.Grammar.GreibachNormal
+import Mathling.Grammar.Pumping
 
 /-!
 # Grammars
