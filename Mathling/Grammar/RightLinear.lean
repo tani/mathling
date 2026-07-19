@@ -249,16 +249,16 @@ private def transitionRule (M : Mathling.Automata.DFA T σ) (qa : σ × T) :
 private def acceptingRule (q : σ) : ContextFreeRule T σ :=
   { input := q, output := [] }
 
-private noncomputable def dfaRules [Fintype T] [Fintype σ]
-    (M : Mathling.Automata.DFA T σ) : Finset (ContextFreeRule T σ) := by
-  classical
-  exact
-    (Finset.univ.product Finset.univ).image (transitionRule M) ∪
-      (Finset.univ.filter fun q => q ∈ M.accept).image acceptingRule
+private def dfaRules [Fintype T] [Fintype σ]
+    [DecidableEq T] [DecidableEq σ] (M : Mathling.Automata.DFA T σ)
+    [DecidablePred (· ∈ M.accept)] : Finset (ContextFreeRule T σ) :=
+  (Finset.univ.product Finset.univ).image (transitionRule M) ∪
+    (Finset.univ.filter fun q => q ∈ M.accept).image acceptingRule
 
 /-- Convert a finite DFA to a right-linear grammar. -/
-noncomputable def toRightLinearGrammar [Fintype T] [Fintype σ]
-    (M : Mathling.Automata.DFA T σ) : RightLinearGrammar T :=
+def toRightLinearGrammar [Fintype T] [Fintype σ]
+    [DecidableEq T] [DecidableEq σ] (M : Mathling.Automata.DFA T σ)
+    [DecidablePred (· ∈ M.accept)] : RightLinearGrammar T :=
   { cfg :=
       { NT := σ
         initial := M.start
@@ -275,7 +275,8 @@ noncomputable def toRightLinearGrammar [Fintype T] [Fintype σ]
       · exact Or.inl rfl }
 
 private theorem mem_dfaRules [Fintype T] [Fintype σ]
-    (M : Mathling.Automata.DFA T σ) (r : ContextFreeRule T σ) :
+    [DecidableEq T] [DecidableEq σ] (M : Mathling.Automata.DFA T σ)
+    [DecidablePred (· ∈ M.accept)] (r : ContextFreeRule T σ) :
     r ∈ dfaRules M ↔
       (∃ qa : σ × T, transitionRule M qa = r) ∨
       ∃ q ∈ M.accept, acceptingRule q = r := by
@@ -313,7 +314,8 @@ private theorem generatesFrom_dfa_accept
       exact ih
 
 private theorem generatesFrom_toRightLinearGrammar_iff
-    [Fintype T] [Fintype σ] (M : Mathling.Automata.DFA T σ)
+    [Fintype T] [Fintype σ] [DecidableEq T] [DecidableEq σ]
+    (M : Mathling.Automata.DFA T σ) [DecidablePred (· ∈ M.accept)]
     (q : σ) (w : List T) :
     RightLinearGrammar.GeneratesFrom (toRightLinearGrammar M) q w ↔
       M.evalFrom q w ∈ M.accept := by
@@ -354,7 +356,8 @@ private theorem generatesFrom_toRightLinearGrammar_iff
 
 /-- The grammar constructed from a finite DFA generates exactly its language. -/
 @[simp] theorem toRightLinearGrammar_language [Fintype T] [Fintype σ]
-    (M : Mathling.Automata.DFA T σ) :
+    [DecidableEq T] [DecidableEq σ] (M : Mathling.Automata.DFA T σ)
+    [DecidablePred (· ∈ M.accept)] :
     (toRightLinearGrammar M).language = M.accepts := by
   ext w
   change (toRightLinearGrammar M).cfg.Derives
@@ -376,6 +379,7 @@ theorem Language.isRegular_iff_exists_rightLinearGrammar
       ∃ g : RightLinearGrammar T, Nonempty (Fintype g.cfg.NT) ∧ g.language = L := by
   constructor
   · rintro ⟨σ, inst, M, hM⟩
+    classical
     letI : Fintype σ := inst
     let g := Mathling.Automata.DFA.toRightLinearGrammar M
     refine ⟨g, ?_, ?_⟩

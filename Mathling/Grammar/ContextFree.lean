@@ -47,17 +47,18 @@ namespace ContextFreeGrammar
 variable {T N : Type*}
 
 /-- The finite support explicitly mentioned by a grammar. -/
-noncomputable def activeNonterminals (g : ContextFreeGrammar T) : Finset g.NT := by
-  classical
-  exact {g.initial} ∪ g.rules.biUnion fun r =>
+def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.NT :=
+  {g.initial} ∪ g.rules.biUnion fun r =>
     (ContextFreeRule.nonterminals r).toFinset
 
-@[simp] theorem initial_mem_activeNonterminals (g : ContextFreeGrammar T) :
+@[simp] theorem initial_mem_activeNonterminals (g : ContextFreeGrammar T)
+    [DecidableEq g.NT] :
     g.initial ∈ activeNonterminals g := by
   classical
   simp [activeNonterminals]
 
 theorem rule_input_mem_activeNonterminals (g : ContextFreeGrammar T)
+    [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     r.input ∈ activeNonterminals g := by
   classical
@@ -83,6 +84,7 @@ private theorem mem_rhsNonterminals_of_nonterminal_mem
           · exact List.mem_cons.mpr (Or.inr (ih htail))
 
 theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
+    [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} {A : g.NT} (hr : r ∈ g.rules)
     (hA : Symbol.nonterminal A ∈ r.output) :
     A ∈ activeNonterminals g := by

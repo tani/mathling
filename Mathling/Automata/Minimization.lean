@@ -11,7 +11,7 @@ The canonical Myhill--Nerode quotient DFA and its cardinality bound.
 namespace Mathling.Automata
 
 /-- The canonical DFA whose states are the left quotients of a language. -/
-noncomputable abbrev Language.minimalDFA (L : Language α) :
+abbrev Language.minimalDFA (L : Language α) :
     DFA α (Set.range L.leftQuotient) := L.toDFA
 
 /-- The canonical quotient DFA accepts its defining language. -/
@@ -20,10 +20,6 @@ noncomputable abbrev Language.minimalDFA (L : Language α) :
   change L.toDFA.accepts = L
   exact Language.accepts_toDFA L
 
-/-- Regularity equips the state type of the canonical quotient DFA with a `Fintype`. -/
-noncomputable def Language.minimalDFAFintype {L : Language α} (h : L.IsRegular) :
-    Fintype (Set.range L.leftQuotient) :=
-  h.finite_range_leftQuotient.fintype
 
 /-- The quotient DFA has no more states than any DFA accepting the same language. -/
 theorem Language.minimalDFA_card_le {α σ : Type*} [Fintype σ]
