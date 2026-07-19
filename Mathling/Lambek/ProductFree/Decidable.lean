@@ -3,6 +3,7 @@
     import Mathling.Lambek.ProductFree.Basic
     import Lean.LibrarySuggestions.Default
     import LiterateLean
+    open scoped LiterateLean
 
 # Lambek 計算の決定可能性の証明
 

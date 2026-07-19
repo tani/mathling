@@ -484,16 +484,18 @@ private theorem cnfNonterminalResult
         cases hs with
         | terminal =>
             cases ht
-            simpa [ParseTree.yield] using
-              CnfSymbolResult.tree
-                (ParseTree.leaf r.input a (by
-                  have heq :
-                      ({ input := r.input, output := [Symbol.terminal a] } :
-                        ContextFreeRule T g.cfg.NT) = r := by
-                    cases r
-                    simp_all
-                  rw [heq]
-                  exact hr))
+            let t : ParseTree g r.input :=
+              ParseTree.leaf r.input a (by
+                have heq :
+                    ({ input := r.input, output := [Symbol.terminal a] } :
+                      ContextFreeRule T g.cfg.NT) = r := by
+                  cases r
+                  simp_all
+                rw [heq]
+                exact hr)
+            have hyield : t.yield = [a] := rfl
+            rw [← hyield]
+            exact CnfSymbolResult.tree t
   · rw [hout] at hc
     cases hc with
     | cons hsB rest =>
@@ -504,17 +506,21 @@ private theorem cnfNonterminalResult
             | tree tB =>
                 cases hsC with
                 | tree tC =>
-                    simpa [ParseTree.yield, List.append_assoc] using
-                      CnfSymbolResult.tree
-                        (ParseTree.node r.input B C (by
-                          have heq :
-                              ({ input := r.input, output :=
-                                [Symbol.nonterminal B, Symbol.nonterminal C] } :
-                                ContextFreeRule T g.cfg.NT) = r := by
-                            cases r
-                            simp_all
-                          rw [heq]
-                          exact hr) tB tC)
+                    let t : ParseTree g r.input :=
+                      ParseTree.node r.input B C (by
+                        have heq :
+                            ({ input := r.input, output :=
+                              [Symbol.nonterminal B, Symbol.nonterminal C] } :
+                              ContextFreeRule T g.cfg.NT) = r := by
+                          cases r
+                          simp_all
+                        rw [heq]
+                        exact hr) tB tC
+                    have hyield :
+                        t.yield = tB.yield ++ tC.yield := rfl
+                    simp only [List.append_nil]
+                    rw [← hyield]
+                    exact CnfSymbolResult.tree t
                 | empty _ hC =>
                     exfalso
                     apply g.initial_not_output r hr

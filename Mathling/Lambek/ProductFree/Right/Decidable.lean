@@ -3,6 +3,7 @@
     import Mathling.Lambek.ProductFree.Right.Basic
     import Mathling.Lambek.ProductFree.Decidable
     import LiterateLean
+    open scoped LiterateLean
 
 # Decidability for the Right Fragment
 

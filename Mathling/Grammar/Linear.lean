@@ -35,7 +35,7 @@ private theorem terminals_of_count_eq_zero {N : Type}
       | terminal a =>
           have hs : s.countP (symbolIsNonterminal (T := T)) = 0 := by
             simpa only [List.countP_cons, symbolIsNonterminal, Bool.false_eq_true, if_false,
-              zero_add] using h
+              zero_add, Nat.add_zero] using h
           obtain ⟨w, rfl⟩ := ih hs
           exact ⟨a :: w, rfl⟩
       | nonterminal A =>
@@ -55,7 +55,7 @@ private theorem split_linear_output {N : Type}
       | terminal a =>
           have hs : s.countP (symbolIsNonterminal (T := T)) ≤ 1 := by
             simpa only [List.countP_cons, symbolIsNonterminal, Bool.false_eq_true, if_false,
-              zero_add] using h
+              zero_add, Nat.add_zero] using h
           rcases ih hs with ⟨word, rfl⟩ | ⟨pre, B, suffix, rfl⟩
           · exact Or.inl ⟨a :: word, rfl⟩
           · exact Or.inr ⟨a :: pre, B, suffix, by simp [terminalSymbols]⟩
@@ -487,7 +487,8 @@ private theorem reaches_good (g : LinearGrammar T)
       (.finished, .pop), ?_, [], ?_⟩
     · exact ⟨by simp [toOneTurnNPDA], rfl⟩
     · simp [Mathling.Automata.OneTurnNPDA.toNPDA, toOneTurnNPDA]
-    · simpa using generates_reaches g hgenerates []
+    · simpa [Mathling.Automata.OneTurnNPDA.toNPDA, toOneTurnNPDA] using
+        generates_reaches g hgenerates []
 
 end LinearGrammar
 

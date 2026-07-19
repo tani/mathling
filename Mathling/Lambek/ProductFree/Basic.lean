@@ -1,6 +1,7 @@
     import Mathlib.Data.Nat.Basic
     import Mathlib.Data.List.Basic
     import LiterateLean
+    open scoped LiterateLean
 
 # Lambek 計算（積なし）の基本定義と性質
 

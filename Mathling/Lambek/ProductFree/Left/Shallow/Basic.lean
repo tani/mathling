@@ -2,6 +2,7 @@
     import Mathlib.Data.Nat.Basic
     import Mathling.Lambek.ProductFree.Basic
     import LiterateLean
+    open scoped LiterateLean
 
 # Left-Shallow Fragment of Product-Free Lambek Calculus
 

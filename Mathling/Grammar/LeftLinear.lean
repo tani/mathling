@@ -33,12 +33,18 @@ variable {T : Type*}
 def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T where
   cfg := g.cfg.reverse
   rightLinear r hr := by
-    simp [ContextFreeGrammar.reverse] at hr
-    obtain ⟨source, hsource, rfl⟩ := hr
+    change ContextFreeRule T g.cfg.NT at r
+    change r ∈ g.cfg.rules.map
+      ⟨ContextFreeRule.reverse, ContextFreeRule.reverse_injective⟩ at hr
+    obtain ⟨source, hsource, rfl⟩ := Finset.mem_map.mp hr
     rcases g.leftLinear source hsource with h | ⟨a, h⟩ | ⟨A, a, h⟩
-    · exact Or.inl (by simp [ContextFreeRule.reverse, h])
-    · exact Or.inr (Or.inl ⟨a, by simp [ContextFreeRule.reverse, h]⟩)
-    · exact Or.inr (Or.inr ⟨a, A, by simp [ContextFreeRule.reverse, h]⟩)
+    · exact Or.inl (by simp [ContextFreeRule.reverse, h]; rfl)
+    · exact Or.inr (Or.inl ⟨a, by
+        simp [ContextFreeRule.reverse, h]
+        rfl⟩)
+    · exact Or.inr (Or.inr ⟨a, A, by
+        simp [ContextFreeRule.reverse, h]
+        rfl⟩)
 
 /-- Reversing productions reverses the generated language. -/
 @[simp] theorem reverseRightLinear_language (g : LeftLinearGrammar T) :

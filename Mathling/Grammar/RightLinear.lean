@@ -241,29 +241,56 @@ open Mathling.Grammar
 
 variable {T : Type*} {σ : Type}
 
+private def transitionRule (M : Mathling.Automata.DFA T σ) (qa : σ × T) :
+    ContextFreeRule T σ :=
+  { input := qa.1
+    output := [Symbol.terminal qa.2, Symbol.nonterminal (M.step qa.1 qa.2)] }
+
+private def acceptingRule (q : σ) : ContextFreeRule T σ :=
+  { input := q, output := [] }
+
+private noncomputable def dfaRules [Fintype T] [Fintype σ]
+    (M : Mathling.Automata.DFA T σ) : Finset (ContextFreeRule T σ) := by
+  classical
+  exact
+    (Finset.univ.product Finset.univ).image (transitionRule M) ∪
+      (Finset.univ.filter fun q => q ∈ M.accept).image acceptingRule
+
 /-- Convert a finite DFA to a right-linear grammar. -/
 noncomputable def toRightLinearGrammar [Fintype T] [Fintype σ]
-    (M : Mathling.Automata.DFA T σ) : RightLinearGrammar T := by
+    (M : Mathling.Automata.DFA T σ) : RightLinearGrammar T :=
+  { cfg :=
+      { NT := σ
+        initial := M.start
+        rules := dfaRules M }
+    rightLinear := by
+      classical
+      intro r hr
+      change r ∈
+        (Finset.univ.product Finset.univ).image (transitionRule M) ∪
+          (Finset.univ.filter fun q => q ∈ M.accept).image acceptingRule at hr
+      rw [Finset.mem_union, Finset.mem_image, Finset.mem_image] at hr
+      rcases hr with ⟨qa, _, rfl⟩ | ⟨q, hq, rfl⟩
+      · exact Or.inr (Or.inr ⟨qa.2, M.step qa.1 qa.2, rfl⟩)
+      · exact Or.inl rfl }
+
+private theorem mem_dfaRules [Fintype T] [Fintype σ]
+    (M : Mathling.Automata.DFA T σ) (r : ContextFreeRule T σ) :
+    r ∈ dfaRules M ↔
+      (∃ qa : σ × T, transitionRule M qa = r) ∨
+      ∃ q ∈ M.accept, acceptingRule q = r := by
   classical
-  let transitionRules : Finset (ContextFreeRule T σ) :=
-    (Finset.univ.product Finset.univ).image fun qa =>
-      { input := qa.1,
-        output := [Symbol.terminal qa.2, Symbol.nonterminal (M.step qa.1 qa.2)] }
-  let acceptingRules : Finset (ContextFreeRule T σ) :=
-    (Finset.univ.filter fun q => q ∈ M.accept).image fun q =>
-      { input := q, output := [] }
-  refine
-    { cfg :=
-        { NT := σ
-          initial := M.start
-          rules := transitionRules ∪ acceptingRules }
-      rightLinear := ?_ }
-  intro r hr
-  simp only [Finset.mem_union, transitionRules, acceptingRules, Finset.mem_image,
-    Finset.mem_univ, true_and, Finset.mem_filter] at hr
-  rcases hr with ⟨qa, _, rfl⟩ | ⟨q, _, rfl⟩
-  · exact Or.inr (Or.inr ⟨qa.2, M.step qa.1 qa.2, rfl⟩)
-  · exact Or.inl rfl
+  change r ∈
+    (Finset.univ.product Finset.univ).image (transitionRule M) ∪
+    (Finset.univ.filter fun q => q ∈ M.accept).image acceptingRule ↔ _
+  rw [Finset.mem_union, Finset.mem_image, Finset.mem_image]
+  constructor
+  · rintro (⟨qa, _, hqa⟩ | ⟨q, hq, hqr⟩)
+    · exact Or.inl ⟨qa, hqa⟩
+    · exact Or.inr ⟨q, (Finset.mem_filter.mp hq).2, hqr⟩
+  · rintro (⟨qa, hqa⟩ | ⟨q, hq, hqr⟩)
+    · exact Or.inl ⟨qa, by simp, hqa⟩
+    · exact Or.inr ⟨q, Finset.mem_filter.mpr ⟨by simp, hq⟩, hqr⟩
 
 private theorem generatesFrom_dfa_accept
     (g : RightLinearGrammar T) (M : Mathling.Automata.DFA T σ)
@@ -295,23 +322,34 @@ private theorem generatesFrom_toRightLinearGrammar_iff
   · intro h
     apply generatesFrom_dfa_accept (toRightLinearGrammar M) M id
     · intro A hr
-      simpa [toRightLinearGrammar] using hr
+      change σ at A
+      change acceptingRule A ∈ dfaRules M at hr
+      simpa [mem_dfaRules, acceptingRule, transitionRule] using hr
     · intro A a hr
-      simp [toRightLinearGrammar] at hr
+      change σ at A
+      change ({ input := A, output := [Symbol.terminal a] } :
+        ContextFreeRule T σ) ∈ dfaRules M at hr
+      simp [mem_dfaRules, acceptingRule, transitionRule] at hr
     · intro A a B hr
+      change σ at A B
+      change ({ input := A, output := [Symbol.terminal a, Symbol.nonterminal B] } :
+        ContextFreeRule T σ) ∈ dfaRules M at hr
       have h := hr
-      simp [toRightLinearGrammar] at h
+      simp [mem_dfaRules, transitionRule, acceptingRule] at h
       exact h.symm
     · exact h
   · induction w generalizing q with
     | nil =>
         intro hq
         apply RightLinearGrammar.GeneratesFrom.epsilon
-        simpa [toRightLinearGrammar] using hq
+        change acceptingRule q ∈ dfaRules M
+        rw [mem_dfaRules]
+        exact Or.inr ⟨q, hq, rfl⟩
     | cons a tail ih =>
         intro hq
         apply RightLinearGrammar.GeneratesFrom.step (B := M.step q a)
-        · simp [toRightLinearGrammar]
+        · change transitionRule M (q, a) ∈ dfaRules M
+          simp [mem_dfaRules]
         · exact ih (M.step q a) (by simpa using hq)
 
 /-- The grammar constructed from a finite DFA generates exactly its language. -/

@@ -3,6 +3,7 @@
     import Mathling.Lambek.ProductFree.Left.Shallow.Basic
     import Mathling.Lambek.ProductFree.Decidable
     import LiterateLean
+    open scoped LiterateLean
 
 # Decidability for the Left-Shallow Fragment
 

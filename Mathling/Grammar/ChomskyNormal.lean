@@ -1,6 +1,8 @@
 import Mathling.Grammar.ContextFree
+import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.Union
 import Mathlib.Data.Finset.Prod
+import Mathlib.Data.Finset.Lattice.Basic
 import Mathlib.Data.List.Sublists
 
 /-!
@@ -37,13 +39,33 @@ private def freshStartRule {T N : Type*} (S : N) :
     ContextFreeRule T (FreshStartNT N) :=
   { input := .start, output := [Symbol.nonterminal (.old S)] }
 
-private noncomputable def freshStart (g : ContextFreeGrammar T) : ContextFreeGrammar T := by
+private noncomputable def freshStartRules
+    (g : ContextFreeGrammar T) :
+    Finset (ContextFreeRule T (FreshStartNT g.NT)) := by
   classical
-  exact
-    { NT := FreshStartNT g.NT
-      initial := .start
-      rules := insert (freshStartRule g.initial)
-        (g.rules.image fun r => ContextFreeRule.mapNonterminal FreshStartNT.old r) }
+  exact insert (freshStartRule g.initial)
+    (g.rules.image fun r => ContextFreeRule.mapNonterminal FreshStartNT.old r)
+
+private noncomputable def freshStart
+    (g : ContextFreeGrammar T) : ContextFreeGrammar T :=
+  { NT := FreshStartNT g.NT
+    initial := .start
+    rules := freshStartRules g }
+
+@[simp] private theorem freshStart_initial (g : ContextFreeGrammar T) :
+    (freshStart g).initial = FreshStartNT.start := rfl
+
+private theorem mem_freshStart_rules (g : ContextFreeGrammar T)
+    (r : ContextFreeRule T (FreshStartNT g.NT)) :
+    r ∈ freshStartRules g ↔
+      r = freshStartRule g.initial ∨
+        ∃ oldRule ∈ g.rules,
+          ContextFreeRule.mapNonterminal FreshStartNT.old oldRule = r := by
+  classical
+  change r ∈ insert (freshStartRule g.initial)
+    (g.rules.image fun oldRule =>
+      ContextFreeRule.mapNonterminal FreshStartNT.old oldRule) ↔ _
+  rw [Finset.mem_insert, Finset.mem_image]
 
 private theorem oldSymbols_not_start {T N : Type*}
     (xs : List (Symbol T N)) :
@@ -59,8 +81,10 @@ private theorem freshStart_initial_not_output (g : ContextFreeGrammar T) :
       Symbol.nonterminal (freshStart g).initial ∉ r.output := by
   classical
   intro r hr
+  change ContextFreeRule T (FreshStartNT g.NT) at r
+  change r ∈ freshStartRules g at hr
   change Symbol.nonterminal FreshStartNT.start ∉ r.output
-  simp only [freshStart, Finset.mem_insert, Finset.mem_image] at hr
+  rw [mem_freshStart_rules] at hr
   rcases hr with rfl | ⟨oldRule, _, rfl⟩
   · simp [freshStartRule]
   · simpa [ContextFreeRule.mapNonterminal] using
@@ -70,11 +94,29 @@ private def eraseFreshStart (S : N) : FreshStartNT N → N
   | .start => S
   | .old A => A
 
+@[simp] private theorem eraseFreshStart_start (S : N) :
+    eraseFreshStart S (FreshStartNT.start : FreshStartNT N) = S := rfl
+
 @[simp] private theorem eraseFreshStart_old_symbol {T N : Type*} (S : N)
     (x : Symbol T N) :
     Symbol.mapNonterminal (eraseFreshStart S)
       (Symbol.mapNonterminal FreshStartNT.old x) = x := by
   cases x <;> rfl
+
+@[simp] private theorem eraseFreshStart_start_symbol {T N : Type*} (S : N) :
+    Symbol.mapNonterminal (eraseFreshStart S)
+      (Symbol.nonterminal (FreshStartNT.start : FreshStartNT N)) =
+        (Symbol.nonterminal S : Symbol T N) := rfl
+
+@[simp] private theorem eraseFreshStart_terminal_symbol {T N : Type*}
+    (S : N) (a : T) :
+    Symbol.mapNonterminal (eraseFreshStart S)
+      (Symbol.terminal a : Symbol T (FreshStartNT N)) =
+        (Symbol.terminal a : Symbol T N) := rfl
+
+@[simp] private theorem freshStart_old_terminal_symbol {T N : Type*} (a : T) :
+    Symbol.mapNonterminal FreshStartNT.old (Symbol.terminal a : Symbol T N) =
+      (Symbol.terminal a : Symbol T (FreshStartNT N)) := rfl
 
 private theorem freshStart_forward_step (g : ContextFreeGrammar T) {u v}
     (h : g.Produces u v) :
@@ -87,8 +129,9 @@ private theorem freshStart_forward_step (g : ContextFreeGrammar T) {u v}
   refine ⟨ContextFreeRule.mapNonterminal FreshStartNT.old r, ?_,
     Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
       hrewrite FreshStartNT.old⟩
-  simpa only [freshStart, Finset.mem_insert, Finset.mem_image] using
-    (Or.inr ⟨r, hr, rfl⟩)
+  change ContextFreeRule.mapNonterminal FreshStartNT.old r ∈ freshStartRules g
+  rw [mem_freshStart_rules]
+  exact Or.inr ⟨r, hr, rfl⟩
 
 private theorem rewrite_self_eq {T N : Type*} {A : N}
     {u v : List (Symbol T N)}
@@ -105,23 +148,31 @@ private theorem freshStart_reverse_step (g : ContextFreeGrammar T)
       (v.map (Symbol.mapNonterminal (eraseFreshStart g.initial))) := by
   classical
   rcases h with ⟨r, hr, hrewrite⟩
-  simp only [freshStart, Finset.mem_insert, Finset.mem_image] at hr
+  change ContextFreeRule T (FreshStartNT g.NT) at r
+  change r ∈ freshStartRules g at hr
+  rw [mem_freshStart_rules] at hr
   rcases hr with rfl | ⟨oldRule, hold, rfl⟩
   · have heq := rewrite_self_eq
       (Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
         hrewrite (eraseFreshStart g.initial))
-    rw [heq]
+    exact heq ▸ ContextFreeGrammar.Derives.refl _
   · apply ContextFreeGrammar.Produces.single
+    refine ⟨oldRule, hold, ?_⟩
     have hcomp :
         (Symbol.mapNonterminal (eraseFreshStart g.initial) ∘
           Symbol.mapNonterminal FreshStartNT.old :
           Symbol T g.NT → Symbol T g.NT) = id := by
       funext x
       exact eraseFreshStart_old_symbol g.initial x
-    refine ⟨oldRule, hold, ?_⟩
-    simpa [ContextFreeRule.mapNonterminal, List.map_map, hcomp] using
-      (Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
-        hrewrite (eraseFreshStart g.initial))
+    have hrule :
+        ContextFreeRule.mapNonterminal (eraseFreshStart g.initial)
+          (ContextFreeRule.mapNonterminal FreshStartNT.old oldRule) = oldRule := by
+      cases oldRule
+      simp [ContextFreeRule.mapNonterminal, List.map_map, hcomp, eraseFreshStart]
+    have hmapped :=
+      Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
+        hrewrite (eraseFreshStart g.initial)
+    exact hrule ▸ hmapped
 
 private theorem freshStart_language (g : ContextFreeGrammar T) :
     (freshStart g).language = g.language := by
@@ -130,7 +181,21 @@ private theorem freshStart_language (g : ContextFreeGrammar T) :
   · intro hw
     have h := ContextFreeGrammar.derives_lift_of_produces
       (freshStart_reverse_step g) hw
-    simpa [freshStart, eraseFreshStart, terminalSymbols] using h
+    rw [freshStart_initial] at h
+    have hroot :
+        [(Symbol.mapNonterminal (eraseFreshStart g.initial)
+          (Symbol.nonterminal (FreshStartNT.start : FreshStartNT g.NT)) :
+            Symbol T g.NT)] =
+        [(Symbol.nonterminal g.initial : Symbol T g.NT)] := by rfl
+    have hyield :
+        List.map (Symbol.mapNonterminal (eraseFreshStart g.initial))
+          (List.map (Symbol.terminal : T → Symbol T (FreshStartNT g.NT)) w) =
+        List.map (Symbol.terminal : T → Symbol T g.NT) w := by
+      induction w with
+      | nil => rfl
+      | cons a w ih => simp [Symbol.mapNonterminal, ih]
+    change g.Derives [Symbol.nonterminal g.initial] (List.map Symbol.terminal w)
+    exact hroot ▸ hyield ▸ h
   · intro hw
     have hold := ContextFreeGrammar.derives_lift_of_produces
       (freshStart_forward_step g) hw
@@ -139,9 +204,23 @@ private theorem freshStart_language (g : ContextFreeGrammar T) :
         [Symbol.nonterminal (FreshStartNT.old g.initial)] := by
       refine ⟨freshStartRule g.initial, ?_,
         ContextFreeRule.Rewrites.input_output⟩
-      simp [freshStart]
+      change freshStartRule g.initial ∈ freshStartRules g
+      rw [mem_freshStart_rules]
+      exact Or.inl rfl
     exact hstart.single.trans (by
-      simpa [terminalSymbols] using hold)
+      have hroot :
+          List.map (Symbol.mapNonterminal FreshStartNT.old)
+            [(Symbol.nonterminal g.initial : Symbol T g.NT)] =
+          [(Symbol.nonterminal (FreshStartNT.old g.initial) :
+            Symbol T (FreshStartNT g.NT))] := by rfl
+      have hyield :
+          List.map (Symbol.mapNonterminal FreshStartNT.old)
+            (List.map (Symbol.terminal : T → Symbol T g.NT) w) =
+          List.map (Symbol.terminal : T → Symbol T (FreshStartNT g.NT)) w := by
+        induction w with
+        | nil => rfl
+        | cons a w ih => simp [Symbol.mapNonterminal, ih]
+      exact hroot ▸ hyield ▸ hold)
 
 
 /-! ## Elimination of non-initial empty productions -/
@@ -304,8 +383,8 @@ private theorem mem_of_mem_nullableVariants (g : ContextFreeGrammar T)
             · simp
             · exact List.mem_cons_of_mem _ (ih htail hx)
 
-private noncomputable def removeEpsilon
-    (g : ContextFreeGrammar T) : ContextFreeGrammar T := by
+private noncomputable def removeEpsilonRules
+    (g : ContextFreeGrammar T) : Finset (ContextFreeRule T g.NT) := by
   classical
   let expanded : Finset (ContextFreeRule T g.NT) :=
     g.rules.biUnion fun r =>
@@ -314,62 +393,78 @@ private noncomputable def removeEpsilon
   let nonempty := expanded.filter fun r => r.output ≠ []
   let emptyRule : ContextFreeRule T g.NT :=
     { input := g.initial, output := [] }
-  exact
-    { NT := g.NT
-      initial := g.initial
-      rules := nonempty ∪ if Nullable g g.initial then {emptyRule} else ∅ }
+  exact nonempty ∪ if Nullable g g.initial then {emptyRule} else ∅
+
+private noncomputable def removeEpsilon
+    (g : ContextFreeGrammar T) : ContextFreeGrammar T :=
+  { NT := g.NT
+    initial := g.initial
+    rules := removeEpsilonRules g }
+
+@[simp] private theorem removeEpsilon_initial (g : ContextFreeGrammar T) :
+    (removeEpsilon g).initial = g.initial := rfl
+
+private theorem mem_removeEpsilon_rules
+    (g : ContextFreeGrammar T) (r : ContextFreeRule T g.NT) :
+    r ∈ removeEpsilonRules g ↔
+      ((∃ oldRule ∈ g.rules, ∃ rhs ∈ nullableVariants g oldRule.output,
+          ({ input := oldRule.input, output := rhs } : ContextFreeRule T g.NT) = r) ∧
+        r.output ≠ []) ∨
+      (Nullable g g.initial ∧
+        r = ({ input := g.initial, output := [] } : ContextFreeRule T g.NT)) := by
+  classical
+  change r ∈ removeEpsilonRules g ↔ _
+  change r ∈
+    ((g.rules.biUnion fun oldRule =>
+      (nullableVariants g oldRule.output).image fun rhs =>
+        ({ input := oldRule.input, output := rhs } : ContextFreeRule T g.NT)).filter
+      fun rule => rule.output ≠ []) ∪
+      (if Nullable g g.initial then
+        {({ input := g.initial, output := [] } : ContextFreeRule T g.NT)} else ∅) ↔ _
+  rw [Finset.mem_union, Finset.mem_filter, Finset.mem_biUnion]
+  by_cases hnullable : Nullable g g.initial
+  · simp [hnullable, Finset.mem_image]
+  · simp [hnullable, Finset.mem_image]
 
 private theorem rule_mem_removeEpsilon_of_nonempty
     (g : ContextFreeGrammar T) {r : ContextFreeRule T g.NT}
     (hr : r ∈ g.rules) (hne : r.output ≠ []) :
-    r ∈ (removeEpsilon g).rules := by
-  classical
-  simp only [removeEpsilon, Finset.mem_union, Finset.mem_filter,
-    Finset.mem_biUnion, Finset.mem_image]
-  left
-  refine ⟨?_, hne⟩
-  exact ⟨r, hr, r.output, self_mem_nullableVariants g r.output, rfl⟩
+    r ∈ removeEpsilonRules g := by
+  rw [mem_removeEpsilon_rules]
+  exact Or.inl ⟨⟨r, hr, r.output, self_mem_nullableVariants g r.output, rfl⟩, hne⟩
 
 private theorem removeEpsilon_no_noninitial_empty (g : ContextFreeGrammar T) :
     ∀ r ∈ (removeEpsilon g).rules,
       r.output = [] → r.input = (removeEpsilon g).initial := by
-  classical
   intro r hr hout
-  simp only [removeEpsilon, Finset.mem_union, Finset.mem_filter] at hr
-  rcases hr with ⟨_, hne⟩ | hr
+  change ContextFreeRule T g.NT at r
+  change r ∈ removeEpsilonRules g at hr
+  rw [mem_removeEpsilon_rules] at hr
+  rcases hr with ⟨_, hne⟩ | ⟨_, rfl⟩
   · exact (hne hout).elim
-  · split at hr
-    · have heq := Finset.mem_singleton.mp hr
-      subst r
-      rfl
-    · simp at hr
+  · rfl
+
 private theorem removeEpsilon_initial_not_output (g : ContextFreeGrammar T)
     (h : ∀ r ∈ g.rules,
       Symbol.nonterminal g.initial ∉ r.output) :
     ∀ r ∈ (removeEpsilon g).rules,
       Symbol.nonterminal (removeEpsilon g).initial ∉ r.output := by
-  classical
   intro r hr hmem
-  simp only [removeEpsilon, Finset.mem_union, Finset.mem_filter,
-    Finset.mem_biUnion, Finset.mem_image] at hr
-  rcases hr with ⟨⟨oldRule, hold, rhs, hvariant, rfl⟩, _⟩ | hr
+  change ContextFreeRule T g.NT at r
+  change r ∈ removeEpsilonRules g at hr
+  rw [mem_removeEpsilon_rules] at hr
+  rcases hr with ⟨⟨oldRule, hold, rhs, hvariant, rfl⟩, _⟩ | ⟨_, rfl⟩
   · exact h oldRule hold (mem_of_mem_nullableVariants g hvariant hmem)
-  · split at hr
-    · have hrule := Finset.mem_singleton.mp hr
-      subst r
-      simp at hmem
-    · simp at hr
+  · exact List.not_mem_nil hmem
 
 private theorem removeEpsilon_reverse_step (g : ContextFreeGrammar T)
     {u v : List (Symbol T g.NT)}
     (h : (removeEpsilon g).Produces u v) : g.Derives u v := by
-  classical
   change ∃ r : ContextFreeRule T g.NT,
-    r ∈ (removeEpsilon g).rules ∧ r.Rewrites u v at h
+    r ∈ removeEpsilonRules g ∧ r.Rewrites u v at h
   rcases h with ⟨r, hr, hrewrite⟩
-  simp only [removeEpsilon, Finset.mem_union, Finset.mem_filter,
-    Finset.mem_biUnion, Finset.mem_image] at hr
-  rcases hr with ⟨⟨oldRule, hold, rhs, hvariant, hrule⟩, _⟩ | hr
+  rw [mem_removeEpsilon_rules] at hr
+  rcases hr with ⟨⟨oldRule, hold, rhs, hvariant, hrule⟩, _⟩ | ⟨hnullable, hrule⟩
   · subst r
     obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
     have hfirst : g.Produces
@@ -378,22 +473,32 @@ private theorem removeEpsilon_reverse_step (g : ContextFreeGrammar T)
       ⟨oldRule, hold, ContextFreeRule.rewrites_of_exists_parts oldRule p q⟩
     exact hfirst.single.trans
       ((derives_of_mem_nullableVariants g hvariant).append_left p |>.append_right q)
-  · split at hr
-    next hnullable =>
-      have hrule := Finset.mem_singleton.mp hr
-      subst r
-      obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
-      simpa using (hnullable.append_left p).append_right q
-    next =>
-      simp at hr
+  · subst r
+    obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
+    simpa using (hnullable.append_left p).append_right q
 
 private theorem removeEpsilon_language_reverse (g : ContextFreeGrammar T) :
     (removeEpsilon g).language ≤ g.language := by
   intro w hw
   have h := ContextFreeGrammar.derives_lift_of_produces
     (g₁ := removeEpsilon g) (g₂ := g) (mapSym := id)
-    (fun hstep => by simpa using removeEpsilon_reverse_step g hstep) hw
-  simpa using h
+    (fun {u v} hstep => by
+      have hr := removeEpsilon_reverse_step g (u := u) (v := v) hstep
+      have hu : List.map id u = u := List.map_id u
+      have hv : List.map id v = v := List.map_id v
+      exact hu.symm ▸ hv.symm ▸ hr) hw
+  have hroot :
+      List.map (id : Symbol T g.NT → Symbol T g.NT)
+        [(Symbol.nonterminal (removeEpsilon g).initial : Symbol T g.NT)] =
+      [(Symbol.nonterminal g.initial : Symbol T g.NT)] := by
+    simp [removeEpsilon_initial]
+  have hyield :
+      List.map (id : Symbol T g.NT → Symbol T g.NT)
+        (List.map (Symbol.terminal : T → Symbol T g.NT) w) =
+      List.map (Symbol.terminal : T → Symbol T g.NT) w := by
+    exact List.map_id _
+  change g.Derives [Symbol.nonterminal g.initial] (List.map Symbol.terminal w)
+  exact hroot ▸ hyield ▸ h
 
 
 private def ErasesNullable (g : ContextFreeGrammar T)
@@ -416,23 +521,24 @@ private theorem removeEpsilon_produces_variant (g : ContextFreeGrammar T)
     (removeEpsilon g).Produces
       (p ++ [Symbol.nonterminal r.input] ++ q)
       (p ++ rhs' ++ q) := by
-  classical
   refine ⟨{ input := r.input, output := rhs' }, ?_,
     ContextFreeRule.rewrites_of_exists_parts _ p q⟩
-  simp only [removeEpsilon, Finset.mem_union, Finset.mem_filter,
-    Finset.mem_biUnion, Finset.mem_image]
+  change ({ input := r.input, output := rhs' } : ContextFreeRule T g.NT) ∈
+    removeEpsilonRules g
+  rw [mem_removeEpsilon_rules]
   left
   exact ⟨⟨r, hr, rhs', hvariant, rfl⟩, hne⟩
 
 private theorem removeEpsilon_start_empty (g : ContextFreeGrammar T)
     (h : Nullable g g.initial) :
     (removeEpsilon g).Derives [Symbol.nonterminal g.initial] [] := by
-  classical
   apply ContextFreeGrammar.Produces.single
   refine ⟨{ input := g.initial, output := [] }, ?_,
     ContextFreeRule.Rewrites.input_output⟩
-  simp [removeEpsilon, h]
-
+  change ({ input := g.initial, output := [] } : ContextFreeRule T g.NT) ∈
+    removeEpsilonRules g
+  rw [mem_removeEpsilon_rules]
+  exact Or.inr ⟨h, rfl⟩
 private theorem removeEpsilon_simulation (g : ContextFreeGrammar T)
     {u s : List (Symbol T g.NT)} (h : g.Derives u s) :
     ∃ u' ∈ nullableVariants g u, (removeEpsilon g).Derives u' s := by
@@ -529,7 +635,10 @@ private theorem removeEpsilon_language_forward (g : ContextFreeGrammar T) :
     rcases hcases with rfl | rfl
     · exact hderives
     · have hterminalEmpty := derives_from_empty_eq (removeEpsilon g) hderives
-      simp [terminalSymbols, hwempty] at hterminalEmpty
+      have hlength := congrArg List.length hterminalEmpty
+      simp only [List.length_map, List.length_nil] at hlength
+      have hw_nil : w = [] := List.eq_nil_of_length_eq_zero hlength
+      exact (hwempty hw_nil).elim
 
 private theorem removeEpsilon_language (g : ContextFreeGrammar T) :
     (removeEpsilon g).language = g.language :=
@@ -548,24 +657,50 @@ private def UnitStep (g : ContextFreeGrammar T) (A B : g.NT) : Prop :=
 private abbrev UnitReach (g : ContextFreeGrammar T) :=
   Relation.ReflTransGen (UnitStep g)
 
-private noncomputable def removeUnit
-    (g : ContextFreeGrammar T) : ContextFreeGrammar T := by
+private noncomputable abbrev removeUnit
+    (g : ContextFreeGrammar T) : ContextFreeGrammar T :=
+  { NT := g.NT
+    initial := g.initial
+    rules := by
+      classical
+      exact
+        (((activeNonterminals g).product (activeNonterminals g)).filter
+            fun p => UnitReach g p.1 p.2).biUnion fun p =>
+          (g.rules.filter fun r => r.input = p.2 ∧ ¬IsUnitRule r).image
+            fun r => ({ input := p.1, output := r.output } :
+              ContextFreeRule T g.NT) }
+private theorem mem_removeUnit_rules_iff (g : ContextFreeGrammar T)
+    (r : ContextFreeRule T g.NT) :
+    r ∈ (removeUnit g).rules ↔
+      ∃ p : g.NT × g.NT,
+        p ∈ (activeNonterminals g).product (activeNonterminals g) ∧
+        UnitReach g p.1 p.2 ∧
+        ∃ oldRule ∈ g.rules,
+          oldRule.input = p.2 ∧ ¬IsUnitRule oldRule ∧
+          ({ input := p.1, output := oldRule.output } :
+            ContextFreeRule T g.NT) = r := by
   classical
-  let pairs := ((activeNonterminals g).product (activeNonterminals g)).filter
-    fun p => UnitReach g p.1 p.2
-  let rules := pairs.biUnion fun p =>
-    (g.rules.filter fun r => r.input = p.2 ∧ ¬IsUnitRule r).image
-      fun r => ({ input := p.1, output := r.output } :
-        ContextFreeRule T g.NT)
-  exact { NT := g.NT, initial := g.initial, rules := rules }
+  constructor
+  · intro hr
+    obtain ⟨p, hp, hr⟩ := Finset.mem_biUnion.mp hr
+    obtain ⟨hpactive, hreach⟩ := Finset.mem_filter.mp hp
+    obtain ⟨oldRule, hold, heq⟩ := Finset.mem_image.mp hr
+    obtain ⟨holdRule, hinput, hnonunit⟩ := Finset.mem_filter.mp hold
+    exact ⟨p, hpactive, hreach, oldRule, holdRule, hinput, hnonunit, heq⟩
+  · rintro ⟨p, hpactive, hreach, oldRule, hold, hinput, hnonunit, rfl⟩
+    apply Finset.mem_biUnion.mpr
+    exact ⟨p, Finset.mem_filter.mpr ⟨hpactive, hreach⟩,
+      Finset.mem_image.mpr
+        ⟨oldRule, Finset.mem_filter.mpr ⟨hold, hinput, hnonunit⟩, rfl⟩⟩
 
 private theorem removeUnit_no_unit (g : ContextFreeGrammar T) :
     ∀ r ∈ (removeUnit g).rules, ¬IsUnitRule r := by
+  change ∀ r : ContextFreeRule T g.NT,
+    r ∈ (removeUnit g).rules → ¬IsUnitRule r
   classical
   intro r hr
-  simp only [removeUnit, Finset.mem_biUnion, Finset.mem_filter,
-    Finset.mem_image] at hr
-  obtain ⟨p, _, oldRule, ⟨_, ⟨_, hnonunit⟩⟩, rfl⟩ := hr
+  obtain ⟨p, _, _, oldRule, _, _, hnonunit, rfl⟩ :=
+    (mem_removeUnit_rules_iff g r).mp hr
   simpa [IsUnitRule] using hnonunit
 private theorem removeUnit_initial_not_output (g : ContextFreeGrammar T)
     (h : ∀ r ∈ g.rules,
@@ -574,9 +709,8 @@ private theorem removeUnit_initial_not_output (g : ContextFreeGrammar T)
       Symbol.nonterminal (removeUnit g).initial ∉ r.output := by
   classical
   intro r hr
-  simp only [removeUnit, Finset.mem_biUnion, Finset.mem_filter,
-    Finset.mem_image] at hr
-  obtain ⟨_, _, oldRule, ⟨hold, _⟩, rfl⟩ := hr
+  obtain ⟨_, _, _, oldRule, hold, _, _, rfl⟩ :=
+    (mem_removeUnit_rules_iff g r).mp hr
   exact h oldRule hold
 
 private theorem unitReach_refl_active (g : ContextFreeGrammar T) {A : g.NT}
@@ -682,20 +816,28 @@ private theorem removeUnit_lift_step (g : ContextFreeGrammar T)
           ⟨hA, hreach.tail hunitStep⟩
         refine ⟨p' ++ Symbol.nonterminal A :: q',
           ContextFreeGrammar.Derives.refl _, ?_⟩
-        simpa [houtput] using
+        simpa only [UnitLift, houtput, List.append_assoc,
+          List.singleton_append] using
           List.rel_append hp' (List.Forall₂.cons hcenter hq')
       · have hB := rule_input_mem_activeNonterminals g hr
         have hrule := removeUnit_rule_mem g hA hB hreach hr rfl hunit
+        have hrewrite' :
+            ({ input := A, output := r.output } :
+              ContextFreeRule T g.NT).Rewrites
+              (p' ++ Symbol.nonterminal A :: q')
+              (p' ++ r.output ++ q') := by
+          simpa only [List.append_assoc, List.singleton_append] using
+            ContextFreeRule.rewrites_of_exists_parts
+              ({ input := A, output := r.output } :
+                ContextFreeRule T g.NT) p' q'
         have hproduces : (removeUnit g).Produces
-            (p' ++ [Symbol.nonterminal A] ++ q')
+            (p' ++ Symbol.nonterminal A :: q')
             (p' ++ r.output ++ q') :=
-          ⟨{ input := A, output := r.output }, hrule,
-            ContextFreeRule.rewrites_of_exists_parts _ p' q'⟩
-        refine ⟨p' ++ r.output ++ q', by
-          simpa using hproduces.single, ?_⟩
-        simpa [List.append_assoc] using
-          List.rel_append hp'
-            (List.rel_append (unitLift_rule_output g hr) hq')
+          ⟨{ input := A, output := r.output }, hrule, hrewrite'⟩
+        refine ⟨p' ++ r.output ++ q', hproduces.single, ?_⟩
+        · simpa only [UnitLift, List.append_assoc] using
+            List.rel_append hp'
+              (List.rel_append (unitLift_rule_output g hr) hq')
 
 
 private theorem removeUnit_simulation (g : ContextFreeGrammar T)
@@ -761,10 +903,8 @@ private theorem removeUnit_reverse_step (g : ContextFreeGrammar T)
   change ∃ r : ContextFreeRule T g.NT,
     r ∈ (removeUnit g).rules ∧ r.Rewrites u v at h
   rcases h with ⟨r, hr, hrewrite⟩
-  simp only [removeUnit, Finset.mem_biUnion, Finset.mem_filter,
-    Finset.mem_image] at hr
-  obtain ⟨⟨A, B⟩, ⟨_, hreach⟩, oldRule,
-    ⟨hold, ⟨hinput, _⟩⟩, rfl⟩ := hr
+  obtain ⟨⟨A, B⟩, _, hreach, oldRule, hold, hinput, _, rfl⟩ :=
+    (mem_removeUnit_rules_iff g r).mp hr
   obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
   have hchain := (derives_unitReach g hreach).append_left p |>.append_right q
   have hlast : g.Produces
@@ -774,14 +914,27 @@ private theorem removeUnit_reverse_step (g : ContextFreeGrammar T)
       simpa [hinput] using
         ContextFreeRule.rewrites_of_exists_parts oldRule p q⟩
   exact hchain.trans_produces hlast
-
 private theorem removeUnit_language_reverse (g : ContextFreeGrammar T) :
     (removeUnit g).language ≤ g.language := by
   intro w hw
   have h := ContextFreeGrammar.derives_lift_of_produces
     (g₁ := removeUnit g) (g₂ := g) (mapSym := id)
-    (fun hstep => by simpa using removeUnit_reverse_step g hstep) hw
-  simpa using h
+    (fun {u v} hstep => by
+      have hu : List.map id u = u := List.map_id u
+      have hv : List.map id v = v := List.map_id v
+      exact hu.symm ▸ hv.symm ▸ removeUnit_reverse_step g hstep) hw
+  change g.Derives [Symbol.nonterminal g.initial] (List.map Symbol.terminal w)
+  have hroot :
+      List.map (id : Symbol T g.NT → Symbol T g.NT)
+        [Symbol.nonterminal (removeUnit g).initial] =
+      [Symbol.nonterminal g.initial] := by
+    simp [removeUnit]
+  have hyield :
+      List.map (id : Symbol T g.NT → Symbol T g.NT)
+        (List.map (Symbol.terminal : T → Symbol T g.NT) w) =
+      List.map (Symbol.terminal : T → Symbol T g.NT) w :=
+    List.map_id _
+  exact hroot ▸ hyield ▸ h
 private theorem removeUnit_language (g : ContextFreeGrammar T) :
     (removeUnit g).language = g.language :=
   le_antisymm (removeUnit_language_reverse g)
@@ -835,26 +988,63 @@ private theorem terminal_mem_rhsTerminals {a : T} {xs : List (Symbol T N)}
         · exact List.mem_cons.mpr (Or.inr (ih htail))
         · exact ih htail
 
-private noncomputable def isolateTerminals
-    (g : ContextFreeGrammar T) : ContextFreeGrammar T := by
+private noncomputable abbrev isolateTerminals
+    (g : ContextFreeGrammar T) : ContextFreeGrammar T :=
+  { NT := IsolateNT g.NT T
+    initial := .old g.initial
+    rules := by
+      classical
+      let terminals := g.rules.biUnion fun r =>
+        if 2 ≤ r.output.length then (rhsTerminals r.output).toFinset else ∅
+      let oldRules := g.rules.image fun r =>
+        if 2 ≤ r.output.length then
+          ({ input := IsolateNT.old r.input,
+             output := r.output.map isolateSymbolInLongRHS } :
+            ContextFreeRule T (IsolateNT g.NT T))
+        else
+          ContextFreeRule.mapNonterminal IsolateNT.old r
+      let terminalRules := terminals.image fun a =>
+        ({ input := IsolateNT.terminal a,
+           output := [Symbol.terminal a] } :
+          ContextFreeRule T (IsolateNT g.NT T))
+      exact oldRules ∪ terminalRules }
+private theorem mem_isolateTerminals_rules_iff
+    (g : ContextFreeGrammar T)
+    (r : ContextFreeRule T (IsolateNT g.NT T)) :
+    r ∈ (isolateTerminals g).rules ↔
+      (∃ oldRule ∈ g.rules,
+        (if 2 ≤ oldRule.output.length then
+          ({ input := IsolateNT.old oldRule.input,
+             output := oldRule.output.map isolateSymbolInLongRHS } :
+            ContextFreeRule T (IsolateNT g.NT T))
+        else ContextFreeRule.mapNonterminal IsolateNT.old oldRule) = r) ∨
+      ∃ oldRule ∈ g.rules, 2 ≤ oldRule.output.length ∧
+        ∃ a ∈ rhsTerminals oldRule.output,
+          ({ input := IsolateNT.terminal a,
+             output := [Symbol.terminal a] } :
+            ContextFreeRule T (IsolateNT g.NT T)) = r := by
   classical
-  let terminals := g.rules.biUnion fun r =>
-    if 2 ≤ r.output.length then (rhsTerminals r.output).toFinset else ∅
-  let oldRules := g.rules.image fun r =>
-    if 2 ≤ r.output.length then
-      ({ input := IsolateNT.old r.input,
-         output := r.output.map isolateSymbolInLongRHS } :
-        ContextFreeRule T (IsolateNT g.NT T))
-    else
-      ContextFreeRule.mapNonterminal IsolateNT.old r
-  let terminalRules := terminals.image fun a =>
-    ({ input := IsolateNT.terminal a,
-       output := [Symbol.terminal a] } :
-      ContextFreeRule T (IsolateNT g.NT T))
-  exact
-    { NT := IsolateNT g.NT T
-      initial := .old g.initial
-      rules := oldRules ∪ terminalRules }
+  constructor
+  · intro hr
+    obtain hr | hr := Finset.mem_union.mp hr
+    · obtain ⟨oldRule, hold, heq⟩ := Finset.mem_image.mp hr
+      exact Or.inl ⟨oldRule, hold, heq⟩
+    · obtain ⟨a, ha, heq⟩ := Finset.mem_image.mp hr
+      obtain ⟨oldRule, hold, ha⟩ := Finset.mem_biUnion.mp ha
+      by_cases hlong : 2 ≤ oldRule.output.length
+      · have ha' : a ∈ rhsTerminals oldRule.output := by
+          simpa [hlong] using ha
+        exact Or.inr ⟨oldRule, hold, hlong, a, ha', heq⟩
+      · simp [hlong] at ha
+  · rintro (⟨oldRule, hold, rfl⟩ |
+      ⟨oldRule, hold, hlong, a, ha, rfl⟩)
+    · apply Finset.mem_union.mpr
+      exact Or.inl (Finset.mem_image.mpr ⟨oldRule, hold, rfl⟩)
+    · apply Finset.mem_union.mpr
+      apply Or.inr
+      apply Finset.mem_image.mpr
+      refine ⟨a, Finset.mem_biUnion.mpr ⟨oldRule, hold, ?_⟩, rfl⟩
+      simpa [hlong] using ha
 private theorem old_nonterminal_mem_map_isolate
     {A : N} {xs : List (Symbol T N)}
     (hmem : Symbol.nonterminal (IsolateNT.old A) ∈
@@ -885,12 +1075,15 @@ private theorem isolateTerminals_initial_not_output
       Symbol.nonterminal (isolateTerminals g).initial ∉ r.output := by
   classical
   intro r hr hmem
-  simp only [isolateTerminals, Finset.mem_union, Finset.mem_image] at hr
-  rcases hr with ⟨oldRule, hold, rfl⟩ | ⟨a, _, rfl⟩
+  rcases (mem_isolateTerminals_rules_iff g r).mp hr with
+    ⟨oldRule, hold, rfl⟩ |
+    ⟨_, _, _, a, _, rfl⟩
   · split at hmem
     · exact h oldRule hold (old_nonterminal_mem_map_isolate hmem)
     · exact h oldRule hold (old_nonterminal_mem_map_old hmem)
-  · simp at hmem
+  · change Symbol.nonterminal (IsolateNT.old g.initial) ∈
+      [Symbol.terminal a] at hmem
+    simp at hmem
 
 
 
@@ -902,12 +1095,9 @@ private theorem isolate_terminal_rule_mem (g : ContextFreeGrammar T)
       ContextFreeRule T (IsolateNT g.NT T)) ∈
       (isolateTerminals g).rules := by
   classical
-  simp only [isolateTerminals, Finset.mem_union, Finset.mem_image]
-  right
-  refine ⟨a, ?_, rfl⟩
-  simp only [Finset.mem_biUnion]
-  refine ⟨r, hr, ?_⟩
-  simp [hlong, terminal_mem_rhsTerminals ha]
+  apply (mem_isolateTerminals_rules_iff g _).mpr
+  exact Or.inr
+    ⟨r, hr, hlong, a, terminal_mem_rhsTerminals ha, rfl⟩
 
 private theorem derives_isolated_output (g : ContextFreeGrammar T)
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules)
@@ -940,8 +1130,9 @@ private theorem derives_isolated_output (g : ContextFreeGrammar T)
                 (by simpa using
                   (ih htail).append_left [Symbol.terminal a])
         | nonterminal A =>
-            simpa using (ih htail).append_left
+            exact (ih htail).append_left
               [Symbol.nonterminal (IsolateNT.old A)]
+
   exact go r.output (fun _ hx => hx)
 
 private theorem isolateTerminals_forward_step (g : ContextFreeGrammar T)
@@ -957,9 +1148,8 @@ private theorem isolateTerminals_forward_step (g : ContextFreeGrammar T)
       { input := .old r.input,
         output := r.output.map isolateSymbolInLongRHS }
     have hmem : transformed ∈ (isolateTerminals g).rules := by
-      simp only [isolateTerminals, Finset.mem_union, Finset.mem_image]
-      left
-      exact ⟨r, hr, by simp [hlong, transformed]⟩
+      apply (mem_isolateTerminals_rules_iff g transformed).mpr
+      exact Or.inl ⟨r, hr, by simp [hlong, transformed]⟩
     have hfirst : (isolateTerminals g).Produces
         (p.map (Symbol.mapNonterminal IsolateNT.old) ++
           [Symbol.nonterminal (IsolateNT.old r.input)] ++
@@ -969,7 +1159,9 @@ private theorem isolateTerminals_forward_step (g : ContextFreeGrammar T)
           q.map (Symbol.mapNonterminal IsolateNT.old)) :=
       ⟨transformed, hmem,
         ContextFreeRule.rewrites_of_exists_parts transformed _ _⟩
-    simpa [List.map_append] using
+    simpa only [List.map_append, List.map_cons, List.map_nil,
+      Symbol.mapNonterminal_nonterminal, List.append_assoc,
+      List.singleton_append] using
       hfirst.single.trans
         (((derives_isolated_output g hr hlong).append_left
           (p.map (Symbol.mapNonterminal IsolateNT.old))).append_right
@@ -978,16 +1170,19 @@ private theorem isolateTerminals_forward_step (g : ContextFreeGrammar T)
     refine ⟨ContextFreeRule.mapNonterminal IsolateNT.old r, ?_,
       Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
         hrewrite IsolateNT.old⟩
-    simp only [isolateTerminals, Finset.mem_union, Finset.mem_image]
-    left
-    exact ⟨r, hr, by simp [hlong]⟩
+    apply (mem_isolateTerminals_rules_iff g _).mpr
+    exact Or.inl ⟨r, hr, if_neg hlong⟩
 
 private theorem isolateTerminals_language_forward (g : ContextFreeGrammar T) :
     g.language ≤ (isolateTerminals g).language := by
   intro w hw
   have h := ContextFreeGrammar.derives_lift_of_produces
     (isolateTerminals_forward_step g) hw
-  simpa [terminalSymbols] using h
+  change (isolateTerminals g).Derives
+    [Symbol.nonterminal (IsolateNT.old g.initial)]
+    (List.map (Symbol.terminal :
+      T → Symbol T (IsolateNT g.NT T)) w)
+  simpa [Symbol.mapNonterminal, Function.comp_def] using h
 
 private theorem isolateTerminals_reverse_step (g : ContextFreeGrammar T)
     {u v : List (Symbol T (IsolateNT g.NT T))}
@@ -995,22 +1190,39 @@ private theorem isolateTerminals_reverse_step (g : ContextFreeGrammar T)
     g.Derives (u.map eraseIsolatedSymbol) (v.map eraseIsolatedSymbol) := by
   classical
   rcases h with ⟨r, hr, hrewrite⟩
-  simp only [isolateTerminals, Finset.mem_union, Finset.mem_image] at hr
-  rcases hr with ⟨oldRule, hold, rfl⟩ | ⟨a, _, rfl⟩
+  rcases (mem_isolateTerminals_rules_iff g r).mp hr with
+    ⟨oldRule, hold, rfl⟩ |
+    ⟨_, _, _, a, _, rfl⟩
   · by_cases hlong : 2 ≤ oldRule.output.length
     · simp only [if_pos hlong] at hrewrite
       obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
       apply ContextFreeGrammar.Produces.single
       refine ⟨oldRule, hold, ?_⟩
-      simpa [List.map_append, List.map_map, Function.comp_def] using
+      have herase :
+          (oldRule.output.map isolateSymbolInLongRHS).map
+            eraseIsolatedSymbol = oldRule.output := by
+        induction oldRule.output with
+        | nil => rfl
+        | cons x xs ih => simp [ih]
+      simpa [herase, eraseIsolatedSymbol, List.map_append,
+        List.map_map, Function.comp_def] using
         ContextFreeRule.rewrites_of_exists_parts oldRule
           (p.map eraseIsolatedSymbol) (q.map eraseIsolatedSymbol)
     · simp only [if_neg hlong] at hrewrite
       obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
       apply ContextFreeGrammar.Produces.single
       refine ⟨oldRule, hold, ?_⟩
-      simpa [List.map_append, List.map_map, Function.comp_def,
-        ContextFreeRule.mapNonterminal] using
+      have herase :
+          (oldRule.output.map
+            (Symbol.mapNonterminal IsolateNT.old)).map
+              eraseIsolatedSymbol = oldRule.output := by
+        induction oldRule.output with
+        | nil => rfl
+        | cons x xs ih =>
+            cases x <;>
+              simp [eraseIsolatedSymbol, Symbol.mapNonterminal, ih]
+      simpa [herase, eraseIsolatedSymbol, Symbol.mapNonterminal,
+        List.map_append, List.map_map, Function.comp_def] using
         ContextFreeRule.rewrites_of_exists_parts oldRule
           (p.map eraseIsolatedSymbol) (q.map eraseIsolatedSymbol)
   · obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
@@ -1026,7 +1238,10 @@ private theorem isolateTerminals_language_reverse (g : ContextFreeGrammar T) :
     (g₁ := isolateTerminals g) (g₂ := g)
     (mapSym := eraseIsolatedSymbol)
     (isolateTerminals_reverse_step g) hw
-  simpa [isolateTerminals, eraseIsolatedSymbol, terminalSymbols] using h
+  change g.Derives [Symbol.nonterminal g.initial]
+    (List.map (Symbol.terminal : T → Symbol T g.NT) w)
+  simpa [isolateTerminals, eraseIsolatedSymbol, terminalSymbols,
+    List.map_map, Function.comp_def] using h
 
 private theorem isolateTerminals_language (g : ContextFreeGrammar T) :
     (isolateTerminals g).language = g.language :=
@@ -1044,15 +1259,23 @@ private theorem isolateTerminals_long_rhs_all_nonterminals
       allNonterminals r.output := by
   classical
   intro r hr hlen
-  simp only [isolateTerminals, Finset.mem_union, Finset.mem_image] at hr
-  rcases hr with ⟨oldRule, _, hrule⟩ | ⟨a, _, rfl⟩
-  · split at hrule
-    · subst r
+  rcases (mem_isolateTerminals_rules_iff g r).mp hr with
+    ⟨oldRule, _, hrule⟩ |
+    ⟨_, _, _, a, _, rfl⟩
+  · by_cases hlong : 2 ≤ oldRule.output.length
+    · simp [hlong] at hrule
+      subst r
       exact allNonterminals_map_isolate oldRule.output
-    · subst r
-      simp [ContextFreeRule.mapNonterminal] at hlen
-      omega
-  · simp at hlen
+    · simp [hlong] at hrule
+      subst r
+      have : 2 ≤ oldRule.output.length := by
+        change 2 ≤
+          (oldRule.output.map
+            (Symbol.mapNonterminal IsolateNT.old)).length at hlen
+        simpa only [List.length_map] using hlen
+      exact (hlong this).elim
+  · change 2 ≤ 1 at hlen
+    omega
 
 /-! Universe-safe terminal isolation.
 
@@ -1091,8 +1314,9 @@ private theorem exists_mem_zipIdx_of_mem {α : Type*} [DecidableEq α]
   refine ⟨i, ?_⟩
   simpa [List.getElem_zipIdx hzip, hget] using hmem
 
-private noncomputable def isolateTerminalsIndexed
-    (g : ContextFreeGrammar T) : ContextFreeGrammar T := by
+private noncomputable def indexedIsolationRuleList
+    (g : ContextFreeGrammar T) :
+    List (ContextFreeRule T (IndexedIsolateNT g.NT)) := by
   classical
   let indexedRules := g.rules.toList.zipIdx
   let oldRules := indexedRules.map fun (r, i) =>
@@ -1113,10 +1337,23 @@ private noncomputable def isolateTerminalsIndexed
                 ContextFreeRule T (IndexedIsolateNT g.NT))
         | .nonterminal _ => none
     else []
-  exact
-    { NT := IndexedIsolateNT g.NT
-      initial := .old g.initial
-      rules := (oldRules ++ terminalRules).toFinset }
+  exact oldRules ++ terminalRules
+
+private noncomputable abbrev isolateTerminalsIndexed
+    (g : ContextFreeGrammar T) : ContextFreeGrammar T :=
+  { NT := IndexedIsolateNT g.NT
+    initial := .old g.initial
+    rules := by
+      classical
+      exact (indexedIsolationRuleList g).toFinset }
+
+private theorem mem_isolateTerminalsIndexed_rules_iff
+    (g : ContextFreeGrammar T)
+    (r : ContextFreeRule T (IndexedIsolateNT g.NT)) :
+    r ∈ (isolateTerminalsIndexed g).rules ↔
+      r ∈ indexedIsolationRuleList g := by
+  classical
+  exact List.mem_toFinset
 private theorem indexed_old_rule_mem (g : ContextFreeGrammar T)
     {r : ContextFreeRule T g.NT} {i : Nat}
     (hri : (r, i) ∈ g.rules.toList.zipIdx)
@@ -1126,8 +1363,8 @@ private theorem indexed_old_rule_mem (g : ContextFreeGrammar T)
       ContextFreeRule T (IndexedIsolateNT g.NT)) ∈
       (isolateTerminalsIndexed g).rules := by
   classical
-  simp only [isolateTerminalsIndexed, List.mem_toFinset,
-    List.mem_append, List.mem_map]
+  apply (mem_isolateTerminalsIndexed_rules_iff g _).mpr
+  simp only [indexedIsolationRuleList, List.mem_append, List.mem_map]
   left
   exact ⟨(r, i), hri, by simp [hlong]⟩
 
@@ -1141,8 +1378,8 @@ private theorem indexed_terminal_rule_mem (g : ContextFreeGrammar T)
       ContextFreeRule T (IndexedIsolateNT g.NT)) ∈
       (isolateTerminalsIndexed g).rules := by
   classical
-  simp only [isolateTerminalsIndexed, List.mem_toFinset,
-    List.mem_append, List.mem_map]
+  apply (mem_isolateTerminalsIndexed_rules_iff g _).mpr
+  simp only [indexedIsolationRuleList, List.mem_append, List.mem_map]
   right
   simp only [List.mem_flatMap]
   refine ⟨(r, i), hri, ?_⟩
@@ -1157,8 +1394,8 @@ private theorem indexed_short_rule_mem (g : ContextFreeGrammar T)
     ContextFreeRule.mapNonterminal IndexedIsolateNT.old r ∈
       (isolateTerminalsIndexed g).rules := by
   classical
-  simp only [isolateTerminalsIndexed, List.mem_toFinset,
-    List.mem_append, List.mem_map]
+  apply (mem_isolateTerminalsIndexed_rules_iff g _).mpr
+  simp only [indexedIsolationRuleList, List.mem_append, List.mem_map]
   left
   exact ⟨(r, i), hri, by simp [hshort]⟩
 
@@ -1198,9 +1435,8 @@ private theorem derives_indexed_output (g : ContextFreeGrammar T)
                 (by simpa [indexedIsolateOutputFrom] using
                   (ih (j + 1) htail).append_left [Symbol.terminal a])
         | nonterminal A =>
-            simpa [indexedIsolateOutputFrom] using
-              (ih (j + 1) htail).append_left
-                [Symbol.nonterminal (IndexedIsolateNT.old A)]
+            exact (ih (j + 1) htail).append_left
+              [Symbol.nonterminal (IndexedIsolateNT.old A)]
   apply go r.output 0
   intro pair hpair
   simpa using hpair
@@ -1229,7 +1465,9 @@ private theorem isolateTerminalsIndexed_forward_step
           q.map (Symbol.mapNonterminal IndexedIsolateNT.old)) :=
       ⟨transformed, indexed_old_rule_mem g hri hlong,
         ContextFreeRule.rewrites_of_exists_parts transformed _ _⟩
-    simpa [List.map_append] using
+    simpa only [List.map_append, List.map_cons, List.map_nil,
+      Symbol.mapNonterminal_nonterminal, List.append_assoc,
+      List.singleton_append] using
       hfirst.single.trans
         (((derives_indexed_output g hri hlong).append_left
           (p.map (Symbol.mapNonterminal IndexedIsolateNT.old))).append_right
@@ -1247,7 +1485,11 @@ private theorem isolateTerminalsIndexed_language_forward
   intro w hw
   have h := ContextFreeGrammar.derives_lift_of_produces
     (isolateTerminalsIndexed_forward_step g) hw
-  simpa [terminalSymbols] using h
+  change (isolateTerminalsIndexed g).Derives
+    [Symbol.nonterminal (IndexedIsolateNT.old g.initial)]
+    (List.map (Symbol.terminal :
+      T → Symbol T (IndexedIsolateNT g.NT)) w)
+  simpa [Symbol.mapNonterminal, Function.comp_def] using h
 
 private noncomputable def expandIndexedSymbol (g : ContextFreeGrammar T) :
     Symbol T (IndexedIsolateNT g.NT) → List (Symbol T g.NT)
@@ -1354,8 +1596,10 @@ private theorem isolateTerminalsIndexed_reverse_step
     g.Derives (expandIndexedForm g u) (expandIndexedForm g v) := by
   classical
   rcases h with ⟨rule, hrule, hrewrite⟩
-  simp only [isolateTerminalsIndexed, List.mem_toFinset,
-    List.mem_append, List.mem_map, List.mem_flatMap] at hrule
+  change ContextFreeRule T (IndexedIsolateNT g.NT) at rule
+  rw [mem_isolateTerminalsIndexed_rules_iff] at hrule
+  simp only [indexedIsolationRuleList, List.mem_append,
+    List.mem_map, List.mem_flatMap] at hrule
   rcases hrule with hold | hterminalRule
   · obtain ⟨⟨oldRule, i⟩, hri, rfl⟩ := hold
     change (if 2 ≤ oldRule.output.length then
@@ -1422,7 +1666,11 @@ private theorem isolateTerminalsIndexed_reverse_step
           subst rule
           obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
           have hexpand := expandIndexed_terminalAt g hri hsymbol
-          simpa [expandIndexedForm, List.flatMap_append, hexpand] using
+          have hterminal :
+              expandIndexedSymbol g (Symbol.terminal a) =
+                [Symbol.terminal a] := rfl
+          simpa [expandIndexedForm, List.flatMap_append, hexpand,
+            hterminal, List.append_assoc, List.singleton_append] using
             (ContextFreeGrammar.Derives.refl
               (g := g) (expandIndexedForm g p ++
                 Symbol.terminal a :: expandIndexedForm g q))
@@ -1459,7 +1707,13 @@ private theorem isolateTerminalsIndexed_language_reverse
     (expandIndexedForm g
       [Symbol.nonterminal (IndexedIsolateNT.old g.initial)])
     (expandIndexedForm g (terminalSymbols w)) at h
-  simpa [expandIndexedSymbol, expandIndexed_terminalSymbols] using h
+  change g.Derives [Symbol.nonterminal g.initial] (terminalSymbols w)
+  have hinitial :
+      expandIndexedForm g
+        [Symbol.nonterminal (IndexedIsolateNT.old g.initial)] =
+        [Symbol.nonterminal g.initial] := rfl
+  rw [hinitial, expandIndexed_terminalSymbols g w] at h
+  exact h
 
 private theorem isolateTerminalsIndexed_language (g : ContextFreeGrammar T) :
     (isolateTerminalsIndexed g).language = g.language :=
@@ -1519,13 +1773,13 @@ private noncomputable def binarizeLongRules (A : N) :
           (binarizeTailRules A (Y :: Z :: rest))
   | _ => ∅
 
-private noncomputable def binarize
-    (g : ContextFreeGrammar T) : ContextFreeGrammar T := by
-  classical
-  exact
-    { NT := BinaryNT g.NT
-      initial := BinaryNT.old g.initial
-      rules := g.rules.biUnion fun r =>
+private noncomputable abbrev binarize
+    (g : ContextFreeGrammar T) : ContextFreeGrammar T :=
+  { NT := BinaryNT g.NT
+    initial := BinaryNT.old g.initial
+    rules := by
+      classical
+      exact g.rules.biUnion fun r =>
         match r.output with
         | [] => {ContextFreeRule.mapNonterminal BinaryNT.old r}
         | [_] => {ContextFreeRule.mapNonterminal BinaryNT.old r}
@@ -1574,7 +1828,9 @@ private theorem binarizeTail_derives
           output := binarySymbols [X, Y] }
       apply ContextFreeGrammar.Produces.single
       refine ⟨rule, ?_, by
-        simpa [rule] using ContextFreeRule.Rewrites.input_output⟩
+        change rule.Rewrites
+          [Symbol.nonterminal rule.input] rule.output
+        exact ContextFreeRule.Rewrites.input_output⟩
       apply hsub
       simp [binarizeTailRules, rule]
   | cons Z rest ih =>
@@ -1588,7 +1844,9 @@ private theorem binarizeTail_derives
             output := [Symbol.nonterminal (BinaryNT.old X),
               tailSymbol A (Y :: Z :: rest)] }
         refine ⟨rule, ?_, by
-          simpa [rule] using ContextFreeRule.Rewrites.input_output⟩
+          change rule.Rewrites
+            [Symbol.nonterminal rule.input] rule.output
+          exact ContextFreeRule.Rewrites.input_output⟩
         apply hsub
         simp [binarizeTailRules, rule]
       have htailSubset :
@@ -1779,7 +2037,10 @@ private theorem binarize_language_forward (g : ContextFreeGrammar T)
   intro w hw
   have h := ContextFreeGrammar.derives_lift_of_produces
     (binarize_forward_step g hall) hw
-  simpa [terminalSymbols] using h
+  change (binarize g).Derives
+    [Symbol.nonterminal (BinaryNT.old g.initial)]
+    (List.map (Symbol.terminal : T → Symbol T (BinaryNT g.NT)) w)
+  simpa [Symbol.mapNonterminal, Function.comp_def] using h
 
 private def expandBinarySymbol :
     Symbol T (BinaryNT N) → List (Symbol T N)
@@ -1971,7 +2232,9 @@ private theorem binarize_language_reverse (g : ContextFreeGrammar T) :
     (binarize g).language ≤ g.language := by
   intro w hw
   have hsim := binarize_derives_reverse g hw
-  simpa only [binarize, expandBinaryForm_old_singleton,
+  change g.Derives [Symbol.nonterminal g.initial]
+    (List.map (Symbol.terminal : T → Symbol T g.NT) w)
+  simpa only [expandBinaryForm_old_singleton,
     expandBinaryForm_terminalSymbols] using hsim
 private theorem binarizeTailRules_binary (A : N) :
     ∀ (X Y : N) (rest : List N)
@@ -2338,8 +2601,10 @@ private theorem isolateTerminalsIndexed_initial_not_output
       Symbol.nonterminal (isolateTerminalsIndexed g).initial ∉ r.output := by
   classical
   intro rule hrule hmem
-  simp only [isolateTerminalsIndexed, List.mem_toFinset,
-    List.mem_append, List.mem_map, List.mem_flatMap] at hrule
+  change ContextFreeRule T (IndexedIsolateNT g.NT) at rule
+  rw [mem_isolateTerminalsIndexed_rules_iff] at hrule
+  simp only [indexedIsolationRuleList, List.mem_append,
+    List.mem_map, List.mem_flatMap] at hrule
   rcases hrule with hold | hterminal
   · obtain ⟨⟨oldRule, i⟩, hri, rfl⟩ := hold
     have hold : oldRule ∈ g.rules :=
@@ -2366,8 +2631,10 @@ private theorem isolateTerminalsIndexed_no_noninitial_empty
       r.output = [] → r.input = (isolateTerminalsIndexed g).initial := by
   classical
   intro rule hrule hout
-  simp only [isolateTerminalsIndexed, List.mem_toFinset,
-    List.mem_append, List.mem_map, List.mem_flatMap] at hrule
+  change ContextFreeRule T (IndexedIsolateNT g.NT) at rule
+  rw [mem_isolateTerminalsIndexed_rules_iff] at hrule
+  simp only [indexedIsolationRuleList, List.mem_append,
+    List.mem_map, List.mem_flatMap] at hrule
   rcases hrule with hold | hterminal
   · obtain ⟨⟨oldRule, i⟩, hri, rfl⟩ := hold
     have hold : oldRule ∈ g.rules :=
@@ -2401,8 +2668,10 @@ private theorem isolateTerminalsIndexed_no_unit
     ∀ r ∈ (isolateTerminalsIndexed g).rules, ¬IsUnitRule r := by
   classical
   intro rule hrule hunitRule
-  simp only [isolateTerminalsIndexed, List.mem_toFinset,
-    List.mem_append, List.mem_map, List.mem_flatMap] at hrule
+  change ContextFreeRule T (IndexedIsolateNT g.NT) at rule
+  rw [mem_isolateTerminalsIndexed_rules_iff] at hrule
+  simp only [indexedIsolationRuleList, List.mem_append,
+    List.mem_map, List.mem_flatMap] at hrule
   rcases hrule with hold | hterminal
   · obtain ⟨⟨oldRule, i⟩, hri, rfl⟩ := hold
     have hold : oldRule ∈ g.rules :=
@@ -2454,8 +2723,10 @@ private theorem isolateTerminalsIndexed_long_rhs_all_nonterminals
       2 ≤ r.output.length → allNonterminals r.output := by
   classical
   intro rule hrule hlen
-  simp only [isolateTerminalsIndexed, List.mem_toFinset,
-    List.mem_append, List.mem_map, List.mem_flatMap] at hrule
+  change ContextFreeRule T (IndexedIsolateNT g.NT) at rule
+  rw [mem_isolateTerminalsIndexed_rules_iff] at hrule
+  simp only [indexedIsolationRuleList, List.mem_append,
+    List.mem_map, List.mem_flatMap] at hrule
   rcases hrule with hold | hterminal
   · obtain ⟨⟨oldRule, i⟩, _, rfl⟩ := hold
     split at hlen

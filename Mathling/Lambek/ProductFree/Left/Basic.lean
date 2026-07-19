@@ -2,6 +2,7 @@
     import Mathlib.Data.Nat.Basic
     import Mathling.Lambek.ProductFree.Basic
     import LiterateLean
+    open scoped LiterateLean
 
 # Left Fragment of Product-Free Lambek Calculus
 
@@ -263,7 +264,9 @@ theorem atom_generation {Γ : List Tp} {s : String}
     | atom name =>
         simp [Tp.toProductFree, Mathling.Lambek.ProductFree.is_atom]
     | ldiv A B =>
-        have : False := by simpa [is_atom] using h_ctx _ hy
+        have : False := by
+          simpa [is_atom, Mathling.Lambek.ProductFree.translatedIsAtom,
+            Tp.toProductFree, Mathling.Lambek.ProductFree.is_atom] using h_ctx _ hy
         contradiction
   have h_pf :
       ctxToProductFree Γ = [Mathling.Lambek.ProductFree.Tp.atom s] := by
