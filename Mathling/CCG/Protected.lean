@@ -1445,6 +1445,107 @@ theorem CompSpineRight.collapse {A₀ C₀ : Category} :
               List.mem_append]
             exact Or.inr (Or.inr hY))
 
+
+/-- Delete only the raised layer at the end of a forward composition spine whose
+raised category is itself `C₀ ⧸ A₀`, preserving the spine leaves and changing
+the final argument slot from `(C₀ ⧸ A₀) ⧹ C₀` to `A₀`.
+
+This is the order-preserving component needed by crossed `appRight` diamonds:
+the argument that cancels the lowered slot may occur after an intervening
+`crossedLeft` premise, so the ordinary `CompSpineRight.collapse` would put the
+leaves in the wrong order. -/
+theorem CompSpineRight.lowerRaisedSlot {A₀ C₀ : Category} :
+    ∀ {Γ : List Category} {C : Category}
+      {F : DerivationTree Γ (C ⧸ ((C₀ ⧸ A₀) ⧹ C₀))},
+      CompSpineRight (C₀ ⧸ A₀) C₀ F →
+      ∃ F' : DerivationTree Γ (C ⧸ A₀),
+        F'.size < F.size ∧
+        ∀ atomNames : List String,
+          (∀ B ∈ F.nodeCategories, UsesOnlyAtoms atomNames B) →
+          ∀ B ∈ F'.nodeCategories, UsesOnlyAtoms atomNames B := by
+  intro Γ C F h
+  induction h with
+  | raise u =>
+      refine ⟨u, ?_, ?_⟩
+      · simp only [DerivationTree.size_typeRaiseRight, Category.constructors]
+        omega
+      · intro names hF B hB
+        exact hF B (by simp [DerivationTree.nodeCategories_typeRaiseRight, hB])
+  | @comp Γ₁ Γ₂ C' B x G hG ih =>
+      obtain ⟨G', hsize, hatoms⟩ := ih
+      refine ⟨DerivationTree.binary x G' Rule.compRight, ?_, ?_⟩
+      · simp only [DerivationTree.size_binary, Category.constructors] at hsize ⊢
+        omega
+      · intro names hF Y hY
+        simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append] at hY
+        rcases hY with hroot | hx | hG'
+        · subst hroot
+          have hxRoot : UsesOnlyAtoms names (C' ⧸ B) := hF (C' ⧸ B) (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+            exact Or.inr (Or.inl (root_mem_nodeCategories' x)))
+          have hGRoot : UsesOnlyAtoms names (B ⧸ A₀) := hatoms names (by
+            intro Z hZ
+            exact hF Z (by
+              simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+              exact Or.inr (Or.inr hZ))) (B ⧸ A₀) (root_mem_nodeCategories' G')
+          exact UsesOnlyAtoms.rdiv hxRoot.rdiv_left hGRoot.rdiv_right
+        · exact hF Y (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+            exact Or.inr (Or.inl hx))
+        · refine hatoms names ?_ Y hG'
+          intro Z hZ
+          exact hF Z (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+            exact Or.inr (Or.inr hZ))
+
+/-- Order-preserving crossed cancellation for a forward composition spine feeding
+the left premise of `crossedLeft` and a backward type raise consumed by the
+surrounding `appRight`.
+
+This generalizes `sizeReduction_appRight_of_crossedLeft_typeRaises`: the
+forward raise may be hidden under a `compRight` spine before it meets the
+crossed rule, while the intervening crossed premise keeps its original position
+in the leaf list. -/
+theorem sizeReduction_appRight_of_crossedLeft_compSpineRight
+    {A₀ C₀ C D : Category} {Γ Δ Θ : List Category}
+    {F : DerivationTree Γ (D ⧸ ((C₀ ⧸ A₀) ⧹ C₀))}
+    (hF : CompSpineRight (C₀ ⧸ A₀) C₀ F)
+    (y : DerivationTree Δ (D ⧹ C)) (z : DerivationTree Θ A₀) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary (DerivationTree.binary F y Rule.crossedLeft)
+        (DerivationTree.typeRaiseLeft C₀ z) Rule.appRight)) := by
+  obtain ⟨F', hsizeF, hatomsF⟩ := hF.lowerRaisedSlot
+  refine ⟨{
+    target := DerivationTree.binary (DerivationTree.binary F' y Rule.crossedLeft) z Rule.appRight
+    size_lt := by
+      simp only [DerivationTree.size_binary, DerivationTree.size_typeRaiseLeft,
+        Category.constructors] at hsizeF ⊢
+      omega
+    atoms := ?_ }⟩
+  intro names h X hX
+  simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append] at hX
+  rcases hX with hroot | hleft | hright
+  · subst hroot
+    exact h _ (by simp [DerivationTree.nodeCategories_binary])
+  · rcases hleft with hinnerRoot | hF' | hy
+    · subst hinnerRoot
+      have hC : UsesOnlyAtoms names C := h C (by simp [DerivationTree.nodeCategories_binary])
+      have hA₀ : UsesOnlyAtoms names A₀ := by
+        have hzRoot : A₀ ∈ z.nodeCategories := by
+          cases z <;> simp [DerivationTree.nodeCategories]
+        exact h A₀ (by
+          simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseLeft,
+            hzRoot])
+      exact UsesOnlyAtoms.rdiv hC hA₀
+    · refine hatomsF names ?_ X hF'
+      intro W hW
+      exact h W (by
+        simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseLeft, hW])
+    · exact h X (by
+        simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseLeft, hy])
+  · exact h X (by
+      simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseLeft, hright])
+
 /-- The corrected crossing conclusion holds for every forward composition
 spine applied to its raised slot.  For a spine of length zero this is exactly
 the `collapseRight` redex; for longer spines no single collapse redex exists,
@@ -1545,6 +1646,56 @@ theorem CompSpineLeft.collapse {A₀ C₀ : Category} :
               List.mem_append]
             exact Or.inr (Or.inr hB))
 
+
+/-- Delete only the raised layer at the end of a backward composition spine
+whose raised category is itself `A₀ ⧹ C₀`, preserving the spine leaves and
+changing the fixed left slot from `C₀ ⧸ (A₀ ⧹ C₀)` to `A₀`.
+
+This is the order-preserving mirror of `CompSpineRight.lowerRaisedSlot`, used
+when a crossed `appLeft` diamond has an intervening `compLeft` spine. -/
+theorem CompSpineLeft.lowerRaisedSlot {A₀ C₀ : Category} :
+    ∀ {Γ : List Category} {C : Category}
+      {F : DerivationTree Γ ((C₀ ⧸ (A₀ ⧹ C₀)) ⧹ C)},
+      CompSpineLeft (A₀ ⧹ C₀) C₀ F →
+      ∃ F' : DerivationTree Γ (A₀ ⧹ C),
+        F'.size < F.size ∧
+        ∀ atomNames : List String,
+          (∀ B ∈ F.nodeCategories, UsesOnlyAtoms atomNames B) →
+          ∀ B ∈ F'.nodeCategories, UsesOnlyAtoms atomNames B := by
+  intro Γ C F h
+  induction h with
+  | raise u =>
+      refine ⟨u, ?_, ?_⟩
+      · simp only [DerivationTree.size_typeRaiseLeft, Category.constructors]
+        omega
+      · intro names hF B hB
+        exact hF B (by simp [DerivationTree.nodeCategories_typeRaiseLeft, hB])
+  | @comp Γ₁ Γ₂ C' B G y hG ih =>
+      obtain ⟨G', hsize, hatoms⟩ := ih
+      refine ⟨DerivationTree.binary G' y Rule.compLeft, ?_, ?_⟩
+      · simp only [DerivationTree.size_binary, Category.constructors] at hsize ⊢
+        omega
+      · intro names hF Y hY
+        simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append] at hY
+        rcases hY with hroot | hG' | hy
+        · subst hroot
+          have hGRoot : UsesOnlyAtoms names (A₀ ⧹ B) := hatoms names (by
+            intro Z hZ
+            exact hF Z (by
+              simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+              exact Or.inr (Or.inl hZ))) (A₀ ⧹ B) (root_mem_nodeCategories' G')
+          have hyRoot : UsesOnlyAtoms names (B ⧹ C') := hF (B ⧹ C') (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+            exact Or.inr (Or.inr (root_mem_nodeCategories' y)))
+          exact UsesOnlyAtoms.ldiv hGRoot.ldiv_left hyRoot.ldiv_right
+        · refine hatoms names ?_ Y hG'
+          intro Z hZ
+          exact hF Z (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+            exact Or.inr (Or.inl hZ))
+        · exact hF Y (by
+            simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append]
+            exact Or.inr (Or.inr hy))
 /-- The corrected crossing conclusion holds for every backward composition
 spine applied to its raised slot. -/
 theorem sizeReduction_appLeft_of_compSpineLeft
@@ -1877,6 +2028,852 @@ theorem crossing_appLeft_reduces_of_argument_typeRaise
       (DerivationTree.binary w (DerivationTree.typeRaiseLeft C₀ u) Rule.appLeft)) :=
   sizeReduction_appLeft_of_compSpineLeft (CompSpineLeft.raise u) w
 
+/-- A local crossed cancellation that deletes the forward raise feeding the
+left premise of `crossedLeft` together with the backward raise consumed by the
+surrounding `appRight`.
+
+Unlike `CompSpineRight`, this is not a linear composition-spine collapse: the
+middle premise `y` remains between the two deleted raises in the leaf order.
+The contractum preserves the original leaf order by first rebuilding the
+`crossedLeft` node from the unraised functor and then applying it to the
+unraised argument. -/
+theorem sizeReduction_appRight_of_crossedLeft_typeRaises
+    {A₀ C₀ C : Category} {Γ Δ Θ : List Category}
+    (u : DerivationTree Γ (C₀ ⧸ A₀)) (y : DerivationTree Δ (C₀ ⧹ C))
+    (z : DerivationTree Θ A₀) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary
+        (DerivationTree.binary (DerivationTree.typeRaiseRight C₀ u) y Rule.crossedLeft)
+        (DerivationTree.typeRaiseLeft C₀ z) Rule.appRight)) := by
+  refine ⟨{
+    target := DerivationTree.binary (DerivationTree.binary u y Rule.crossedLeft) z Rule.appRight
+    size_lt := by
+      simp only [DerivationTree.size_binary, DerivationTree.size_typeRaiseRight,
+        DerivationTree.size_typeRaiseLeft, Category.constructors]
+      omega
+    atoms := ?_ }⟩
+  intro names h X hX
+  simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append] at hX
+  rcases hX with hroot | hleft | hright
+  · subst hroot
+    exact h _ (by simp [DerivationTree.nodeCategories_binary])
+  · rcases hleft with hout | hu | hy
+    · subst hout
+      have hC : UsesOnlyAtoms names C := h C (by simp [DerivationTree.nodeCategories_binary])
+      have hA₀ : UsesOnlyAtoms names A₀ := by
+        have huRoot : C₀ ⧸ A₀ ∈ u.nodeCategories := by
+          cases u <;> simp [DerivationTree.nodeCategories]
+        have huAtoms : UsesOnlyAtoms names (C₀ ⧸ A₀) := h (C₀ ⧸ A₀) (by
+          simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight,
+            huRoot])
+        exact huAtoms.rdiv_right
+      exact UsesOnlyAtoms.rdiv hC hA₀
+    · exact h X (by
+        simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight, hu])
+    · exact h X (by
+        simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight, hy])
+  · exact h X (by
+      simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseLeft, hright])
+
+/-- Mirror local crossed cancellation: a forward raise consumed by the
+surrounding `appLeft` and a backward raise feeding the right premise of
+`crossedRight` can be deleted simultaneously.
+
+The contractum keeps the original leaf order by rebuilding `crossedRight` from
+the unraised right premise before applying the unraised left argument. -/
+theorem sizeReduction_appLeft_of_crossedRight_typeRaises
+    {A₀ C₀ C : Category} {Θ Γ Δ : List Category}
+    (z : DerivationTree Θ A₀) (y : DerivationTree Γ (C ⧸ C₀))
+    (u : DerivationTree Δ (A₀ ⧹ C₀)) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary
+        (DerivationTree.typeRaiseRight C₀ z)
+        (DerivationTree.binary y (DerivationTree.typeRaiseLeft C₀ u) Rule.crossedRight)
+        Rule.appLeft)) := by
+  refine ⟨{
+    target := DerivationTree.binary z (DerivationTree.binary y u Rule.crossedRight) Rule.appLeft
+    size_lt := by
+      simp only [DerivationTree.size_binary, DerivationTree.size_typeRaiseRight,
+        DerivationTree.size_typeRaiseLeft, Category.constructors]
+      omega
+    atoms := ?_ }⟩
+  intro names h X hX
+  simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append] at hX
+  rcases hX with hroot | hleft | hright
+  · subst hroot
+    exact h _ (by simp [DerivationTree.nodeCategories_binary])
+  · exact h X (by
+      simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight, hleft])
+  · rcases hright with hinnerRoot | hy | hu
+    · subst hinnerRoot
+      have hA₀ : UsesOnlyAtoms names A₀ := by
+        have hzRoot : A₀ ∈ z.nodeCategories := by
+          cases z <;> simp [DerivationTree.nodeCategories]
+        exact h A₀ (by
+          simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight,
+            hzRoot])
+      have hC : UsesOnlyAtoms names C := h C (by simp [DerivationTree.nodeCategories_binary])
+      exact UsesOnlyAtoms.ldiv hA₀ hC
+    · exact h X (by
+        simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseLeft, hy])
+    · exact h X (by
+        simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseLeft, hu])
+
+/-- Order-preserving crossed cancellation for a backward composition spine feeding
+the right premise of `crossedRight` and a forward type raise consumed by the
+surrounding `appLeft`.
+
+This is the mirror of `sizeReduction_appRight_of_crossedLeft_compSpineRight`:
+the backward raise may be hidden under a `compLeft` spine before it meets the
+crossed rule. -/
+theorem sizeReduction_appLeft_of_crossedRight_compSpineLeft
+    {A₀ C₀ C D : Category} {Θ Γ Δ : List Category}
+    (z : DerivationTree Θ A₀) (y : DerivationTree Γ (C ⧸ D))
+    {F : DerivationTree Δ ((C₀ ⧸ (A₀ ⧹ C₀)) ⧹ D)}
+    (hF : CompSpineLeft (A₀ ⧹ C₀) C₀ F) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary (DerivationTree.typeRaiseRight C₀ z)
+        (DerivationTree.binary y F Rule.crossedRight) Rule.appLeft)) := by
+  obtain ⟨F', hsizeF, hatomsF⟩ := hF.lowerRaisedSlot
+  refine ⟨{
+    target := DerivationTree.binary z (DerivationTree.binary y F' Rule.crossedRight) Rule.appLeft
+    size_lt := by
+      simp only [DerivationTree.size_binary, DerivationTree.size_typeRaiseRight,
+        Category.constructors] at hsizeF ⊢
+      omega
+    atoms := ?_ }⟩
+  intro names h X hX
+  simp only [DerivationTree.nodeCategories_binary, List.mem_cons, List.mem_append] at hX
+  rcases hX with hroot | hleft | hright
+  · subst hroot
+    exact h _ (by simp [DerivationTree.nodeCategories_binary])
+  · exact h X (by
+      simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight, hleft])
+  · rcases hright with hinnerRoot | hy | hF'
+    · subst hinnerRoot
+      have hA₀ : UsesOnlyAtoms names A₀ := by
+        have hzRoot : A₀ ∈ z.nodeCategories := by
+          cases z <;> simp [DerivationTree.nodeCategories]
+        exact h A₀ (by
+          simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight,
+            hzRoot])
+      have hC : UsesOnlyAtoms names C := h C (by simp [DerivationTree.nodeCategories_binary])
+      exact UsesOnlyAtoms.ldiv hA₀ hC
+    · exact h X (by
+        simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight, hy])
+    · refine hatomsF names ?_ X hF'
+      intro W hW
+      exact h W (by
+        simp [DerivationTree.nodeCategories_binary, DerivationTree.nodeCategories_typeRaiseRight, hW])
+
+
+/-! ## Application-root branch reducers
+
+The binary-root application branches are concrete dependent cases rather than a
+single negative "other rule" family.  When the inner application branch supplies
+a recursive size reduction, the outer application reduces by congruence; when
+the inner composition/crossed-composition branch has already been forced into
+the appropriate spine/type-raise shape, the existing local spine reducers apply
+directly. -/
+
+/-- Forward-application functor branch whose functor root is another forward
+application.  This is a recursive branch: reducing the inner application reduces
+the outer one by congruence on the functor premise. -/
+theorem crossing_appRight_functor_appRight_reduces_of_inner
+    {Γ₁ Γ₂ Δ : List Category} {C B X : Category}
+    {l : DerivationTree Γ₁ ((C ⧸ B) ⧸ X)} {r : DerivationTree Γ₂ X}
+    (t₂ : DerivationTree Δ B)
+    (hinner : Nonempty (SizeReduction (DerivationTree.binary l r Rule.appRight))) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary (DerivationTree.binary l r Rule.appRight) t₂ Rule.appRight)) := by
+  obtain ⟨w⟩ := hinner
+  exact ⟨w.underBinaryLeft t₂ Rule.appRight⟩
+
+/-- Forward-application functor branch whose functor root is a backward
+application.  This is the second concrete application-root functor case. -/
+theorem crossing_appRight_functor_appLeft_reduces_of_inner
+    {Γ₁ Γ₂ Δ : List Category} {C B X : Category}
+    {l : DerivationTree Γ₁ X} {r : DerivationTree Γ₂ (X ⧹ (C ⧸ B))}
+    (t₂ : DerivationTree Δ B)
+    (hinner : Nonempty (SizeReduction (DerivationTree.binary l r Rule.appLeft))) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary (DerivationTree.binary l r Rule.appLeft) t₂ Rule.appRight)) := by
+  obtain ⟨w⟩ := hinner
+  exact ⟨w.underBinaryLeft t₂ Rule.appRight⟩
+
+/-- Forward-application functor branch whose functor root is forward
+composition, after the boundary-free chase has forced a right composition spine. -/
+theorem crossing_appRight_functor_compRight_reduces_of_spine
+    {Γ Δ : List Category} {A₀ C₀ C : Category}
+    {F : DerivationTree Γ (C ⧸ (A₀ ⧹ C₀))}
+    (hF : CompSpineRight A₀ C₀ F) (t₂ : DerivationTree Δ (A₀ ⧹ C₀)) :
+    Nonempty (SizeReduction (DerivationTree.binary F t₂ Rule.appRight)) :=
+  sizeReduction_appRight_of_compSpineRight hF t₂
+
+/-- Forward-application functor branch whose functor root is crossed-left,
+after the boundary-free chase has forced the crossed diamond/spine shape. -/
+theorem crossing_appRight_functor_crossedLeft_reduces_of_spine
+    {A₀ C₀ C D : Category} {Γ Δ Θ : List Category}
+    {F : DerivationTree Γ (D ⧸ ((C₀ ⧸ A₀) ⧹ C₀))}
+    (hF : CompSpineRight (C₀ ⧸ A₀) C₀ F)
+    (y : DerivationTree Δ (D ⧹ C)) (z : DerivationTree Θ A₀) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary (DerivationTree.binary F y Rule.crossedLeft)
+        (DerivationTree.typeRaiseLeft C₀ z) Rule.appRight)) :=
+  sizeReduction_appRight_of_crossedLeft_compSpineRight hF y z
+
+/-- Backward-application argument branch whose argument-functor root is a
+forward application.  This is a recursive branch: reducing the inner application
+reduces the outer one by congruence on the argument premise. -/
+theorem crossing_appLeft_argument_appRight_reduces_of_inner
+    {Θ Γ₁ Γ₂ : List Category} {A C X : Category}
+    (t₁ : DerivationTree Θ A)
+    {l : DerivationTree Γ₁ ((A ⧹ C) ⧸ X)} {r : DerivationTree Γ₂ X}
+    (hinner : Nonempty (SizeReduction (DerivationTree.binary l r Rule.appRight))) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary t₁ (DerivationTree.binary l r Rule.appRight) Rule.appLeft)) := by
+  obtain ⟨w⟩ := hinner
+  exact ⟨w.underBinaryRight t₁ Rule.appLeft⟩
+
+/-- Backward-application argument branch whose argument-functor root is another
+backward application.  This is the second concrete application-root argument
+case. -/
+theorem crossing_appLeft_argument_appLeft_reduces_of_inner
+    {Θ Γ₁ Γ₂ : List Category} {A C X : Category}
+    (t₁ : DerivationTree Θ A)
+    {l : DerivationTree Γ₁ X} {r : DerivationTree Γ₂ (X ⧹ (A ⧹ C))}
+    (hinner : Nonempty (SizeReduction (DerivationTree.binary l r Rule.appLeft))) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary t₁ (DerivationTree.binary l r Rule.appLeft) Rule.appLeft)) := by
+  obtain ⟨w⟩ := hinner
+  exact ⟨w.underBinaryRight t₁ Rule.appLeft⟩
+
+/-- Backward-application argument branch whose argument-functor root is backward
+composition, after the boundary-free chase has forced a left composition spine. -/
+theorem crossing_appLeft_argument_compLeft_reduces_of_spine
+    {Γ Δ : List Category} {A₀ C₀ C : Category}
+    (t₁ : DerivationTree Δ (C₀ ⧸ A₀))
+    {F : DerivationTree Γ ((C₀ ⧸ A₀) ⧹ C)}
+    (hF : CompSpineLeft A₀ C₀ F) :
+    Nonempty (SizeReduction (DerivationTree.binary t₁ F Rule.appLeft)) :=
+  sizeReduction_appLeft_of_compSpineLeft hF t₁
+
+/-- Backward-application argument branch whose argument-functor root is
+crossed-right, after the boundary-free chase has forced the crossed
+diamond/spine shape. -/
+theorem crossing_appLeft_argument_crossedRight_reduces_of_spine
+    {A₀ C₀ C D : Category} {Θ Γ Δ : List Category}
+    (z : DerivationTree Θ A₀) (y : DerivationTree Γ (C ⧸ D))
+    {F : DerivationTree Δ ((C₀ ⧸ (A₀ ⧹ C₀)) ⧹ D)}
+    (hF : CompSpineLeft (A₀ ⧹ C₀) C₀ F) :
+    Nonempty (SizeReduction
+      (DerivationTree.binary (DerivationTree.typeRaiseRight C₀ z)
+        (DerivationTree.binary y F Rule.crossedRight) Rule.appLeft)) :=
+  sizeReduction_appLeft_of_crossedRight_compSpineLeft z y hF
+
+
+/-- Carrier membership is closed along the same invisible trace component. -/
+theorem InvisiblePiece.mem_of_sameInvisible
+    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
+    {P : InvisiblePiece t} {o p : Occurrence t}
+    (hcomp : SameInvisibleTraceComponent o p) (ho : o ∈ P.carrier) :
+    p ∈ P.carrier := by
+  induction hcomp with
+  | refl => exact ho
+  | tail _ hstep ih => exact P.closed _ ih _ hstep
+
+/-- A boundary-free invisible piece has no visible boundary at any of its
+members. -/
+theorem InvisiblePiece.not_hasVisibleBoundary_of_mem
+    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
+    {P : InvisiblePiece t} (hfree : BoundaryFree P)
+    {o : Occurrence t} (ho : o ∈ P.carrier) : ¬ HasVisibleBoundary o := by
+  intro hb
+  obtain ⟨p, v, hcomp, _hpInv, hv, hedge⟩ := hb
+  have hp : p ∈ P.carrier := P.mem_of_sameInvisible hcomp ho
+  exact hfree p hp v hv hedge
+
+
+/-- A finite trace route from an occurrence to a visible occurrence.  This
+separates graph reachability from the boundary-free contradiction used by the
+slot-escape lemmas. -/
+inductive VisibleTraceRoute {Γ : List Category} {A : Category}
+    {t : DerivationTree Γ A} : Occurrence t → Prop where
+  | here {o : Occurrence t} (hv : o.Visible) : VisibleTraceRoute o
+  | step {o o' : Occurrence t} (h : TraceEdge o o')
+      (r : VisibleTraceRoute o') : VisibleTraceRoute o
+
+namespace VisibleTraceRoute
+
+/-- A boundary-free piece cannot contain the start of a route to a visible
+occurrence. -/
+theorem mem_false_of_boundaryFree
+    {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
+    {P : InvisiblePiece t} (hfree : BoundaryFree P)
+    {o : Occurrence t} (ho : o ∈ P.carrier)
+    (hr : VisibleTraceRoute o) : False := by
+  induction hr with
+  | here hv => exact P.all_invisible _ ho hv
+  | @step o oNext hedge _ ih =>
+      have hoNext : oNext ∈ P.carrier := P.closed_traceEdge_of_boundaryFree hfree ho hedge
+      exact ih hoNext
+
+/-- A continuation slot says that every occurrence at subtree address `π` whose
+category path is produced by `κ` already routes to a visible occurrence. -/
+def SlotContinuation {Γ : List Category} {A : Category} {t : DerivationTree Γ A}
+    (π : NodePath) (κ : CategoryPath → CategoryPath) : Prop :=
+  ∀ {o : Occurrence t} {p : CategoryPath},
+    o.nodePath = π → o.categoryPath = κ p → VisibleTraceRoute o
+
+
+/-- Under a root `compRight`, a right-premise denominator slot routes directly
+to the visible root by `compRight_A`. -/
+theorem compRight_right_den_route
+    {Γ Δ : List Category} {C B A : Category}
+    {t₁ : DerivationTree Γ (C ⧸ B)} {t₂ : DerivationTree Δ (B ⧸ A)}
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.compRight)}
+    (hn : o.nodePath = [TreeStep.right]) (hp : ∃ p, o.categoryPath = true :: p) :
+    VisibleTraceRoute o := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = B ⧸ A := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : B ⧸ A = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsRoot : ∃ X Y,
+      (C ⧸ A).subcategoryAt? (true :: p) = some (X ⧸ Y) ∨
+      (C ⧸ A).subcategoryAt? (true :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa using hXY
+  let v : Occurrence (DerivationTree.binary t₁ t₂ Rule.compRight) :=
+    { nodePath := []
+      nodeCategory := C ⧸ A
+      nodeAt := rfl
+      categoryPath := true :: p
+      isConstructor := hconsRoot }
+  have hedge : TraceEdge o v :=
+    Or.inl (Or.inl (LocalTraceEdge.compRight_A (p := p) hn hp rfl rfl))
+  exact VisibleTraceRoute.step hedge (VisibleTraceRoute.here (o := v) (Or.inl rfl))
+
+/-- Under a root `compLeft`, a left-premise numerator slot routes directly to
+the visible root by `compLeft_A`. -/
+theorem compLeft_left_num_route
+    {Γ Δ : List Category} {A B C : Category}
+    {t₁ : DerivationTree Γ (A ⧹ B)} {t₂ : DerivationTree Δ (B ⧹ C)}
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.compLeft)}
+    (hn : o.nodePath = [TreeStep.left]) (hp : ∃ p, o.categoryPath = false :: p) :
+    VisibleTraceRoute o := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = A ⧹ B := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : A ⧹ B = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsRoot : ∃ X Y,
+      (A ⧹ C).subcategoryAt? (false :: p) = some (X ⧸ Y) ∨
+      (A ⧹ C).subcategoryAt? (false :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa using hXY
+  let v : Occurrence (DerivationTree.binary t₁ t₂ Rule.compLeft) :=
+    { nodePath := []
+      nodeCategory := A ⧹ C
+      nodeAt := rfl
+      categoryPath := false :: p
+      isConstructor := hconsRoot }
+  have hedge : TraceEdge o v :=
+    Or.inl (Or.inl (LocalTraceEdge.compLeft_A (p := p) hn hp rfl rfl))
+  exact VisibleTraceRoute.step hedge (VisibleTraceRoute.here (o := v) (Or.inl rfl))
+
+/-- Under a root `crossedRight`, a right-premise numerator slot routes directly
+to the visible root by `crossedRight_A`. -/
+theorem crossedRight_right_num_route
+    {Γ Δ : List Category} {C B A : Category}
+    {t₁ : DerivationTree Γ (C ⧸ B)} {t₂ : DerivationTree Δ (A ⧹ B)}
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedRight)}
+    (hn : o.nodePath = [TreeStep.right]) (hp : ∃ p, o.categoryPath = false :: p) :
+    VisibleTraceRoute o := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = A ⧹ B := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : A ⧹ B = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsRoot : ∃ X Y,
+      (A ⧹ C).subcategoryAt? (false :: p) = some (X ⧸ Y) ∨
+      (A ⧹ C).subcategoryAt? (false :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa using hXY
+  let v : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedRight) :=
+    { nodePath := []
+      nodeCategory := A ⧹ C
+      nodeAt := rfl
+      categoryPath := false :: p
+      isConstructor := hconsRoot }
+  have hedge : TraceEdge o v :=
+    Or.inl (Or.inl (LocalTraceEdge.crossedRight_A (p := p) hn hp rfl rfl))
+  exact VisibleTraceRoute.step hedge (VisibleTraceRoute.here (o := v) (Or.inl rfl))
+
+/-- Under a root `crossedLeft`, a left-premise argument slot routes directly to
+the visible root by `crossedLeft_A`. -/
+theorem crossedLeft_left_arg_route
+    {Γ Δ : List Category} {B A C : Category}
+    {t₁ : DerivationTree Γ (B ⧸ A)} {t₂ : DerivationTree Δ (B ⧹ C)}
+    {o : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedLeft)}
+    (hn : o.nodePath = [TreeStep.left]) (hp : ∃ p, o.categoryPath = true :: p) :
+    VisibleTraceRoute o := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = B ⧸ A := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : B ⧸ A = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsRoot : ∃ X Y,
+      (C ⧸ A).subcategoryAt? (true :: p) = some (X ⧸ Y) ∨
+      (C ⧸ A).subcategoryAt? (true :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa using hXY
+  let v : Occurrence (DerivationTree.binary t₁ t₂ Rule.crossedLeft) :=
+    { nodePath := []
+      nodeCategory := C ⧸ A
+      nodeAt := rfl
+      categoryPath := true :: p
+      isConstructor := hconsRoot }
+  have hedge : TraceEdge o v :=
+    Or.inl (Or.inl (LocalTraceEdge.crossedLeft_A (p := p) hn hp rfl rfl))
+  exact VisibleTraceRoute.step hedge (VisibleTraceRoute.here (o := v) (Or.inl rfl))
+
+/-- Immediate `compRight`/`T>` base for the right-canceled-slot route: the
+canceled numerator copy routes to the sibling target copy by `trRight_C`, then
+the root continuation closes by `compRight_A`. -/
+theorem compRight_right_typeRaiseRight_num_route
+    {Γ Δ : List Category} {C C₀ A₀ : Category}
+    {t₁ : DerivationTree Γ (C ⧸ C₀)} {u : DerivationTree Δ A₀}
+    {o : Occurrence (DerivationTree.binary t₁ (DerivationTree.typeRaiseRight C₀ u) Rule.compRight)}
+    (hn : o.nodePath = [TreeStep.right]) (hp : ∃ p, o.categoryPath = false :: p) :
+    VisibleTraceRoute o := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = C₀ ⧸ (A₀ ⧹ C₀) := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : C₀ ⧸ (A₀ ⧹ C₀) = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsFalse : ∃ X Y,
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (false :: p) = some (X ⧸ Y) ∨
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (false :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rwa [hcat, hp] at hXY
+  have hconsTrueTrue : ∃ X Y,
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (true :: true :: p) = some (X ⧸ Y) ∨
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (true :: true :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa [Category.subcategoryAt?] using hXY
+  let e : Occurrence (DerivationTree.typeRaiseRight C₀ u) :=
+    { nodePath := []
+      nodeCategory := C₀ ⧸ (A₀ ⧹ C₀)
+      nodeAt := rfl
+      categoryPath := false :: p
+      isConstructor := hconsFalse }
+  let eC : Occurrence (DerivationTree.typeRaiseRight C₀ u) :=
+    { nodePath := []
+      nodeCategory := C₀ ⧸ (A₀ ⧹ C₀)
+      nodeAt := rfl
+      categoryPath := true :: true :: p
+      isConstructor := hconsTrueTrue }
+  have ho_eq : o = e.underBinaryRight (t₁ := t₁) Rule.compRight := by
+    apply DerivationTree.CategoryOccurrence.eq_of_data
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hn]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hcat]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hp]
+  let oC : Occurrence (DerivationTree.binary t₁ (DerivationTree.typeRaiseRight C₀ u) Rule.compRight) :=
+    eC.underBinaryRight (t₁ := t₁) Rule.compRight
+  have hedge : TraceEdge o oC := by
+    have hloc : LocalTraceEdge e eC :=
+      LocalTraceEdge.trRight_C (p := p) rfl rfl rfl rfl
+    have htr : TraceEdge (e.underBinaryRight (t₁ := t₁) Rule.compRight)
+        (eC.underBinaryRight (t₁ := t₁) Rule.compRight) :=
+      TraceEdge.underBinaryRight (t₁ := t₁) Rule.compRight
+        (Or.inl (Or.inl hloc) : TraceEdge e eC)
+    simpa [oC, ho_eq] using htr
+  exact VisibleTraceRoute.step hedge
+    (compRight_right_den_route (o := oC) rfl ⟨true :: p, rfl⟩)
+
+/-- Immediate `compLeft`/`T<` base for the left-canceled-slot route: the
+canceled denominator copy routes to the sibling target copy by `trLeft_C`, then
+the root continuation closes by `compLeft_A`. -/
+theorem compLeft_left_typeRaiseLeft_den_route
+    {Γ Δ : List Category} {C C₀ A₀ : Category}
+    {u : DerivationTree Γ A₀} {t₂ : DerivationTree Δ (C₀ ⧹ C)}
+    {o : Occurrence (DerivationTree.binary (DerivationTree.typeRaiseLeft C₀ u) t₂ Rule.compLeft)}
+    (hn : o.nodePath = [TreeStep.left]) (hp : ∃ p, o.categoryPath = true :: p) :
+    VisibleTraceRoute o := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = (C₀ ⧸ A₀) ⧹ C₀ := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : (C₀ ⧸ A₀) ⧹ C₀ = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsTrue : ∃ X Y,
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (true :: p) = some (X ⧸ Y) ∨
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (true :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rwa [hcat, hp] at hXY
+  have hconsFalseFalse : ∃ X Y,
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (false :: false :: p) = some (X ⧸ Y) ∨
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (false :: false :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa [Category.subcategoryAt?] using hXY
+  let e : Occurrence (DerivationTree.typeRaiseLeft C₀ u) :=
+    { nodePath := []
+      nodeCategory := (C₀ ⧸ A₀) ⧹ C₀
+      nodeAt := rfl
+      categoryPath := true :: p
+      isConstructor := hconsTrue }
+  let eC : Occurrence (DerivationTree.typeRaiseLeft C₀ u) :=
+    { nodePath := []
+      nodeCategory := (C₀ ⧸ A₀) ⧹ C₀
+      nodeAt := rfl
+      categoryPath := false :: false :: p
+      isConstructor := hconsFalseFalse }
+  have ho_eq : o = e.underBinaryLeft (t₂ := t₂) Rule.compLeft := by
+    apply DerivationTree.CategoryOccurrence.eq_of_data
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hn]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hcat]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hp]
+  let oC : Occurrence (DerivationTree.binary (DerivationTree.typeRaiseLeft C₀ u) t₂ Rule.compLeft) :=
+    eC.underBinaryLeft (t₂ := t₂) Rule.compLeft
+  have hedge : TraceEdge o oC := by
+    have hloc : LocalTraceEdge eC e :=
+      LocalTraceEdge.trLeft_C (p := p) rfl rfl rfl rfl
+    have htr : TraceEdge (e.underBinaryLeft (t₂ := t₂) Rule.compLeft)
+        (eC.underBinaryLeft (t₂ := t₂) Rule.compLeft) :=
+      TraceEdge.underBinaryLeft (t₂ := t₂) Rule.compLeft
+        (Or.inr (Or.inl hloc) : TraceEdge e eC)
+    simpa [oC, ho_eq] using htr
+  exact VisibleTraceRoute.step hedge
+    (compLeft_left_num_route (o := oC) rfl ⟨false :: p, rfl⟩)
+
+/-- Immediate `crossedLeft`/`T>` base for the left-canceled-slot route. -/
+theorem crossedLeft_left_typeRaiseRight_num_route
+    {Γ Δ : List Category} {C C₀ A₀ : Category}
+    {u : DerivationTree Γ A₀} {t₂ : DerivationTree Δ (C₀ ⧹ C)}
+    {o : Occurrence (DerivationTree.binary (DerivationTree.typeRaiseRight C₀ u) t₂ Rule.crossedLeft)}
+    (hn : o.nodePath = [TreeStep.left]) (hp : ∃ p, o.categoryPath = false :: p) :
+    VisibleTraceRoute o := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = C₀ ⧸ (A₀ ⧹ C₀) := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : C₀ ⧸ (A₀ ⧹ C₀) = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsFalse : ∃ X Y,
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (false :: p) = some (X ⧸ Y) ∨
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (false :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rwa [hcat, hp] at hXY
+  have hconsTrueTrue : ∃ X Y,
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (true :: true :: p) = some (X ⧸ Y) ∨
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (true :: true :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa [Category.subcategoryAt?] using hXY
+  let e : Occurrence (DerivationTree.typeRaiseRight C₀ u) :=
+    { nodePath := []
+      nodeCategory := C₀ ⧸ (A₀ ⧹ C₀)
+      nodeAt := rfl
+      categoryPath := false :: p
+      isConstructor := hconsFalse }
+  let eC : Occurrence (DerivationTree.typeRaiseRight C₀ u) :=
+    { nodePath := []
+      nodeCategory := C₀ ⧸ (A₀ ⧹ C₀)
+      nodeAt := rfl
+      categoryPath := true :: true :: p
+      isConstructor := hconsTrueTrue }
+  have ho_eq : o = e.underBinaryLeft (t₂ := t₂) Rule.crossedLeft := by
+    apply DerivationTree.CategoryOccurrence.eq_of_data
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hn]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hcat]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hp]
+  let oC : Occurrence (DerivationTree.binary (DerivationTree.typeRaiseRight C₀ u) t₂ Rule.crossedLeft) :=
+    eC.underBinaryLeft (t₂ := t₂) Rule.crossedLeft
+  have hedge : TraceEdge o oC := by
+    have hloc : LocalTraceEdge e eC := LocalTraceEdge.trRight_C (p := p) rfl rfl rfl rfl
+    have htr : TraceEdge (e.underBinaryLeft (t₂ := t₂) Rule.crossedLeft)
+        (eC.underBinaryLeft (t₂ := t₂) Rule.crossedLeft) :=
+      TraceEdge.underBinaryLeft (t₂ := t₂) Rule.crossedLeft
+        (Or.inl (Or.inl hloc) : TraceEdge e eC)
+    simpa [oC, ho_eq] using htr
+  exact VisibleTraceRoute.step hedge
+    (crossedLeft_left_arg_route (o := oC) rfl ⟨true :: p, rfl⟩)
+
+/-- Immediate `crossedRight`/`T<` base for the right-canceled-slot route. -/
+theorem crossedRight_right_typeRaiseLeft_den_route
+    {Γ Δ : List Category} {C C₀ A₀ : Category}
+    {t₁ : DerivationTree Γ (C ⧸ C₀)} {u : DerivationTree Δ A₀}
+    {o : Occurrence (DerivationTree.binary t₁ (DerivationTree.typeRaiseLeft C₀ u) Rule.crossedRight)}
+    (hn : o.nodePath = [TreeStep.right]) (hp : ∃ p, o.categoryPath = true :: p) :
+    VisibleTraceRoute o := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = (C₀ ⧸ A₀) ⧹ C₀ := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : (C₀ ⧸ A₀) ⧹ C₀ = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsTrue : ∃ X Y,
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (true :: p) = some (X ⧸ Y) ∨
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (true :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rwa [hcat, hp] at hXY
+  have hconsFalseFalse : ∃ X Y,
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (false :: false :: p) = some (X ⧸ Y) ∨
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (false :: false :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa [Category.subcategoryAt?] using hXY
+  let e : Occurrence (DerivationTree.typeRaiseLeft C₀ u) :=
+    { nodePath := []
+      nodeCategory := (C₀ ⧸ A₀) ⧹ C₀
+      nodeAt := rfl
+      categoryPath := true :: p
+      isConstructor := hconsTrue }
+  let eC : Occurrence (DerivationTree.typeRaiseLeft C₀ u) :=
+    { nodePath := []
+      nodeCategory := (C₀ ⧸ A₀) ⧹ C₀
+      nodeAt := rfl
+      categoryPath := false :: false :: p
+      isConstructor := hconsFalseFalse }
+  have ho_eq : o = e.underBinaryRight (t₁ := t₁) Rule.crossedRight := by
+    apply DerivationTree.CategoryOccurrence.eq_of_data
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hn]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hcat]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hp]
+  let oC : Occurrence (DerivationTree.binary t₁ (DerivationTree.typeRaiseLeft C₀ u) Rule.crossedRight) :=
+    eC.underBinaryRight (t₁ := t₁) Rule.crossedRight
+  have hedge : TraceEdge o oC := by
+    have hloc : LocalTraceEdge eC e := LocalTraceEdge.trLeft_C (p := p) rfl rfl rfl rfl
+    have htr : TraceEdge (e.underBinaryRight (t₁ := t₁) Rule.crossedRight)
+        (eC.underBinaryRight (t₁ := t₁) Rule.crossedRight) :=
+      TraceEdge.underBinaryRight (t₁ := t₁) Rule.crossedRight
+        (Or.inr (Or.inl hloc) : TraceEdge e eC)
+    simpa [oC, ho_eq] using htr
+  exact VisibleTraceRoute.step hedge
+    (crossedRight_right_num_route (o := oC) rfl ⟨false :: p, rfl⟩)
+end VisibleTraceRoute
+/-- Leaf terminal case for the `compRight` right-canceled-slot chase. -/
+theorem InvisiblePiece.compRight_rightCanceledSlot_leaf_false
+    {Γ : List Category} {C B A : Category}
+    {t₁ : DerivationTree Γ (C ⧸ B)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ (DerivationTree.leaf (B ⧸ A)) Rule.compRight)}
+    {o : Occurrence (DerivationTree.binary t₁ (DerivationTree.leaf (B ⧸ A)) Rule.compRight)}
+    (ho : o ∈ P.carrier) (hn : o.nodePath = [TreeStep.right]) : False := by
+  exact P.all_invisible o ho (Or.inr (Or.inl (by rw [hn]; trivial)))
+
+/-- Leaf terminal case for the `compLeft` left-canceled-slot chase. -/
+theorem InvisiblePiece.compLeft_leftCanceledSlot_leaf_false
+    {Δ : List Category} {A B C : Category}
+    {t₂ : DerivationTree Δ (B ⧹ C)}
+    {P : InvisiblePiece (DerivationTree.binary (DerivationTree.leaf (A ⧹ B)) t₂ Rule.compLeft)}
+    {o : Occurrence (DerivationTree.binary (DerivationTree.leaf (A ⧹ B)) t₂ Rule.compLeft)}
+    (ho : o ∈ P.carrier) (hn : o.nodePath = [TreeStep.left]) : False := by
+  exact P.all_invisible o ho (Or.inr (Or.inl (by rw [hn]; trivial)))
+
+/-- Leaf terminal case for the `crossedRight` left canceled-slot chase. -/
+theorem InvisiblePiece.crossedRight_leftCanceledSlot_leaf_false
+    {Δ : List Category} {C B A : Category} {t₂ : DerivationTree Δ (A ⧹ B)}
+    {P : InvisiblePiece (DerivationTree.binary (DerivationTree.leaf (C ⧸ B)) t₂ Rule.crossedRight)}
+    {o : Occurrence (DerivationTree.binary (DerivationTree.leaf (C ⧸ B)) t₂ Rule.crossedRight)}
+    (ho : o ∈ P.carrier) (hn : o.nodePath = [TreeStep.left]) : False := by
+  exact P.all_invisible o ho (Or.inr (Or.inl (by rw [hn]; trivial)))
+
+/-- Leaf terminal case for the `crossedRight` right canceled-slot chase. -/
+theorem InvisiblePiece.crossedRight_rightCanceledSlot_leaf_false
+    {Γ : List Category} {C B A : Category} {t₁ : DerivationTree Γ (C ⧸ B)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ (DerivationTree.leaf (A ⧹ B)) Rule.crossedRight)}
+    {o : Occurrence (DerivationTree.binary t₁ (DerivationTree.leaf (A ⧹ B)) Rule.crossedRight)}
+    (ho : o ∈ P.carrier) (hn : o.nodePath = [TreeStep.right]) : False := by
+  exact P.all_invisible o ho (Or.inr (Or.inl (by rw [hn]; trivial)))
+
+/-- Leaf terminal case for the `crossedLeft` left canceled-slot chase. -/
+theorem InvisiblePiece.crossedLeft_leftCanceledSlot_leaf_false
+    {Δ : List Category} {B A C : Category} {t₂ : DerivationTree Δ (B ⧹ C)}
+    {P : InvisiblePiece (DerivationTree.binary (DerivationTree.leaf (B ⧸ A)) t₂ Rule.crossedLeft)}
+    {o : Occurrence (DerivationTree.binary (DerivationTree.leaf (B ⧸ A)) t₂ Rule.crossedLeft)}
+    (ho : o ∈ P.carrier) (hn : o.nodePath = [TreeStep.left]) : False := by
+  exact P.all_invisible o ho (Or.inr (Or.inl (by rw [hn]; trivial)))
+
+/-- Leaf terminal case for the `crossedLeft` right canceled-slot chase. -/
+theorem InvisiblePiece.crossedLeft_rightCanceledSlot_leaf_false
+    {Γ : List Category} {B A C : Category} {t₁ : DerivationTree Γ (B ⧸ A)}
+    {P : InvisiblePiece (DerivationTree.binary t₁ (DerivationTree.leaf (B ⧹ C)) Rule.crossedLeft)}
+    {o : Occurrence (DerivationTree.binary t₁ (DerivationTree.leaf (B ⧹ C)) Rule.crossedLeft)}
+    (ho : o ∈ P.carrier) (hn : o.nodePath = [TreeStep.right]) : False := by
+  exact P.all_invisible o ho (Or.inr (Or.inl (by rw [hn]; trivial)))
+/-- Base escape for the `compRight` root slot chase: if the right premise is a
+forward type raise, a boundary-free piece cannot contain the numerator copy of
+the premise-root category.  The local `T>` target-copy edge moves the occurrence
+to the sibling target copy, and the root `compRight_A` edge then reaches the
+visible root occurrence. -/
+theorem InvisiblePiece.compRight_rightCanceledSlot_typeRaiseRight_false
+    {Γ Δ : List Category} {C C₀ A₀ : Category}
+    {t₁ : DerivationTree Γ (C ⧸ C₀)} {u : DerivationTree Δ A₀}
+    {P : InvisiblePiece (DerivationTree.binary t₁ (DerivationTree.typeRaiseRight C₀ u) Rule.compRight)}
+    (hfree : BoundaryFree P)
+    {o : Occurrence (DerivationTree.binary t₁ (DerivationTree.typeRaiseRight C₀ u) Rule.compRight)}
+    (ho : o ∈ P.carrier) (hn : o.nodePath = [TreeStep.right])
+    (hp : ∃ p, o.categoryPath = false :: p) : False := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = C₀ ⧸ (A₀ ⧹ C₀) := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : C₀ ⧸ (A₀ ⧹ C₀) = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsFalse : ∃ X Y,
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (false :: p) = some (X ⧸ Y) ∨
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (false :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rwa [hcat, hp] at hXY
+  have hconsTrueTrue : ∃ X Y,
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (true :: true :: p) = some (X ⧸ Y) ∨
+      (C₀ ⧸ (A₀ ⧹ C₀)).subcategoryAt? (true :: true :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa [Category.subcategoryAt?] using hXY
+  let e : Occurrence (DerivationTree.typeRaiseRight C₀ u) :=
+    { nodePath := []
+      nodeCategory := C₀ ⧸ (A₀ ⧹ C₀)
+      nodeAt := rfl
+      categoryPath := false :: p
+      isConstructor := hconsFalse }
+  let eC : Occurrence (DerivationTree.typeRaiseRight C₀ u) :=
+    { nodePath := []
+      nodeCategory := C₀ ⧸ (A₀ ⧹ C₀)
+      nodeAt := rfl
+      categoryPath := true :: true :: p
+      isConstructor := hconsTrueTrue }
+  have ho_eq : o = e.underBinaryRight (t₁ := t₁) Rule.compRight := by
+    apply DerivationTree.CategoryOccurrence.eq_of_data
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hn]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hcat]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryRight, e, hp]
+  let oC : Occurrence (DerivationTree.binary t₁ (DerivationTree.typeRaiseRight C₀ u) Rule.compRight) :=
+    eC.underBinaryRight (t₁ := t₁) Rule.compRight
+  have hedge₁ : TraceEdge o oC := by
+    have hloc : LocalTraceEdge e eC :=
+      LocalTraceEdge.trRight_C (p := p) rfl rfl rfl rfl
+    have htr : TraceEdge (e.underBinaryRight (t₁ := t₁) Rule.compRight)
+        (eC.underBinaryRight (t₁ := t₁) Rule.compRight) :=
+      TraceEdge.underBinaryRight (t₁ := t₁) Rule.compRight
+        (Or.inl (Or.inl hloc) : TraceEdge e eC)
+    simpa [oC, ho_eq] using htr
+  have hoC : oC ∈ P.carrier := P.closed_traceEdge_of_boundaryFree hfree ho hedge₁
+  let v : Occurrence (DerivationTree.binary t₁ (DerivationTree.typeRaiseRight C₀ u) Rule.compRight) :=
+    { nodePath := []
+      nodeCategory := C ⧸ (A₀ ⧹ C₀)
+      nodeAt := rfl
+      categoryPath := true :: true :: p
+      isConstructor := by
+        exact hconsTrueTrue }
+  have hedge₂ : TraceEdge oC v := by
+    have hloc : LocalTraceEdge oC v :=
+      LocalTraceEdge.compRight_A (p := true :: p) rfl rfl rfl rfl
+    exact Or.inl (Or.inl hloc)
+  exact hfree oC hoC v (Or.inl rfl) hedge₂
+
+/-- Mirror base escape for the `compLeft` root slot chase: if the left premise
+is a backward type raise, a boundary-free piece cannot contain the denominator
+copy of the premise-root category.  The local `T<` target-copy edge moves the
+occurrence to the sibling target copy, and the root `compLeft_A` edge then
+reaches the visible root occurrence. -/
+theorem InvisiblePiece.compLeft_leftCanceledSlot_typeRaiseLeft_false
+    {Γ Δ : List Category} {C C₀ A₀ : Category}
+    {u : DerivationTree Γ A₀} {t₂ : DerivationTree Δ (C₀ ⧹ C)}
+    {P : InvisiblePiece (DerivationTree.binary (DerivationTree.typeRaiseLeft C₀ u) t₂ Rule.compLeft)}
+    (hfree : BoundaryFree P)
+    {o : Occurrence (DerivationTree.binary (DerivationTree.typeRaiseLeft C₀ u) t₂ Rule.compLeft)}
+    (ho : o ∈ P.carrier) (hn : o.nodePath = [TreeStep.left])
+    (hp : ∃ p, o.categoryPath = true :: p) : False := by
+  obtain ⟨p, hp⟩ := hp
+  have hcat : o.nodeCategory = (C₀ ⧸ A₀) ⧹ C₀ := by
+    have h := o.nodeAt
+    rw [hn] at h
+    have h' : (C₀ ⧸ A₀) ⧹ C₀ = o.nodeCategory := by
+      simpa [DerivationTree.categoryAt?] using h
+    exact h'.symm
+  obtain ⟨X, Y, hXY⟩ := o.isConstructor
+  have hconsTrue : ∃ X Y,
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (true :: p) = some (X ⧸ Y) ∨
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (true :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rwa [hcat, hp] at hXY
+  have hconsFalseFalse : ∃ X Y,
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (false :: false :: p) = some (X ⧸ Y) ∨
+      ((C₀ ⧸ A₀) ⧹ C₀).subcategoryAt? (false :: false :: p) = some (X ⧹ Y) := by
+    refine ⟨X, Y, ?_⟩
+    rw [hcat, hp] at hXY
+    simpa [Category.subcategoryAt?] using hXY
+  let e : Occurrence (DerivationTree.typeRaiseLeft C₀ u) :=
+    { nodePath := []
+      nodeCategory := (C₀ ⧸ A₀) ⧹ C₀
+      nodeAt := rfl
+      categoryPath := true :: p
+      isConstructor := hconsTrue }
+  let eC : Occurrence (DerivationTree.typeRaiseLeft C₀ u) :=
+    { nodePath := []
+      nodeCategory := (C₀ ⧸ A₀) ⧹ C₀
+      nodeAt := rfl
+      categoryPath := false :: false :: p
+      isConstructor := hconsFalseFalse }
+  have ho_eq : o = e.underBinaryLeft (t₂ := t₂) Rule.compLeft := by
+    apply DerivationTree.CategoryOccurrence.eq_of_data
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hn]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hcat]
+    · simp [DerivationTree.CategoryOccurrence.underBinaryLeft, e, hp]
+  let oC : Occurrence (DerivationTree.binary (DerivationTree.typeRaiseLeft C₀ u) t₂ Rule.compLeft) :=
+    eC.underBinaryLeft (t₂ := t₂) Rule.compLeft
+  have hedge₁ : TraceEdge o oC := by
+    have hloc : LocalTraceEdge eC e :=
+      LocalTraceEdge.trLeft_C (p := p) rfl rfl rfl rfl
+    have htr : TraceEdge (e.underBinaryLeft (t₂ := t₂) Rule.compLeft)
+        (eC.underBinaryLeft (t₂ := t₂) Rule.compLeft) :=
+      TraceEdge.underBinaryLeft (t₂ := t₂) Rule.compLeft
+        (Or.inr (Or.inl hloc) : TraceEdge e eC)
+    simpa [oC, ho_eq] using htr
+  have hoC : oC ∈ P.carrier := P.closed_traceEdge_of_boundaryFree hfree ho hedge₁
+  let v : Occurrence (DerivationTree.binary (DerivationTree.typeRaiseLeft C₀ u) t₂ Rule.compLeft) :=
+    { nodePath := []
+      nodeCategory := (C₀ ⧸ A₀) ⧹ C
+      nodeAt := rfl
+      categoryPath := false :: false :: p
+      isConstructor := by
+        exact hconsFalseFalse }
+  have hedge₂ : TraceEdge oC v := by
+    have hloc : LocalTraceEdge oC v :=
+      LocalTraceEdge.compLeft_A (p := false :: p) rfl rfl rfl rfl
+    exact Or.inl (Or.inl hloc)
+  exact hfree oC hoC v (Or.inl rfl) hedge₂
 /-! ## Crossing pieces under root compositions
 
 For each of the four composition rules the same analysis pins a boundary-free
