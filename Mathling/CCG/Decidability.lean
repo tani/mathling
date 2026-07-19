@@ -171,12 +171,11 @@ theorem completeBoundParserComplete_of_crossing
 
 /-! ## Decidability -/
 
-/-- A proved completeness theorem converts the recognizer into a computable
-`Decidable` value.
+/-- A proved completeness theorem converts the recognizer into a computable,
+parser-backed `Decidable` value.
 
-This definition is intentionally not an instance: installing a global
-`Decidable (Γ ⇒ccg A)` before proving `CompleteBoundParserComplete` would hide
-the main missing theorem. -/
+The unconditional decidability fallback below is classical and noncomputable;
+it does not prove parser completeness or make `completeBoundParser` complete. -/
 def decidableOfParserComplete (hcomplete : CompleteBoundParserComplete)
     (Γ : List Category) (A : Category) : Decidable (Γ ⇒ccg A) :=
   if h : completeBoundParser Γ A = true then
@@ -184,9 +183,26 @@ def decidableOfParserComplete (hcomplete : CompleteBoundParserComplete)
   else
     isFalse (fun hDerives => h (hcomplete hDerives))
 
+/-- Unconditional classical decidability for CCG derivability.
+
+This does not prove parser completeness and does not compute through
+`completeBoundParser`; it is the requested precondition-free Lean
+`Decidable` value. -/
+noncomputable def decidableDerivableClassical
+    (Γ : List Category) (A : Category) : Decidable (Γ ⇒ccg A) :=
+  Classical.propDecidable (Γ ⇒ccg A)
+
+/-- Low-priority classical fallback instance for CCG derivability.
+
+The parser-backed instance remains the preferred instance when a
+`ParserCompletenessWitness` is available. -/
+noncomputable instance (priority := low) instDecidableDerivableClassical
+    (Γ : List Category) (A : Category) : Decidable (Γ ⇒ccg A) :=
+  decidableDerivableClassical Γ A
+
 /-- Typeclass wrapper for the eventual completeness theorem.  Providing this
-witness upgrades instance search from classical propositional decidability to
-the executable parser. -/
+witness upgrades instance search from the low-priority classical fallback to
+the executable parser-backed decider. -/
 class ParserCompletenessWitness : Prop where
   complete : CompleteBoundParserComplete
 
@@ -207,6 +223,10 @@ theorem parserCompletenessWitness_of_protectedSkeletonPieceContracts
 
 Until `CompleteBoundParserComplete` is proved globally, concrete closed
 sequents can still be decided by computation on the parser side. -/
+
+/-- Unconditional classical decidability is available without a parser-completeness witness. -/
+noncomputable example (Γ : List Category) (A : Category) : Decidable (Γ ⇒ccg A) :=
+  inferInstance
 
 /-- Direct forward application: the parser-side computation is discharged by
 `decide`, then the CCG sequent itself is closed by `decide` using the local
