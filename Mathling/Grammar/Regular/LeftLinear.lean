@@ -77,6 +77,54 @@ theorem language_isRegular (g : LeftLinearGrammar T) [Fintype g.cfg.NT] :
 
 end LeftLinearGrammar
 
+namespace RightLinearGrammar
+
+variable {T : Type*}
+
+/-- Reverse every production of a right-linear grammar to obtain a left-linear grammar. -/
+def reverseLeftLinear (g : RightLinearGrammar T) : LeftLinearGrammar T where
+  cfg := g.cfg.reverse
+  leftLinear r hr := by
+    change ContextFreeRule T g.cfg.NT at r
+    change r ∈ g.cfg.rules.map
+      ⟨ContextFreeRule.reverse, ContextFreeRule.reverse_injective⟩ at hr
+    obtain ⟨source, hsource, rfl⟩ := Finset.mem_map.mp hr
+    rcases g.rightLinear source hsource with h | ⟨a, h⟩ | ⟨a, B, h⟩
+    · exact Or.inl (by simp [ContextFreeRule.reverse, h]; rfl)
+    · exact Or.inr (Or.inl ⟨a, by
+        simp [ContextFreeRule.reverse, h]
+        rfl⟩)
+    · exact Or.inr (Or.inr ⟨B, a, by
+        simp [ContextFreeRule.reverse, h]
+        rfl⟩)
+
+/-- Reversing productions reverses the generated language. -/
+@[simp] theorem reverseLeftLinear_language (g : RightLinearGrammar T) :
+    g.reverseLeftLinear.language = g.language.reverse := by
+  simp [reverseLeftLinear, LeftLinearGrammar.language, RightLinearGrammar.language]
+
+end RightLinearGrammar
+
+/-- Over finite alphabets, regular languages are exactly the left-linear languages
+with a finite nonterminal type: reverse a right-linear witness for the reversed
+language back into a left-linear witness for the original language. -/
+theorem Language.isRegular_iff_exists_leftLinearGrammar
+    {T : Type} [Fintype T] {L : Language T} :
+    L.IsRegular ↔
+      ∃ g : LeftLinearGrammar T, Nonempty (Fintype g.cfg.NT) ∧ g.language = L := by
+  constructor
+  · intro hL
+    have hrev : L.reverse.IsRegular := Language.isRegular_reverse_iff.mpr hL
+    obtain ⟨g, ⟨inst⟩, hg⟩ := Language.isRegular_iff_exists_rightLinearGrammar.mp hrev
+    letI : Fintype g.cfg.NT := inst
+    refine ⟨g.reverseLeftLinear, ⟨?_⟩, ?_⟩
+    · change Fintype g.cfg.NT
+      infer_instance
+    · rw [g.reverseLeftLinear_language, hg, Language.reverse_reverse]
+  · rintro ⟨g, ⟨inst⟩, rfl⟩
+    letI : Fintype g.cfg.NT := inst
+    exact g.language_isRegular
+
 end Mathling.Grammar
 
 ```
