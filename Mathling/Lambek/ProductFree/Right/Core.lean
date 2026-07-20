@@ -80,9 +80,7 @@ def list_degree (Γ : List Tp) : Nat :=
 ```lean
 @[grind =]
 lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
-  simpa [list_degree] using
-    (Mathling.Lambek.ProductFree.translatedListDegree_traversible Tp.toProductFree
-      (Γ := Γ) (Δ := Δ))
+  grind only [list_degree, Mathling.Lambek.ProductFree.translatedListDegree_traversible]
 ```
 
 文脈も同じ写像で翻訳する。
@@ -264,31 +262,16 @@ theorem atom_generation {Γ : List Tp} {s : String}
       ∀ x ∈ ctxToProductFree Γ, Mathling.Lambek.ProductFree.is_atom x := by
     intro x hx
     rcases List.mem_map.mp hx with ⟨y, hy, rfl⟩
-    cases y with
-    | atom name =>
-        simp [Tp.toProductFree, Mathling.Lambek.ProductFree.is_atom]
-    | rdiv B A =>
-        have : False := by
-          simpa [is_atom, Mathling.Lambek.ProductFree.translatedIsAtom,
-            Tp.toProductFree, Mathling.Lambek.ProductFree.is_atom] using h_ctx _ hy
-        contradiction
+    cases y <;> grind only [is_atom, Mathling.Lambek.ProductFree.translatedIsAtom,
+      Tp.toProductFree, Mathling.Lambek.ProductFree.is_atom]
   have h_pf :
       ctxToProductFree Γ = [Mathling.Lambek.ProductFree.Tp.atom s] := by
-    simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
-      (Mathling.Lambek.ProductFree.atom_generation h_ctx_pf h_der)
+    grind only [Sequent, ctxToProductFree, Tp.toProductFree,
+      Mathling.Lambek.ProductFree.atom_generation]
   cases Γ with
-  | nil =>
-      simp [ctxToProductFree] at h_pf
+  | nil => simp_all [ctxToProductFree]
   | cons x xs =>
-      cases x with
-      | atom name =>
-          cases xs with
-          | nil =>
-              simpa [ctxToProductFree, Tp.toProductFree] using h_pf
-          | cons y ys =>
-              simp [ctxToProductFree] at h_pf
-      | rdiv B A =>
-          simp [ctxToProductFree, Tp.toProductFree] at h_pf
+      cases x <;> cases xs <;> simp_all [ctxToProductFree, Tp.toProductFree]
 ```
 
 最後に名前空間を閉じる。

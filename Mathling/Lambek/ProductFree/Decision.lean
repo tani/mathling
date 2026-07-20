@@ -61,14 +61,7 @@ lemma splits_list_degree (h : X ∈ splits Γ) :
 ```lean
 @[grind .]
 lemma splits_mem {α} (Γ Δ : List α) : (Γ, Δ) ∈ splits (Γ ++ Δ) := by
-  induction Γ with
-  | nil =>
-      cases Δ <;> simp [splits]
-  | cons x xs ih =>
-      apply List.mem_cons_of_mem
-      refine List.mem_map.mpr ?_
-      refine ⟨(xs, Δ), ih, ?_⟩
-      simp
+  induction Γ <;> cases Δ <;> grind [splits]
 ```
 
 ### 選択
@@ -98,14 +91,7 @@ lemma picks_list_degree (h : X ∈ picks Γ) :
 @[grind .]
 lemma picks_mem {α} (Γ Δ : List α) (a : α) :
     (Γ, a, Δ) ∈ picks (Γ ++ [a] ++ Δ) := by
-  induction Γ with
-  | nil => simp [picks]
-  | cons x xs ih =>
-      apply List.mem_cons_of_mem
-      refine List.mem_map.mpr ?_
-      refine ⟨(xs, a, Δ), ?_, ?_⟩
-      · simpa [List.append_assoc] using ih
-      · simp
+  induction Γ <;> simp_all [picks]
 ```
 
 ## 証明探索の候補
@@ -565,8 +551,7 @@ lemma translatedProveAux_mono
     {n : Nat} {Γ : List α} {A : α}
     (h : translatedProveAux toProductFree n Γ A) :
     translatedProveAux toProductFree (n + 1) Γ A := by
-  simpa [translatedProveAux] using
-    (proveAux_mono (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+  grind only [translatedProveAux, proveAux_mono]
 ```
 
 ```lean
@@ -575,8 +560,7 @@ lemma translatedProveAux_mono_le
     {n m : Nat} {Γ : List α} {A : α}
     (h : n ≤ m) (hp : translatedProveAux toProductFree n Γ A) :
     translatedProveAux toProductFree m Γ A := by
-  simpa [translatedProveAux] using
-    (proveAux_mono_le (Γ := Γ.map toProductFree) (A := toProductFree A) h hp)
+  grind only [translatedProveAux, proveAux_mono_le]
 ```
 
 ```lean
@@ -585,8 +569,7 @@ lemma translatedProveAux_sound
     {n : Nat} {Γ : List α} {A : α}
     (h : translatedProveAux toProductFree n Γ A) :
     translatedProve1 toProductFree Γ A := by
-  simpa [translatedProve1, translatedProveAux] using
-    (proveAux_sound (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+  grind only [translatedProve1, translatedProveAux, proveAux_sound]
 ```
 
 ```lean
@@ -595,8 +578,7 @@ lemma translatedProveAux_complete
     {Γ : List α} {A : α}
     (h : translatedProve1 toProductFree Γ A) :
     translatedProve2 toProductFree Γ A := by
-  simpa [translatedProve1, translatedProve2] using
-    (proveAux_complete (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+  grind only [translatedProve1, translatedProve2, proveAux_complete]
 ```
 
 ```lean
@@ -604,8 +586,7 @@ lemma translatedProve1_iff_Prove2
     (toProductFree : α → Tp)
     {Γ : List α} {A : α} :
     translatedProve1 toProductFree Γ A ↔ translatedProve2 toProductFree Γ A := by
-  simpa [translatedProve1, translatedProve2] using
-    (prove1_iff_prove2 (Γ := Γ.map toProductFree) (A := toProductFree A))
+  grind only [translatedProve1, translatedProve2, prove1_iff_prove2]
 ```
 
 ```lean
@@ -614,8 +595,7 @@ lemma translatedProve1_sound
     {Γ : List α} {A : α}
     (h : translatedProve1 toProductFree Γ A) :
     Sequent (Γ.map toProductFree) (toProductFree A) := by
-  simpa [translatedProve1] using
-    (prove1_sound (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+  grind only [translatedProve1, prove1_sound]
 ```
 
 ```lean
@@ -624,8 +604,7 @@ lemma translatedProve1_complete
     {Γ : List α} {A : α}
     (h : Sequent (Γ.map toProductFree) (toProductFree A)) :
     translatedProve1 toProductFree Γ A := by
-  simpa [translatedProve1] using
-    (prove1_complete (Γ := Γ.map toProductFree) (A := toProductFree A) h)
+  grind only [translatedProve1, prove1_complete]
 ```
 
 ```lean
@@ -633,9 +612,7 @@ lemma translatedProve1_iff_Sequent
     (toProductFree : α → Tp)
     {Γ : List α} {A : α} :
     translatedProve1 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by
-  constructor
-  · apply translatedProve1_sound toProductFree
-  · apply translatedProve1_complete toProductFree
+  grind only [translatedProve1_sound, translatedProve1_complete]
 ```
 
 ```lean
