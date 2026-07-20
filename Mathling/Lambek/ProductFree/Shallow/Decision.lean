@@ -2,8 +2,8 @@
 
     public import Mathlib.Data.Bool.Basic
     public import Mathlib.Data.List.Basic
-    public import Mathling.Lambek.ProductFree.Decidable
-    public import Mathling.Lambek.ProductFree.Shallow.Basic
+    public import Mathling.Lambek.ProductFree.Decision
+    public import Mathling.Lambek.ProductFree.Shallow.Core
     public import LiterateLean
     open scoped LiterateLean
 
@@ -12,7 +12,7 @@
 # Decidability for the Shallow Fragment
 
 このファイルでは、shallow 断片の決定可能性を
-`Mathling.Lambek.ProductFree.Decidable` への翻訳で与える。
+`Mathling.Lambek.ProductFree.Decision` への翻訳で与える。
 
 ```lean
 namespace Mathling.Lambek.ProductFree.Shallow

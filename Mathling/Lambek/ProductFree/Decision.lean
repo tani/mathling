@@ -2,7 +2,7 @@
 
     public import Mathlib.Data.Bool.Basic
     public import Mathlib.Data.List.Basic
-    public import Mathling.Lambek.ProductFree.Basic
+    public import Mathling.Lambek.ProductFree.Core
     public import Lean.LibrarySuggestions.Default
     public import LiterateLean
     open scoped LiterateLean
@@ -14,7 +14,7 @@
 このファイルでは、Lambek計算において与えられたシーケントに対して証明が存在するか
 どうかを判定する手続きが決定可能であることを証明する。
 まず手続き的に証明探索アルゴリズムを定義する。
-そして、証明探索アルゴリズムが `Mathling.Lambek.ProductFree.Basic` で帰納的に定義された
+そして、証明探索アルゴリズムが `Mathling.Lambek.ProductFree.Core` で帰納的に定義された
 シーケントの導出と一致することを示す。
 
 ```lean

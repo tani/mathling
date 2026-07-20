@@ -28,8 +28,7 @@ This project provides a formalization of the Lambek calculus, a type of substruc
 You can use the `decide` tactic to automatically prove sequents in the Lambek calculus.
 
 ```lean
-import Mathling.Lambek.ProductFree.Basic
-import Mathling.Lambek.ProductFree.Decidable
+import Mathling.Lambek.ProductFree.All
 
 open Mathling.Lambek.ProductFree
 

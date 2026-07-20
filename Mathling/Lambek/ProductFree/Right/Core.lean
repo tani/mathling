@@ -2,7 +2,7 @@
 
     public import Mathlib.Data.List.Basic
     public import Mathlib.Data.Nat.Basic
-    public import Mathling.Lambek.ProductFree.Basic
+    public import Mathling.Lambek.ProductFree.Core
     public import LiterateLean
     open scoped LiterateLean
 
@@ -12,7 +12,7 @@
 
 このファイルでは、積を持たない Lambek 計算の right 断片を定義する。
 right 断片では右除法だけを許し、基本的なメタ理論は
-`Mathling.Lambek.ProductFree.Basic` への翻訳で再利用する。
+`Mathling.Lambek.ProductFree.Core` への翻訳で再利用する。
 
 まず right 断片の名前空間を開く。
 
