@@ -1,6 +1,6 @@
 module
 
-public import Mathling.Grammar.GreibachNormal
+public import Mathling.Grammar.NormalForm.Greibach.Conversion
 
 @[expose] public section
 

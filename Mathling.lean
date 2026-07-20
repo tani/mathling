@@ -14,6 +14,6 @@ public import Mathling.Lambek.ProductFree.Shallow.Basic
 public import Mathling.Lambek.ProductFree.Shallow.Decidable
 
 public import Mathling.Automata.Basic
-public import Mathling.Grammar.Basic
+public import Mathling.Grammar.All
 
 @[expose] public section

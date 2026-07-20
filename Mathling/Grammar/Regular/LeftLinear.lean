@@ -1,6 +1,6 @@
 module
 
-public import Mathling.Grammar.RightLinear
+public import Mathling.Grammar.Regular.RightLinear
 
 @[expose] public section
 

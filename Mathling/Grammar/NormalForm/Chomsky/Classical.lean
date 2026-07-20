@@ -1,6 +1,6 @@
 module
 
-public import Mathling.Grammar.ChomskyNormal
+public import Mathling.Grammar.NormalForm.Chomsky.Conversion
 
 @[expose] public section
 

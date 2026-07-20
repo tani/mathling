@@ -1,6 +1,6 @@
 module
 
-public import Mathling.Grammar.ChomskyNormal
+public import Mathling.Grammar.NormalForm.Chomsky.Conversion
 public import Mathlib.Data.Fintype.EquivFin
 public import Mathlib.Data.Finset.Union
 
