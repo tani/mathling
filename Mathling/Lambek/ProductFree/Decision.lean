@@ -531,20 +531,68 @@ example : [Tp.atom "p", Tp.ldiv (Tp.atom "p") (Tp.atom "q")] ⇒ Tp.atom "q" :=
 部分断片の決定手続きは、各断片から一般断片への翻訳を与えるだけで再利用できる。
 そのための補助定義と補題をここにまとめる。
 
+Left・Right・Shallow などの各断片ファイルは、それぞれ独自の型 $`α`$（例えば `Left.Tp`）と、
+その上の独自の証明可能性関係 `Sequent : List α → α → Prop` を持つ。
+しかし実際には、各断片の `Sequent` は、この節より前で定義した一般の `Sequent`
+（本ファイルの `Tp` 上のシーケント計算）を、埋め込み `toProductFree : α → Tp` で
+押し出したものとして **定義される**。すなわち各断片の `Core.lean` において
+
+```math
+\text{Sequent}_\alpha\ (Γ : \text{List}\ α)\ (A : α) \;:\equiv\;
+  \text{Sequent}\ (Γ.\text{map}\ \text{toProductFree})\ (\text{toProductFree}\ A)
+```
+
+という定義（多くの場合ほぼ `rfl` で閉じる）が既に与えられている。
+したがって、断片ごとに `prove1`／`proveAux`／`prove2` とその健全性・完全性を一から
+証明し直す必要はない。この節で定義する `translatedProve1`／`translatedProveAux`／
+`translatedProve2`、および続く一連の補題は、`Γ` と `A` を `toProductFree` で
+一般の `Tp` へ押し出してから、既に証明済みの `prove1`／`proveAux`／`prove2` に
+委譲するだけの薄いラッパである。断片側に必要な作業は、埋め込み `toProductFree` を
+一つ定義し、上の定義上の等式を確認することだけに縮退する。実際、`Left.Decision` や
+`Right.Decision`、各 `Shallow.Decision` は、以下の各補題を `grind only [...]` や
+`simpa [...]` 一回で呼び出す一行の宣言として書き直しているに過ぎない。
+
+```mermaid
+graph LR
+    Alpha["断片の型 α と Sequent_α<br/>(Left / Right / Shallow ...)"]
+    Tp["この節より前の Tp と Sequent<br/>(product-free 一般断片)"]
+    Trans["translatedProve1 / translatedProveAux<br/>/ translatedProve2 (このセクション)"]
+    Wrap["断片側 Decision.lean の<br/>prove1 / proveAux / prove2 (一行ラッパ)"]
+
+    Alpha -- "toProductFree : α → Tp" --> Tp
+    Alpha -. "Sequent_α := (定義)" .-> Tp
+    Tp --> Trans
+    Trans -- "toProductFree を渡すだけ" --> Wrap
+    Trans -- "translatedProve2_iff_Sequent" --> Tp
+```
+
 ```lean
 def translatedProve1 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool :=
   prove1 (Γ.map toProductFree) (toProductFree A)
 ```
+
+`translatedProveAux` は、深さ引数 $`n`$ を保ったまま同じ押し出しを行う版であり、
+断片側の自明に停止するフュエル付き探索の定義に使われる。
 
 ```lean
 def translatedProveAux (toProductFree : α → Tp) (n : Nat) (Γ : List α) (A : α) : Bool :=
   proveAux n (Γ.map toProductFree) (toProductFree A)
 ```
 
+`translatedProve2` は `proveAux` の呼び出しと同様に、押し出した後の次数から
+十分なステップ数を計算して `translatedProveAux` を呼び出す、断片側での最終的な
+決定手続きの土台となる。
+
 ```lean
 def translatedProve2 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool :=
   prove2 (Γ.map toProductFree) (toProductFree A)
 ```
+
+以下の一連の補題は、`prove1`／`proveAux`／`prove2` について既に示した性質
+（単調性・相互の健全性と完全性）を、`toProductFree` による押し出しを介して
+そのまま `translatedProve1`／`translatedProveAux`／`translatedProve2` へ移送するものである。
+証明はいずれも定義を展開して元の補題に帰着させるだけなので、`grind only` 一発で閉じる。
+まず、深さを1つ増やしても探索の成功が保たれることを示す。
 
 ```lean
 lemma translatedProveAux_mono
@@ -555,6 +603,8 @@ lemma translatedProveAux_mono
   grind only [translatedProveAux, proveAux_mono]
 ```
 
+同様に、任意の大きい深さへの単調性も `proveAux_mono_le` から移送される。
+
 ```lean
 lemma translatedProveAux_mono_le
     (toProductFree : α → Tp)
@@ -563,6 +613,11 @@ lemma translatedProveAux_mono_le
     translatedProveAux toProductFree m Γ A := by
   grind only [translatedProveAux, proveAux_mono_le]
 ```
+
+次に、深さ付き探索 `translatedProveAux` と押し出し前の主探索 `translatedProve1` を、
+`proveAux_sound`／`proveAux_complete` を通してそれぞれ健全・完全に結び付ける。
+`translatedProveAux_sound` は、ある深さで探索が成功すればフュエルなしの `translatedProve1`
+でも成功することを述べる。
 
 ```lean
 lemma translatedProveAux_sound
@@ -573,6 +628,10 @@ lemma translatedProveAux_sound
   grind only [translatedProve1, translatedProveAux, proveAux_sound]
 ```
 
+逆に `translatedProveAux_complete` は、`translatedProve1` が成功すれば、
+次数から計算される十分な深さを与えた `translatedProve2` でも成功することを述べる
+（`proveAux_complete` の押し出し版）。
+
 ```lean
 lemma translatedProveAux_complete
     (toProductFree : α → Tp)
@@ -582,6 +641,9 @@ lemma translatedProveAux_complete
   grind only [translatedProve1, translatedProve2, proveAux_complete]
 ```
 
+上の健全性・完全性を組み合わせると、`prove1_iff_prove2` と同様に、
+`translatedProve1` と `translatedProve2` の同値性がそのまま得られる。
+
 ```lean
 lemma translatedProve1_iff_Prove2
     (toProductFree : α → Tp)
@@ -589,6 +651,15 @@ lemma translatedProve1_iff_Prove2
     translatedProve1 toProductFree Γ A ↔ translatedProve2 toProductFree Γ A := by
   grind only [translatedProve1, translatedProve2, prove1_iff_prove2]
 ```
+
+ここまでの補題は、翻訳された決定手続き `translatedProve1`／`translatedProveAux`／
+`translatedProve2` 同士の内部的な整合性（互いに単調・健全・完全であること）だけを
+扱っており、まだ論理体系そのもの（`Sequent`）とは結び付いていない。
+以下の２つの補題は、`prove1_sound`／`prove1_complete` を押し出すことで、
+`translatedProve1` を **一般の** `Tp` 上の `Sequent (Γ.map toProductFree) (toProductFree A)`
+（断片自身の `Sequent` ではなく、押し出し先の一般シーケント）に直接結び付ける。
+断片の `Sequent` はこの一般シーケントの定義そのものであったから、
+断片ファイル側ではこれをそのまま断片自身の `Sequent` として読み替えることができる。
 
 ```lean
 lemma translatedProve1_sound
@@ -599,6 +670,9 @@ lemma translatedProve1_sound
   grind only [translatedProve1, prove1_sound]
 ```
 
+その逆向き、すなわち押し出した一般シーケント $`Sequent\ (Γ.\text{map}\ \text{toProductFree})\ (\text{toProductFree}\ A)`$
+の導出可能性から `translatedProve1` の成功が従うことを、`prove1_complete` の押し出しとして示す。
+
 ```lean
 lemma translatedProve1_complete
     (toProductFree : α → Tp)
@@ -608,6 +682,8 @@ lemma translatedProve1_complete
   grind only [translatedProve1, prove1_complete]
 ```
 
+上の健全性・完全性を合わせて、`translatedProve1` と押し出した一般シーケントの同値を得る。
+
 ```lean
 lemma translatedProve1_iff_Sequent
     (toProductFree : α → Tp)
@@ -615,6 +691,25 @@ lemma translatedProve1_iff_Sequent
     translatedProve1 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by
   grind only [translatedProve1_sound, translatedProve1_complete]
 ```
+
+この節の目的地となる補題が `translatedProve2_iff_Sequent` である。
+`translatedProve1_iff_Prove2`（`translatedProve1` と `translatedProve2` の内部的な同値）と
+`translatedProve1_iff_Sequent`（`translatedProve1` と一般シーケントの同値）を
+`rw` で貼り合わせるだけで、自明に停止する `translatedProve2` と一般シーケントの
+同値が得られる。他の翻訳補題がすべて `grind only [...]` で閉じているのに対し、
+ここだけ明示的な書き換えになっているのは、両辺の式（`↔` の左右）を入れ替える必要が
+あるためである。
+
+断片ファイルにとって、この補題が与えるものは次の通りである。
+断片の `Sequent` は定義上 $`Sequent\ (Γ.\text{map}\ \text{toProductFree})\ (\text{toProductFree}\ A)`$
+に等しいので、`translatedProve2_iff_Sequent toProductFree` を `simpa [Sequent, ...]` で
+展開すれば、そのまま断片自身の決定可能性 `translatedProve2 toProductFree Γ A ↔ Γ ⇒ A`
+が手に入る。すなわち、断片ファイルは `toProductFree` を一つ定義し、
+`Sequent` の定義上の等式を確認するだけで、`prove1`／`proveAux`／`prove2` の
+定義、単調性、健全性・完全性、そして最終的な `Decidable` インスタンスと `decide` の
+利用可能性までを、この節の一連の補題からまとめて「輸入」できる。
+再び候補集合の列挙・停止性の証明・カット除去に基づく完全性の議論などを
+書き直す必要は一切ない。
 
 ```lean
 theorem translatedProve2_iff_Sequent

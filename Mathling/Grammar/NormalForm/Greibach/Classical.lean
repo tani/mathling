@@ -10,7 +10,7 @@
 
 # Mathling / Grammar / NormalForm / Greibach / Classical モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+計算可能な Greibach 標準形変換が要求する線形順序を古典的に供給するラッパである。変換本体の構成と証明は再実装せず、任意の小さい型上で標準形文法とその言語保存等式だけを公開する。
 
 ```lean
 @[expose] public section
@@ -29,6 +29,14 @@ noncomputable def toGreibachNormalGrammar {T : Type}
   letI : LinearOrder g.NT := linearOrderOfSTO WellOrderingRel
   exact _root_.Mathling.Grammar.ContextFreeGrammar.toGreibachNormalGrammar g
 
+```
+
+## 言語保存契約
+
+古典的に選んだ順序は変換の実行に必要な補助データであり、生成言語には現れない。
+したがって公開等式は計算可能な変換本体の保存定理へそのまま簡約される。
+
+```lean
 @[important, simp] theorem toGreibachNormalGrammar_language {T : Type}
     (g : ContextFreeGrammar T) :
     (Classical.toGreibachNormalGrammar g).language = g.language := by

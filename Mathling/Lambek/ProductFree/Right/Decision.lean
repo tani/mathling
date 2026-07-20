@@ -30,13 +30,18 @@ set_option linter.style.setOption false
 set_option linter.style.maxHeartbeats false
 ```
 
-翻訳に使う一般断片側の型写像を短い名前に束縛しておく。
+翻訳に使う一般断片側の型写像を短い名前に束縛しておく。以下、`prove1`・`proveAux`・`prove2` の
+定義や単調性・健全性・完全性の証明のたびに `Tp.toProductFree` と書く代わりにこの `toProductFree`
+という略称を用いることで、right 断片専用のコードとして読みやすくする。
 
 ```lean
 private abbrev toProductFree : Tp → Mathling.Lambek.ProductFree.Tp := Tp.toProductFree
 ```
 
-`prove1` は一般断片側の主探索を right 側へ持ち上げたものである。
+`prove1` は健全性・完全性を re-prove するのではなく、base file の `translatedProve1` を
+`toProductFree`（right 断片の型を一般断片へ埋め込む写像）で特殊化するだけで得られる。
+right 断片は右除法 `⧸` のみを持つ部分体系であり、埋め込み先の一般断片における
+証明探索ロジックをそのまま再利用できる。
 
 ```lean
 @[grind .]
@@ -44,7 +49,9 @@ def prove1 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProve1 toProductFree Γ A
 ```
 
-`proveAux` は深さ付き探索を表す。
+`proveAux` も同様に `translatedProveAux` を `toProductFree` で特殊化したものであり、
+探索の深さを明示的な引数として持つことで自明に停止する。停止性の根拠自体は
+base file 側で証明済みであるため、ここで再証明する必要はない。
 
 ```lean
 @[grind .]
@@ -52,7 +59,9 @@ def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProveAux toProductFree n Γ A
 ```
 
-`prove2` は決定手続きとして使う最終版である。
+`prove2` は `translatedProve2` の特殊化であり、シーケントの次数に基づく十分なステップ数を
+`proveAux` に与えることで `prove1` と同値になる版である。以降の `Decidable` instance は
+この `prove2` を用いて構成する。
 
 ```lean
 @[grind .]

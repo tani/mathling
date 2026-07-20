@@ -37,6 +37,15 @@ grammar for the same language. -/
   · rintro ⟨g, rfl⟩
     exact ⟨g.toContextFreeGrammar, g.toContextFreeGrammar_language⟩
 
+```
+
+## Greibach 文法と NPDA の存在同値
+
+前節の特徴付けを中間命題として消去し、一般の CFG–NPDA 等価性へ接続する。
+状態型とスタック型は機械 witness とともに存在量化されるため、この層は具体的な符号化を
+公開 API に漏らさない。
+
+```lean
 /-- Greibach-normal grammars generate exactly the languages accepted by some
 finite local NPDA, both state and stack alphabets being existential witnesses.
 This composes `isContextFree_iff_exists_greibachNormalGrammar` with the general

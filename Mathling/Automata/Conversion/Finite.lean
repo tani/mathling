@@ -9,7 +9,7 @@
 
 # Mathling / Automata / Conversion / Finite モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+DFA を NFA に、さらに有限オートマトンをスタックを実質的に使わない NPDA に埋め込む。各埋め込みは遷移構造だけでなく受理言語を保存し、正則言語から文脈自由言語への包含を構成的に接続する。
 
 ```lean
 @[expose] public section
@@ -75,6 +75,17 @@ private theorem toNPDA_reaches_path (M : NFA α σ) {q q' : σ} {w : List α}
 
 end NFA
 
+```
+
+## NFA から NPDA への埋め込み
+
+`NFA.toNPDA` は NFA をスタック型 `PUnit`（要素が1つしかない型）の NPDA とみなすことで、「スタックを一切使わない PDA」として埋め込む。`step` は入力記号ありの遷移のみを NFA の遷移関係からそのまま持ち上げ、スタックの中身 `stack` は変化させない（`next.2 = stack`）。epsilon 遷移は NFA 側に存在しないため空集合を返す。
+
+正しさの証明は「NFA の経路（`Path`）」と「NPDA の到達関係（`Reaches`）」を往復させる形を取る。`path_toNPDA_reaches` は NFA の経路から対応する NPDA の到達列を構成する向き、`toNPDA_reaches_path`（内部で `toNPDA_reaches_path_aux` に委譲）は逆向きであり、NPDA 側の到達列を分解すると epsilon 遷移が原理的に出現し得ないこと（`simp [toNPDA] at hmem` で矛盾）と、スタックが不変に保たれることを同時に示す。`toNPDA_language` はこの往復から `accepts_iff_exists_path` を経由して言語の一致を導く。
+
+続いて、DFA を決定性版の DPDA へ同様に埋め込む。この場合は NFA の場合に帰着させることで証明を再利用する。
+
+```lean
 namespace DFA
 
 /-- Regard a DFA as a deterministic PDA that never changes its empty stack. -/

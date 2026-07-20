@@ -15,6 +15,10 @@
 このファイルでは、left-shallow 断片の決定可能性を
 `Mathling.Lambek.ProductFree.Decision` への翻訳で与える。
 
+この層は独自の探索状態を持たない。入力を `Tp.toProductFree` で一般系へ写し、共通の
+有限探索 `translatedProve2` を実行する。健全性と完全性を shallow の表記へ戻した後、
+その同値から命題の `Decidable` instance を得る。
+
 ```lean
 namespace Mathling.Lambek.ProductFree.Left.Shallow
 ```
@@ -35,6 +39,11 @@ set_option linter.style.maxHeartbeats false
 def prove2 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProve2 Tp.toProductFree Γ A
 ```
+
+## 探索結果と導出可能性
+
+次の定理は Boolean の成功と導出可能性の両方向を与える。したがって `false` は
+探索資源切れではなく非導出可能性として解釈できる。
 
 ```lean
 @[important, grind .]

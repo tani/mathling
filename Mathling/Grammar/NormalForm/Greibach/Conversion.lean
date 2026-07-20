@@ -11,7 +11,7 @@
 
 # Mathling / Grammar / NormalForm / Greibach / Conversion モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+Chomsky 標準形を有限な作業文法へ圧縮し、順序付き代入と即時左再帰除去を反復して Greibach 標準形へ変換する。各作業段階の形状不変条件、導出木による言語保存、初期記号と空語の復元を追跡する。
 
 ```lean
 @[expose] public section
@@ -150,9 +150,9 @@ theorem filterEmptyRules_derives
 
 ```
 
-## 実装の継続
+## 空規則除去と非空言語部分
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+空右辺規則を除外しても非空語の生成は変わらないことを示し、Chomsky 標準形文法の非空部分を切り出す。以後の Greibach 変換は空規則を持たない作業文法だけを扱う。
 
 ```lean
 theorem filterEmptyRules_language_nonempty
@@ -268,9 +268,9 @@ abbrev compactSupport (g : ContextFreeGrammar T)
       ContextFreeRule.mapNonterminal (encodeSupport g) r }
 ```
 
-## 実装の継続
+## 有限 support の番号付けと復号
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+文法で実際に使われる非終端記号を順序付き有限集合へ圧縮し、有限添字との encode/decode を定義する。規則右辺の往復補題により、型の圧縮が記号列を失わないことを保証する。
 
 ```lean
 theorem decode_encode_rule_output
@@ -405,9 +405,9 @@ theorem compactWork_forward_step
 
 ```
 
-## 実装の継続
+## compact work 文法の言語保存
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+圧縮した規則の一歩を元文法へ復号し、逆に元の導出を有限作業文法へ符号化する。双方向シミュレーションから、有限型上で操作しても言語が変わらないことを得る。
 
 ```lean
 theorem compactWork_language_forward
@@ -541,9 +541,9 @@ theorem compactWork_rule_source
 
 ```
 
-## 実装の継続
+## 作業規則の形状不変条件
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+圧縮後の右辺が有効な作業記号だけから成り、基底規則には必要な tail があることを証明する。さらに、規則先頭の番号が入力番号より大きいという順序条件を定義する。
 
 ```lean
 theorem compactWork_outputsValid
@@ -672,9 +672,9 @@ termination_by xs
 
 ```
 
-## 実装の継続
+## 導出木による変換意味論
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+作業文法の sentential form に対する木構造証拠を導入し、葉の終端語と通常の `Produces`/`Derives` を接続する。局所規則変換の言語保存を木の変換として扱えるようにする。
 
 ```lean
 theorem formTree_terminals (g : ContextFreeGrammar T)
@@ -797,9 +797,9 @@ theorem substituted_rule_old_derives
   exact hfirst.single.trans hsecond.single
 ```
 
-## 実装の継続
+## 先行非終端記号の代入：逆方向
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+規則先頭の小さい番号をその生成規則で展開する `substituteEarlier` について、新規則の一歩を旧文法の複数歩へ戻す。生成規則由来か保持規則かを所属補題で分類する。
 
 ```lean
 theorem substituteEarlier_reverse_step
@@ -980,9 +980,9 @@ theorem substituteEarlier_node
 
 ```
 
-## 実装の継続
+## 先行非終端記号の代入：順方向
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+旧文法の導出木を代入後文法の木へ変換し、逆向きシミュレーションと合わせて言語等式を得る。以後の反復処理が各段階で意味論を保存する基礎になる。
 
 ```lean
 theorem substituteEarlier_language_reverse
@@ -1119,9 +1119,9 @@ def eliminateImmediateRule
 
 ```
 
-## 実装の継続
+## 即時左再帰除去の構成
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+現在の非終端記号に対する自己先頭規則を fresh 記号を用いる非再帰規則へ置換する。fresh 記号の割当てと作業型上の非衝突条件を定義し、変換の構文的境界を固定する。
 
 ```lean
 abbrev eliminateImmediateLeftRecursion
@@ -1287,9 +1287,9 @@ theorem eliminateImmediate_companion_or_recursive_tail
 
 ```
 
-## 実装の継続
+## 即時反復を付加できる形式
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+元の生成木へ自己再帰 suffix を繰り返し付加できる関係を定義する。空語ケースと連結ケースを分け、左再帰除去後の木を構成するための帰納的不変条件にする。
 
 ```lean
 theorem formTree_nil_word
@@ -1440,9 +1440,9 @@ theorem canAppendImmediate
     h
 ```
 
-## 実装の継続
+## 即時左再帰除去の順向き保存
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+保持規則と自己再帰規則を新文法の木へ写し、任意の元生成木を変換後の生成木へ持ち上げる。これにより言語の順向き包含を得る。
 
 ```lean
 theorem eliminateImmediate_retained_mem
@@ -1575,9 +1575,9 @@ theorem reverseImmediate_terminal
 
 ```
 
-## 実装の継続
+## 即時左再帰除去の逆向き分類
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+fresh 記号の生成列を元文法の自己再帰列へ戻す補助補題を整備し、変換後規則を保持・基底・反復の各ケースへ分類する。失敗し得る空 tail は既存不変条件で排除する。
 
 ```lean
 theorem reverseImmediate_nil
@@ -1711,9 +1711,9 @@ theorem immediateGeneratedCase_of_mem
 
 ```
 
-## 実装の継続
+## 即時左再帰除去の逆向き保存
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+変換後の生成木を元文法の木へ復元し、局所分類を言語の逆包含へ持ち上げる。順向き結果と合わせて、一回の左再帰除去が言語を保存することを確定する。
 
 ```lean
 theorem reverseImmediate_nonterminal
@@ -1844,9 +1844,9 @@ theorem eliminateImmediateLeftRecursion_language
 
 ```
 
-## 実装の継続
+## fresh 性と順序境界の保存
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+代入と左再帰除去が既存の fresh 記号を捕獲せず、作業右辺の有効性を保つことを示す。先頭が基底記号である場合の tail 条件も後続反復へ引き継ぐ。
 
 ```lean
 theorem substituteEarlier_preserves_recFresh
@@ -2006,9 +2006,9 @@ theorem eliminateImmediate_outputsValid
 
 ```
 
-## 実装の継続
+## 基底規則の tail と leading bound
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+両変換が基底規則の非空 tail 条件を保存することを証明し、先頭非終端記号の許容番号境界を定義する。番号ゼロから始める反復の基底ケースをここで閉じる。
 
 ```lean
 theorem substituteEarlier_baseRulesHaveTail
@@ -2137,9 +2137,9 @@ theorem substituteEarlier_leadingBound
 
 ```
 
-## 実装の継続
+## 順序条件を保つ局所変換
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+先行記号の代入と即時左再帰除去が `BaseOrderedAt` を保存することを示し、必要回数だけ代入を繰り返す関数を定義する。有限な反復回数が停止性の計算根拠になる。
 
 ```lean
 theorem substituteEarlier_preserves_baseOrdered
@@ -2268,9 +2268,9 @@ def orderedForwardStep
     (repeatSubstituteEarlier G i (substitutionPasses i)) i
 ```
 
-## 実装の継続
+## 番号順 forward step と fold
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+一つの番号について代入反復と左再帰除去を組み合わせ、現在番号の自己先頭規則を除く。有限番号を昇順に fold する作業変換と、その段階的不変条件を準備する。
 
 ```lean
 theorem eliminateImmediateRule_not_retains_self
@@ -2397,9 +2397,9 @@ theorem orderedForwardStep_preserves_baseOrdered
 
 ```
 
-## 実装の継続
+## ordered fold の言語・fresh・初期条件
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+各 forward step の言語保存を fold 全体へ持ち上げる。同時に fresh 記号の非衝突と初期記号の保持を追跡し、後半の terminal-leading 代入が安全に行える状態を得る。
 
 ```lean
 theorem orderedForwardStep_freshFor
@@ -2503,9 +2503,9 @@ theorem orderedForwardFold_all_ordered
         hstepOutside
 ```
 
-## 実装の継続
+## 先頭規則の完全代入
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+有限番号の降順性を用いて、先頭非終端記号をその規則で置換する操作を定義する。規則一個・規則集合・文法全体の層を分け、後の証明で所属由来を追跡できるようにする。
 
 ```lean
 theorem finRange_pairwise_lt :
@@ -2642,9 +2642,9 @@ theorem substituteLeading_reverse_step
 
 ```
 
-## 実装の継続
+## 完全代入の意味論と許容先頭
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+完全代入後の一歩を旧文法へ戻して言語の逆包含を示す。先頭が終端記号であるか、指定した基底集合に属するかを表す述語を導入し、変換進行度を記述する。
 
 ```lean
 theorem substituteLeading_language_reverse
@@ -2772,9 +2772,9 @@ theorem substituteLeading_mem_of_generated
 
 ```
 
-## 実装の継続
+## 完全代入の規則分類
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+基底入力を持つ保持規則と生成規則由来の新規則を分類し、各ケースで先頭条件がどう変化するかを示す。局所分類を生成木変換へ利用する。
 
 ```lean
 theorem substituteLeading_old_of_base_input
@@ -2904,9 +2904,9 @@ theorem substituteLeading_node
 
 ```
 
-## 実装の継続
+## 完全代入による生成木変換
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+旧文法の生成木を完全代入後の木へ構造帰納法で移す。先頭非終端記号の番号が真に減少することを再帰の尺度とし、言語の順向き包含を構成する。
 
 ```lean
 theorem substituteLeading_formTree
@@ -3032,9 +3032,9 @@ def orderedGreibachTransform
 
 ```
 
-## 実装の継続
+## ordered Greibach 作業変換の完成
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+fold と完全代入を合成し、作業文法の言語保存と「全規則が終端記号から始まる」性質を得る。ここで有限作業型上の Greibach 化を完了し、名前空間境界を閉じる。
 
 ```lean
 theorem orderedGreibachTransform_language
@@ -3133,9 +3133,9 @@ abbrev inlineGreibachStart
 
 ```
 
-## 実装の継続
+## Greibach 初期記号の展開
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+追加された Greibach 用初期記号を元の初期記号へ戻す写像を定義する。旧記号が新初期記号と衝突しないことを使い、inline 後も初期記号が右辺へ漏れないことを示す。
 
 ```lean
 def eraseGreibachStart (S : N) : GreibachStartNT N → N
@@ -3263,9 +3263,9 @@ theorem inlineGreibachStart_copy_step
 
 ```
 
-## 実装の継続
+## 初期記号 inline の言語と規則形状
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+追加初期記号の規則を本体へ inline しても言語が保存されることを証明する。先頭終端性を保ち、結果の全規則が Greibach 形状を満たすことまでをまとめる。
 
 ```lean
 theorem inlineGreibachStart_language
@@ -3390,9 +3390,9 @@ set_option maxHeartbeats 0 in
 -- The generated finite index is definitionally tied to the computed grammar support.
 ```
 
-## 実装の継続
+## 非空 Greibach 文法の完成
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+非空部分について Greibach 文法構造を組み立て、初期記号非出現と空規則不在を証明する。空語の復元を除くすべての標準形条件がこの段階で揃う。
 
 ```lean
 theorem nonemptyGreibachCFG_greibach
@@ -3527,9 +3527,9 @@ theorem restoreGreibachEpsilon_derives_without_initial
         hprefix.2.trans hstep.single⟩
 ```
 
-## 実装の継続
+## 空語復元の言語保存
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+元文法が空語を生成する場合だけ fresh start の ε 規則を戻す。非空語の言語等式と空規則を持たないことを利用し、復元後の言語を元文法の言語へ一致させる。
 
 ```lean
 theorem restoreGreibachEpsilon_language_nonempty
@@ -3662,9 +3662,9 @@ theorem restoreGreibachEpsilon_language
 
 ```
 
-## 実装の継続
+## Greibach 標準形変換の最終合成
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+空語復元後も Greibach 規則形状と初期記号非出現が保たれることを示し、最終的な `GreibachNormalGrammar` を構成する。公開定理として入力文法との言語等式を閉じる。
 
 ```lean
 theorem restoreGreibachEpsilon_greibach

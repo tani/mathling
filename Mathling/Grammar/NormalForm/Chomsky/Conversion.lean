@@ -20,7 +20,7 @@
 
 # Mathling / Grammar / NormalForm / Chomsky / Conversion モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+任意の文脈自由文法を、fresh start、ε 規則除去、unit 規則除去、終端記号分離、二分化の順に変換して Chomsky 標準形を得る。各段階で規則形状と導出の双方向シミュレーションを分離し、最終的な言語保存と初期記号不変条件を合成する。
 
 ```lean
 @[expose] public section
@@ -87,6 +87,13 @@ instance [LinearOrder T] [LinearOrder N] :
     cases y
     simp_all)
 
+```
+
+## 型 `FreshStartNT` の線形順序から fresh-start 規則の構成へ
+
+前段で `FreshStartNT`・`Symbol`・`ContextFreeRule` に対する `LinearOrder` インスタンスを整えたのは、以降のステージ（nullable 集合や unit 到達可能性集合の計算）が `Finset.powerset` や有限集合上の決定可能な比較を要求する演算に依存するためである。ここから先は、その基盤の上に実際の変換の最初の一手——新しい開始記号 $`S_0`$ を導入し、$`S_0 \to S`$ という単一規則を追加した文法 `freshStart`——を定義する。この構成が「元の開始記号がどの規則の右辺にも現れない」という後続段の不変条件の出発点になる。
+
+```lean
 def freshStartRule {T N : Type*} (S : N) :
     ContextFreeRule T (FreshStartNT N) :=
   { input := .start, output := [Symbol.nonterminal (.old S)] }
@@ -146,9 +153,9 @@ theorem freshStart_initial_not_output (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## fresh start の消去写像と導出シミュレーション
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+追加した初期記号を元の初期記号へ戻す写像を定義し、fresh-start 文法の一歩の書換えを元文法の導出へ移す。自己書換えの補助事実を介して、両方向の言語保存を組み立てる。
 
 ```lean
 def eraseFreshStart (S : N) : FreshStartNT N → N
@@ -237,6 +244,13 @@ theorem freshStart_reverse_step (g : ContextFreeGrammar T)
         hrewrite (eraseFreshStart g.initial)
     exact hrule ▸ hmapped
 
+```
+
+## 単一ステップの往復から導出全体の言語保存へ
+
+ここまでで `freshStart_forward_step` と `freshStart_reverse_step` により、`g` の一手の書き換えと `freshStart g` の一手の書き換えが `FreshStartNT.old`／`eraseFreshStart` を介して一対一に対応することを確認した。次の `freshStart_language` は、この単一ステップの対応を `Derives`（反射推移閉包）へ持ち上げ、開始記号からの脱糖を追跡することで $`(\mathrm{freshStart}\ g).\mathrm{language} = g.\mathrm{language}`$ という同値を証明する。この等式がパイプライン全体を貫く `calc` 連鎖の最初の一段となる。
+
+```lean
 theorem freshStart_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (freshStart g).language = g.language := by
@@ -291,9 +305,9 @@ theorem freshStart_language (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## nullable 非終端記号の有限閉包
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+空語を導出できる非終端記号を意味論的に定義し、有限集合上の閉包計算で近似する。右辺が現在の集合だけから空になれるかを判定し、反復計算の健全性と完全性を分離して証明する。
 
 ```lean
 def Nullable (g : ContextFreeGrammar T) (A : g.NT) : Prop :=
@@ -377,6 +391,13 @@ theorem derives_nil_of_rhsNullableIn (g : ContextFreeGrammar T)
           simp only [rhsNullableIn, Bool.and_eq_true, decide_eq_true_eq] at hxs
           exact (hS A hxs.1).append_right xs |>.trans (ih hxs.2)
 
+```
+
+## nullable 閉包の健全性から `nullableSet` の完全性へ
+
+ここまでで、`nullableClosed` によって特徴づけられる閉包性と、実際に空列を導出できることとの二方向の関係——閉集合はすべての nullable 非終端記号を含むこと（`nullable_mem_of_closed`）、および `rhsNullableIn` を満たす右辺は実際に $`\varepsilon`$ へ導出できること（`derives_nil_of_rhsNullableIn`）——を確立した。残るは `nullableSet g` が文法の有限台 `activeNonterminals g` に収まることを確認したうえで、最小不動点としての `nullableSet` の構成が意味論的な `Nullable` 述語と完全に一致することを証明する `mem_nullableSet_iff` である。この一致が、以降の ε-規則除去で「どの非終端記号を消去してよいか」を決定可能にする。
+
+```lean
 theorem nullable_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT] {A : g.NT} (hA : Nullable g A) :
     A ∈ activeNonterminals g := by
@@ -436,9 +457,9 @@ theorem mem_nullableSet_iff (g : ContextFreeGrammar T)
 word. -/
 ```
 
-## 実装の継続
+## 空語判定と nullable variant
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+初期記号の nullable 性を Boolean に落とし、規則右辺から nullable 記号を選択的に削除した全 variant を列挙する。元の記号順序を保った部分列だけを生成することが重要な不変条件である。
 
 ```lean
 def hasEmptyWord (g : ContextFreeGrammar T)
@@ -577,9 +598,9 @@ theorem mem_nullableVariants_append (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## ε 規則除去文法の構成
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+variant の所属補題を確立した後、非初期の空右辺を除外した規則集合を構成する。元言語が空語を含む場合だけ fresh start から ε を許し、それ以外の規則形状を保つ。
 
 ```lean
 theorem mem_of_mem_nullableVariants (g : ContextFreeGrammar T)
@@ -714,9 +735,9 @@ theorem removeEpsilon_reverse_step (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## ε 除去の逆向きシミュレーション
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+削除済み規則の一歩を元文法の複数歩へ展開し、nullable 記号の消去を意味論的に正当化する。反射推移閉包へ持ち上げて、変換後の語が元言語にも属することを示す。
 
 ```lean
 theorem removeEpsilon_language_reverse (g : ContextFreeGrammar T)
@@ -852,9 +873,9 @@ theorem removeEpsilon_simulation (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## ε 除去の順向きシミュレーション
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+元文法の導出から nullable 記号を消去した対応導出を構成し、非空語について変換後文法へ移送する。空語の場合は fresh-start 規則で別処理し、最終的な言語等式を得る。
 
 ```lean
 theorem derives_from_empty_eq (g : ContextFreeGrammar T)
@@ -1013,9 +1034,9 @@ theorem mem_unitReachSet_iff (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## unit 到達関係と unit 規則除去
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+非終端記号一個だけを右辺に持つ規則の反射推移閉包を `unitReach` として計算し、到達先の非 unit 規則を元へ引き上げる。出力文法から unit 規則が消えることを構造的に保証する。
 
 ```lean
 abbrev removeUnit
@@ -1141,9 +1162,9 @@ theorem unitLift_rule_output (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## unit 除去の順向き持ち上げ
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+元の一歩を unit 到達部分と実規則部分へ分解し、除去後文法の導出へ持ち上げる。局所シミュレーションを導出列全体へ拡張して、元言語から変換後言語への包含を得る。
 
 ```lean
 theorem unitLift_parts (g : ContextFreeGrammar T)
@@ -1274,9 +1295,9 @@ theorem removeUnit_language_forward (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## unit 除去の逆向き展開
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+`unitReach` の各辺と引き上げた規則を元文法の導出へ戻す。除去後の一歩を元の複数歩で模倣し、逆包含と最終的な言語保存を閉じる。
 
 ```lean
 theorem derives_unitReach (g : ContextFreeGrammar T) {A B : g.NT}
@@ -1405,9 +1426,9 @@ abbrev isolateTerminals
 
 ```
 
-## 実装の継続
+## 終端記号分離規則の特徴付け
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+長い右辺に現れる終端記号を専用非終端記号へ置換した規則集合を外延的に特徴付ける。元規則と新しい terminal 規則の双方が確実に含まれることを、後続シミュレーション用の API として示す。
 
 ```lean
 theorem mem_isolateTerminals_rules_iff
@@ -1542,9 +1563,9 @@ theorem isolateTerminals_forward_step
 
 ```
 
-## 実装の継続
+## 終端記号分離の展開写像
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+分離後の記号を元の記号列へ展開する写像を定義し、形式全体へ `List.flatMap` で持ち上げる。新旧規則の一歩が展開後に元文法の導出になることを用いて逆包含を証明する。
 
 ```lean
 theorem isolateTerminals_language_forward
@@ -1674,9 +1695,9 @@ theorem expand_terminalSymbols (w : List T) :
 
 ```
 
-## 実装の継続
+## 終端記号分離の言語保存と二分化用型
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+終端記号分離の双方向包含を言語等式にまとめる。続いて、元の非終端記号と長い右辺の suffix を区別して保持する `BinaryNT` を導入し、二分化段階の型境界を作る。
 
 ```lean
 theorem isolateTerminals_language_reverse
@@ -1805,9 +1826,9 @@ theorem mem_binarize_rules_iff (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## 二分化 tail の局所導出
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+長い右辺を連鎖状の二項規則へ分解したとき、各 suffix 用非終端記号が対応する残りの記号列を導出することを示す。Option を返す記号変換の成功条件も明示し、部分関数の失敗を規則形状で排除する。
 
 ```lean
 theorem symbolsAsNonterminals_eq_some
@@ -2046,9 +2067,9 @@ theorem binarize_old_rule_derives (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## 二分化の順向き保存と展開
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+元の長い規則一歩を二分化規則列で模倣し、言語の順向き包含を得る。逆方向のため、補助非終端記号を元の suffix へ展開する写像を記号列全体に定義する。
 
 ```lean
 theorem binarize_forward_step (g : ContextFreeGrammar T)
@@ -2176,9 +2197,9 @@ theorem binarize_copied_rule_reverse (g : ContextFreeGrammar T)
 
 ```
 
-## 実装の継続
+## 二分化規則の逆向き保存
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+二分化で生成される各種類の規則を、展開後の元文法導出へ戻す。局所補題を導出列に持ち上げて逆包含を証明し、二分化前後の言語等式を得る。
 
 ```lean
 theorem binarize_rule_reverse (g : ContextFreeGrammar T)
@@ -2313,9 +2334,9 @@ theorem binarizeTailRules_binary [DecidableEq T] [DecidableEq N]
 
 ```
 
-## 実装の継続
+## Chomsky 規則形状の確立
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+二分化後の全規則が、終端一個または非終端二個という Chomsky 形状を満たすことを示す。長い suffix 用の補助規則と旧規則由来のケースを分けて検証する。
 
 ```lean
 theorem binarizeLongRules_binary [DecidableEq T] [DecidableEq N]
@@ -2440,9 +2461,9 @@ theorem old_mem_binarizeLong_output [DecidableEq T] [DecidableEq N]
 
 ```
 
-## 実装の継続
+## 二分化後の初期記号不変条件
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+補助非終端記号への埋め込みが元の初期記号と衝突しないことを示し、二分化後の右辺に初期記号が現れない性質を保存する。unit 到達が初期記号へ戻れないこともここで確立する。
 
 ```lean
 theorem old_mem_map_binary_old
@@ -2586,9 +2607,9 @@ theorem isolateOutput_allNonterminals
 
 ```
 
-## 実装の継続
+## 終端分離後の初期記号と ε 不変条件
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+終端分離で導入する新記号が初期記号と異なること、初期記号が右辺へ再導入されないこと、非初期の空規則が生じないことを証明する。最終合成に必要な側条件をこの段階で閉じる。
 
 ```lean
 theorem old_mem_map_isolateOld
@@ -2714,9 +2735,9 @@ theorem binarize_language (g : ContextFreeGrammar T)
 /-- Computably convert a context-free grammar to Chomsky normal form. -/
 ```
 
-## 実装の継続
+## Chomsky 標準形変換の合成
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+各中間変換と不変条件を順に合成して `ChomskyNormalGrammar` を構成する。必要な線形順序の instance を公開し、最終文法の言語が入力文法と等しいことを API 定理としてまとめる。
 
 ```lean
 def toChomskyNormalGrammar {T : Type} [DecidableEq T]

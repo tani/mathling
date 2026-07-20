@@ -12,7 +12,7 @@
 
 # Mathling / Automata / Theory / Minimization モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+DFA の状態を将来の受理挙動で同値視し、その Myhill–Nerode 商を最小化 DFA として構成する。商への射影が遷移と受理を保存し、元の DFA と同じ言語を認識することまでを公開契約とする。
 
 ```lean
 @[expose] public section
@@ -36,6 +36,15 @@ abbrev Language.minimalDFA (L : Language α) :
   exact Language.accepts_toDFA L
 
 
+```
+
+## 正準商 DFA とその受理言語
+
+$`L`$ の左商（left quotient）$`L.\mathrm{leftQuotient}`$ は、語 $`u`$ を「その後に続く語 $`v`$ が $`uv \in L`$ を満たすかどうか」という述語に写す。`Language.minimalDFA` はこの左商のなす集合 `Set.range L.leftQuotient` を状態集合とする DFA（`Language.toDFA` の再掲）であり、Myhill–Nernode の同値類そのものを状態として採用する正準構成である。`minimalDFA_accepts` はこの DFA が定義もとの言語 $`L`$ を過不足なく受理することを保証し、以降の議論はこの事実を土台に「状態数の最小性」へ進む。
+
+なぜ左商が「状態」として正しい単位なのか——2つの語 $`u_1, u_2`$ が同じ状態に写るべきなのは、任意の $`v`$ について $`u_1 v \in L \iff u_2 v \in L`$ が成り立つとき、かつそのときに限る。これはまさに左商が等しいという条件 $`L.\mathrm{leftQuotient}\,u_1 = L.\mathrm{leftQuotient}\,u_2`$ に一致する。したがって左商の相異なる値の個数は、言語 $`L`$ を区別するために必要な状態数の下限を与える。次の定理はこれを、任意の DFA が持つ状態数の上限として定式化する。
+
+```lean
 /-- The quotient DFA has no more states than any DFA accepting the same language. -/
 @[important] theorem Language.minimalDFA_card_le {α σ : Type*} [Fintype σ]
     (M : DFA α σ) :

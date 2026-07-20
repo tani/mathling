@@ -10,7 +10,7 @@
 
 # Mathling / Grammar / Regular / LeftLinear モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+左線形文法を規則右辺の反転によって右線形文法へ移し、生成言語が語の反転で対応することを証明する。この橋渡しにより、有限非終端記号を持つ左線形文法の正則性を右線形文法の結果から再利用する。
 
 ```lean
 @[expose] public section
@@ -40,6 +40,14 @@ def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
 
 end LeftLinearGrammar
 
+```
+
+## 規則反転の局所形状
+
+空右辺と終端一個の右辺は反転で変わらず、二記号の右辺だけが順序を交換する。
+この三ケースが左右線形規則の形状述語を相互に変換する局所的な根拠になる。
+
+```lean
 /-- Reversing a rule with empty output leaves the output empty. -/
 private theorem ContextFreeRule.reverse_output_nil {T N : Type*}
     {r : ContextFreeRule T N} (h : r.output = []) : r.reverse.output = [] := by
@@ -57,6 +65,14 @@ private theorem ContextFreeRule.reverse_output_pair {T N : Type*}
     r.reverse.output = [y, x] := by
   simp [ContextFreeRule.reverse, h]
 
+```
+
+## 左線形文法から右線形文法へ
+
+各規則を反転して右線形文法を構成する。文法の反転定理により生成語も反転するため、
+有限非終端記号の場合の正則性は既存の右線形結果から移送できる。
+
+```lean
 namespace LeftLinearGrammar
 
 variable {T : Type*}
@@ -91,6 +107,14 @@ theorem language_isRegular (g : LeftLinearGrammar T) [Fintype g.cfg.NT] :
 
 end LeftLinearGrammar
 
+```
+
+## 右線形文法から左線形文法へ
+
+逆方向にも同じ規則反転を使う。反転は involution なので、右線形文法の言語を反転した
+言語を生成する左線形文法が得られ、最終的な存在同値の witness を構成できる。
+
+```lean
 namespace RightLinearGrammar
 
 variable {T : Type*}
@@ -115,6 +139,14 @@ def reverseLeftLinear (g : RightLinearGrammar T) : LeftLinearGrammar T where
 
 end RightLinearGrammar
 
+```
+
+## 正則性の左線形文法による特徴付け
+
+語の反転が正則性を保つことと、右線形文法による既存の特徴付けを合成する。
+有限アルファベットと有限非終端記号は、逆向き witness の有限オートマトン性を保証する。
+
+```lean
 /-- Over finite alphabets, regular languages are exactly the left-linear languages
 with a finite nonterminal type: reverse a right-linear witness for the reversed
 language back into a left-linear witness for the original language. -/

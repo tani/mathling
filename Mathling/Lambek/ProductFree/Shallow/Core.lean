@@ -85,6 +85,15 @@ lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_d
   induction Γ <;> grind
 ```
 
+次数関数 `tp_degree`／`list_degree` は、この shallow 断片ではケース分析により直接定義されており
+（原子式は 1、`ldiv`・`rdiv` はいずれも 3）、`Left.Shallow`・`Right.Shallow` のように
+`Mathling.Lambek.ProductFree.translatedTpDegree` を経由して一般断片側から借用してはいない。
+もっとも、この値は一般断片の次数公式 `tp_degree A + tp_degree B + 1` に原子式の次数 1 を代入した場合と一致しており、
+後述するようにこの断片の `cut_admissible` 自体は一般断片への翻訳のみで証明されるため、
+実のところこのファイル内で `tp_degree`／`list_degree` を利用する箇所はない。
+次数計算をあえて独立に持たせているのは、他の shallow 系統のファイルが将来的に探索の停止性などを
+独自に議論する際の土台として温存されている、と理解しておくとよい。
+
 ## 一般断片への翻訳
 
 shallow 断片の証明は、一般の product-free 断片へ翻訳して再利用する。

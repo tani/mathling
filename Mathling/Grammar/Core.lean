@@ -9,7 +9,7 @@
 
 # Mathling / Grammar / Core モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+文脈自由文法で共有する記号操作と規則形状を定義し、線形・左右線形・Chomsky・Greibach の各文法を証拠付き構造として束ねる。後続の変換はここで定める形状述語を出力不変条件として用いる。
 
 ```lean
 @[expose] public section
@@ -134,9 +134,9 @@ structure RightLinearGrammar (T : Type*) where
 /-- A context-free grammar in one-symbol left-linear normal form. -/
 ```
 
-## 実装の継続
+## 証拠付き文法構造
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+左右線形文法に加え、Chomsky および Greibach 標準形を、規則形状の全称証明と初期記号が右辺に現れない不変条件ごと束ねる。変換の出力型そのものが、後続定理で必要な整形式を保持する。
 
 ```lean
 structure LeftLinearGrammar (T : Type*) where

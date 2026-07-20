@@ -10,7 +10,7 @@
 
 # Mathling / Grammar / Regular / Linear モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+線形文法の生成木と一回転 NPDA を対応付ける。生成規則から機械を構成し、木から受理実行を作る順方向と、受理実行から木を復元する逆方向を証明して、両者の言語が一致することを導く。
 
 ```lean
 public section
@@ -180,9 +180,9 @@ private theorem derives_linear_context (g : LinearGrammar T)
 /-- Production trees and context-free derivations agree for linear grammars. -/
 ```
 
-## 実装の継続
+## 木構造意味論と通常の導出の一致
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+前節で定義した `LinearGenerates` は、生成規則の適用を明示的な木として表現した帰納的述語である。`generates_derives` と `derives_linear_context` はそれぞれ、この木構造意味論から Mathlib の `Derives` 関係への含意と、その逆方向の含意を与える。`linearGenerates_iff` はこの両者を組み合わせ、文法の初期記号から導出できる言語 `g.language` の要素と、`LinearGenerates` によって生成される終端列とが過不足なく一致することを確立する。以降では、この同値性を唯一の橋渡しとして、木構造上の議論とオートマトンの実行列に関する議論とを行き来する。
 
 ```lean
 theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
@@ -196,6 +196,42 @@ theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
     subst middle
     exact hmiddle
 
+```
+
+## 生成規則駆動の一回転 NPDA
+
+`LinearGenerates` の各生成木を、実行時に１本のスタック操作列としてシミュレートするのが `toOneTurnNPDA` である。線形文法の規則は「終端列のみ」（leaf）か「前後を終端列で挟んだ単一の非終端記号」（branch）のいずれかの形しか取り得ない（`g.linear` と `split_linear_output` が保証する）。したがって PDA は、規則を１つ選んだあと、その出力を左から右へなぞりながら push フェーズで入力を消費し、非終端記号に達したら子の導出へ、終端記号のみになったら pop フェーズへの折り返しへ進む、という単純な制御構造で足りる。
+
+制御状態 `LinearPDAState` は「選んだ規則のどこまで処理し終えたか」を型として直接表現する。
+
+- `derive A`：非終端記号 `A` をこれから導出しようとしている状態。
+- `prefixLeaf r hr word todo hout`：leaf 規則 `r` を選び、その出力全体 `word` のうち残り `todo` をまだ消費し終えていない状態。
+- `prefixBranch r hr pre todo B suffix hout`：branch 規則 `r` を選び、前置終端列の残り `todo` を消費している最中の状態（消費し終えれば非終端記号 `B` と後置終端列 `suffix` が控えている）。
+- `pushBranch B suffix todo`：`prefixBranch` の消費が終わり、後置終端列 `suffix` を１文字ずつスタックへ積んでいく途中の状態（`todo` は積み残し）。
+- `matchStack`：入力の残りとスタックの中身を pop フェーズで突き合わせる状態。
+- `finished`：受理状態。
+
+`LinearRawStep` はこれらの状態間の局所遷移を１個ずつ与える。
+
+```mermaid
+stateDiagram-v2
+    [*] --> derive
+    derive --> prefixLeaf: chooseLeaf（規則が leaf 形）
+    derive --> prefixBranch: chooseBranch（規則が branch 形）
+    prefixLeaf --> prefixLeaf: consumeLeaf（終端を1つ消費）
+    prefixLeaf --> matchStack: finishLeaf（push→pop へ折り返し）
+    prefixBranch --> prefixBranch: consumeBranch（前置終端を1つ消費）
+    prefixBranch --> pushBranch: beginPush
+    pushBranch --> pushBranch: push（後置終端を1つスタックへ）
+    pushBranch --> derive: continue（子の非終端へ再帰）
+    matchStack --> matchStack: matchStack（スタックと入力を1つずつ照合）
+    matchStack --> finished: finish
+    finished --> [*]
+```
+
+構成子をこのように細かく分けているのは、後段の `LinearGood` 不変条件がちょうど１ステップごとに保存されることを個別に確認できるようにするためであり、`toOneTurnNPDA` 自体はこれらの局所遷移を非決定的に合併しただけの定義になっている。`pop_stays_pop`／`push_phase_nonshrinking`／`pop_phase_nongrowing` は、この構成が push フェーズで積んだ分だけ pop フェーズで消費して終わるという `OneTurnNPDA`（一回転 PDA）の形状要件を満たすことを保証する。
+
+```lean
 /-- Control states for the production-driven linear-grammar PDA. -/
 inductive LinearPDAState (g : LinearGrammar T) where
   | derive (A : g.cfg.NT)
@@ -265,6 +301,18 @@ def toOneTurnNPDA (g : LinearGrammar T) :
     intro q p sym stack q' stack' h
     cases h <;> simp
 
+```
+
+## 順方向：生成木から実行列を構成する
+
+以降の `_reaches` 系の補題は、`LinearRawStep` の１ステップ遷移を繰り返し適用して、`toOneTurnNPDA` が意図した通りの複数ステップ実行列（`Reaches`）を持つことを示す部品である。それぞれが `LinearPDAState` の１つの構成子に対応するミクロな振る舞いを切り出しており、続く `generates_reaches` はこれらを規則の形（leaf／branch）に応じて組み合わせるだけで済む。
+
+- `consumeLeaf_reaches`：`prefixLeaf` 状態で残りの終端列 `todo` を１文字ずつ消費し尽くすまでの実行列。
+- `consumeBranch_reaches`：同様に `prefixBranch` 状態で前置終端列の残りを消費し尽くすまでの実行列。
+- `pushBranch_reaches`：`pushBranch` 状態で後置終端列 `todo` を先頭から１文字ずつスタックへ積み、`todo.reverse` がスタックの上に乗った状態で `derive B` へ遷移するまでの実行列。push は入力側の消費と逆向きの操作であるため、積み終えた結果が `todo.reverse ++ stack` という反転した順序になる点に注意されたい。
+- `matchStack_reaches`：`matchStack` 状態で入力の残りとスタックの中身を１文字ずつ突き合わせ、両者を使い切ったところで `finished` 状態へ折り返すまでの実行列。
+
+```lean
 private theorem consumeLeaf_reaches (g : LinearGrammar T)
     {r : ContextFreeRule T g.cfg.NT} {hr : r ∈ g.cfg.rules}
     {word : List T} {hout : r.output = terminalSymbols word}
@@ -347,6 +395,11 @@ private theorem matchStack_reaches (g : LinearGrammar T) (stack : List T) :
         exact LinearRawStep.matchStack
       exact ih.head hstep
 
+```
+
+`generates_reaches` はこれらの部品を `LinearGenerates` の帰納法に沿って接続し、任意の生成木に対して、その終端列を先頭に積んだ入力から出発して `finished` 状態・空スタックへ到達する実行列を構成する。leaf ケースでは規則選択・終端列消費・pop フェーズへの折り返し・スタック照合をこの順に繋ぐだけでよい。branch ケースでは、前置終端列の消費・push フェーズの開始・後置終端列のスタックへの積み込みに続けて、帰納法の仮定 `ih` を子の非終端 `B` に適用することで、部分木の実行列を全体の実行列へ組み込んでいる。この定理が、文法が生成する語を PDA が受理するという含意（`toOneTurnNPDA_language` の一方向）の核心を担う。
+
+```lean
 private theorem generates_reaches (g : LinearGrammar T)
     {A : g.cfg.NT} {word : List T} (h : LinearGenerates g A word)
     (stack : List T) :
@@ -402,6 +455,34 @@ private theorem generates_reaches (g : LinearGrammar T)
         (by simpa [List.append_assoc] using hconsume)).tail hbegin
         |>.trans hpush' |>.trans (by simpa [List.append_assoc] using hchild)
 
+```
+
+## 逆方向：受理から生成木を復元する不変条件
+
+逆向きの含意——PDA が入力を受理するならば、その入力は文法から生成される——を示すには、実行列を終点から始点へ向かって逆にたどりながら、各中間状態に「これまでの入力とスタックの内容が、ある生成木と整合している」という不変条件を保つ必要がある。`LinearGood` はこの不変条件を制御状態ごとに場合分けして定義する。
+
+```math
+\begin{aligned}
+\mathrm{LinearGood}(\texttt{derive}\ A,\ \texttt{push})(\text{input},\text{stack})
+  &\iff \exists\ \text{word},\ \text{input} = \text{word} \mathbin{+\!\!+} \text{stack} \land \mathrm{LinearGenerates}\ A\ \text{word} \\
+\mathrm{LinearGood}(\texttt{prefixLeaf}\ \cdots\ \text{todo}\ \cdots,\ \texttt{push})(\text{input},\text{stack})
+  &\iff \text{input} = \text{todo} \mathbin{+\!\!+} \text{stack} \\
+\mathrm{LinearGood}(\texttt{prefixBranch}\ \cdots\ \text{todo}\ B\ \text{suffix}\ \cdots,\ \texttt{push})(\text{input},\text{stack})
+  &\iff \exists\ \text{middle},\ \mathrm{LinearGenerates}\ B\ \text{middle} \land
+     \text{input} = \text{todo} \mathbin{+\!\!+} \text{middle} \mathbin{+\!\!+} \text{suffix} \mathbin{+\!\!+} \text{stack} \\
+\mathrm{LinearGood}(\texttt{pushBranch}\ B\ \_\ \text{todo},\ \texttt{push})(\text{input},\text{stack})
+  &\iff \exists\ \text{middle},\ \mathrm{LinearGenerates}\ B\ \text{middle} \land
+     \text{input} = \text{middle} \mathbin{+\!\!+} \text{todo.reverse} \mathbin{+\!\!+} \text{stack} \\
+\mathrm{LinearGood}(\texttt{matchStack},\ \texttt{pop})(\text{input},\text{stack})
+  &\iff \text{input} = \text{stack} \\
+\mathrm{LinearGood}(\texttt{finished}, \_)(\text{input}, \_)
+  &\iff \text{input} = []
+\end{aligned}
+```
+
+各節はちょうど、`generates_reaches` の対応する部品がその状態から出発するときに仮定していた事実を、逆向きに回収できる形になっている。たとえば `derive A` における `∃ word, ...` は `generates_reaches` の出発点そのものであり、`prefixBranch`／`pushBranch` に埋め込まれた `∃ middle, LinearGenerates g B middle` は、子の非終端の生成がまだ完了していないことと、完了した暁にはどの終端列に置き換わるかを同時に記録している。それ以外の状態と位相の組み合わせ（本来到達し得ない組）には `False` を割り当て、健全性をそもそも型で保証している。
+
+```lean
 private def LinearGood (g : LinearGrammar T) :
     Mathling.Automata.NPDA.ID T
       (LinearPDAState g × Mathling.Automata.TurnPhase) T → Prop
@@ -419,6 +500,11 @@ private def LinearGood (g : LinearGrammar T) :
   | (input, (.finished, _), _) => input = []
   | _ => False
 
+```
+
+`raw_step_good` は `LinearRawStep` の各構成子について、遷移後の状態で `LinearGood` が成り立つならば遷移前の状態でも成り立つことを１ステップずつ確認する。これは各ミクロ遷移が `LinearGood` の場合分けとちょうど噛み合うように設計されていることの裏付けであり、たとえば `consumeLeaf` は `todo` の１文字消費に対応して入力の１文字消費が起こるだけなので `simp` で閉じ、`chooseBranch` は規則の出力を非終端記号の生成木へ組み替える証明の要となる。`step_good` はこれを `NPDA.Step`（`consume`／`epsilon` の２通り）に持ち上げ、`reaches_good` はさらに `Reaches`（反射推移閉包）全体へ、終点から始点への逆向き帰納法（`head_induction_on`）で持ち上げる。この結果、実行列の終点における不変条件（受理状態での `input = []`）さえ分かれば、始点における不変条件を機械的に導けるようになる。
+
+```lean
 private theorem raw_step_good (g : LinearGrammar T)
     {q q' : LinearPDAState g} {p p' : Mathling.Automata.TurnPhase}
     {sym : Option T} {stack stack' : List T}
@@ -476,6 +562,13 @@ private theorem reaches_good (g : LinearGrammar T)
       intro hgood
       exact step_good g hstep (ih hgood)
 
+```
+
+## 主定理：構成した PDA の言語と文法の言語の一致
+
+`toOneTurnNPDA_language` は、これまでの２方向の議論をそれぞれ適用して主張を完成させる。`⊆` 方向では、受理実行列の始点 `(input, (.derive g.cfg.initial, .push), [])` に `reaches_good` を適用し、得られる `LinearGood` の中身（ある終端列 `word` について `input = word` かつ `LinearGenerates g g.cfg.initial word`）から `linearGenerates_iff` を経由して `input ∈ g.language` を得る。`⊇` 方向では `linearGenerates_iff` で得た生成木に `generates_reaches` を適用し、空スタックから空スタックへ戻る受理実行列を直接構成する。こうして、生成規則を１本ずつ制御状態として持つという非常に具体的な PDA 構成が、文法の言語をちょうど過不足なく受理することが示される。
+
+```lean
 /-- The local one-turn PDA accepts exactly the language generated by the linear grammar. -/
 @[simp] theorem toOneTurnNPDA_language (g : LinearGrammar T) :
     g.toOneTurnNPDA.language = g.language := by
@@ -513,9 +606,7 @@ private theorem reaches_good (g : LinearGrammar T)
 
 ```
 
-## 実装の継続
-
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+以上で線形文法に対する production-tree 意味論と一回転 NPDA 構成の証明が完結したため、開いていた `namespace` を閉じる。
 
 ```lean
 end LinearGrammar

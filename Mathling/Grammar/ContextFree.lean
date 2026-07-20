@@ -11,7 +11,7 @@
 
 # Mathling / Grammar / ContextFree モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+文脈自由文法の有限台を抽出し、導出を構造化した証拠木へ変換する補助理論を提供する。有限性の計算可能な境界と、通常の書換え導出と木構造意味論の往復が、後続のオートマトン変換の基盤になる。
 
 ```lean
 @[expose] public section
@@ -41,6 +41,13 @@ def nonterminals {T N : Type*} (r : ContextFreeRule T N) : List N :=
 
 end ContextFreeRule
 
+```
+
+## 有限台の抽出
+
+`rhsNonterminals` は文中に現れる非終端記号を出現順に取り出す走査であり、`ContextFreeRule.nonterminals` はそれに規則の左辺 `input` を先頭として加えたものである。これらを部品として、次節では文法全体が実際に参照する非終端記号の有限集合を構成する。
+
+```lean
 namespace ContextFreeGrammar
 
 variable {T N : Type*}
@@ -96,6 +103,15 @@ theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
   simp only [List.mem_toFinset, ContextFreeRule.nonterminals, List.mem_cons]
   exact Or.inr (mem_rhsNonterminals_of_nonterminal_mem hA)
 
+```
+
+## 文法の有限台とその所属補題
+
+`activeNonterminals g` は初期記号と全規則の入出力に現れる非終端記号を合わせた有限集合であり、文法 `g` が実際に参照する非終端記号だけを過不足なく捉える。`initial_mem_activeNonterminals`・`rule_input_mem_activeNonterminals`・`rule_rhs_mem_activeNonterminals` はそれぞれ、初期記号・各規則の左辺・各規則の右辺に現れる非終端記号がこの集合に属することを保証し、内部の `mem_rhsNonterminals_of_nonterminal_mem` はそのうち右辺に関するものを `rhsNonterminals` の構造的な性質として支える。
+
+次に、終端記号列だけからなる文に関する基本的な性質を確立する。
+
+```lean
 /-- Terminal embedding is injective. -/
 theorem terminalSymbols_injective {u v : List T} :
     (terminalSymbols (N := N) u) = terminalSymbols v → u = v := by
@@ -124,13 +140,6 @@ theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
       | cons _ htail => exact ih htail
 
 /-- A derivation between terminal-only forms does not change the word. -/
-```
-
-## 実装の継続
-
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
-
-```lean
 theorem derives_terminals_eq (g : ContextFreeGrammar T) {u v : List T} :
     g.Derives (terminalSymbols u) (terminalSymbols v) → u = v := by
   intro h
@@ -138,6 +147,15 @@ theorem derives_terminals_eq (g : ContextFreeGrammar T) {u v : List T} :
   · exact terminalSymbols_injective heq
   · exact (no_rewrites_terminals r hr).elim
 
+```
+
+## 導出木による証拠の明示化
+
+`ContextFreeGrammar.Derives` は書き換え関係 `Rewrites` の反射推移閉包であり、ある文が別の文へ導出可能かという命題を与えるだけで、その導出が「どのような形」をしていたかという情報を保持しない。以降で定義する相互帰納型 `DerivationSymbolTree`/`DerivationFormTree` は、終端記号列への導出それぞれに対して明示的な証拠木を与える。$`\mathrm{DerivationSymbolTree}\ g\ X\ w`$ は記号 $`X`$ が語 $`w`$ へ導出されることの証拠木であり、非終端記号の場合はある規則の適用とその右辺全体に対する導出木を子として持つ。$`\mathrm{DerivationFormTree}\ g\ xs\ w`$ は文 $`xs`$ が語 $`w`$ へ導出されることの証拠木であり、`cons` コンストラクタは先頭記号の木と残りの文の木を独立な子として保持する。
+
+この明示的な木を持つことの利点は、`Derives` の証拠だけでは行えない「導出の形に関する構造的帰納法・再帰」ができる点にある。特に、連接された文 `xs ++ ys` への導出は `xs` への導出と `ys` への導出に独立に分解できる（後述 `derivationFormTree_split_append`）。この分解可能性が、後続節および正規形変換モジュールで「規則ごとに独立して導出を組み立てる」議論の土台になる。
+
+```lean
 mutual
   inductive DerivationSymbolTree (g : ContextFreeGrammar T) :
       Symbol T g.NT → List T → Prop
@@ -156,6 +174,13 @@ mutual
         DerivationFormTree g (x :: xs) (u ++ v)
 end
 
+```
+
+## 木の連結と分解
+
+`DerivationFormTree` は文の連接に対して閉じている（`derivationFormTree_append`）。逆に、連接された文 `xs ++ ys` への証拠木は、`xs` への証拠木と `ys` への証拠木へ一意に分解できる（`derivationFormTree_split_append`）。後者は、次節で一歩の書き換えを証拠木の言葉に翻訳する際の中心的な道具になる。
+
+```lean
 private theorem derivationFormTree_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {u v : List T}
     (hx : DerivationFormTree g xs u) (hy : DerivationFormTree g ys v) :
@@ -183,6 +208,13 @@ private theorem derivationFormTree_split_append (g : ContextFreeGrammar T)
             DerivationFormTree.cons head hu, hv⟩
 termination_by xs
 
+```
+
+## 導出から証拠木を構成する
+
+ここからは通常の導出関係 `Derives` を実際に証拠木へ変換する。終端記号列のみからなる文は自明な証拠木を持ち（`derivationFormTree_terminals`）、一歩の書き換え `Produces` を挟んでも証拠木は保たれる：書き換えられた部分を `derivationFormTree_split_append` で切り出し、規則適用のノードに置き換えてから `derivationFormTree_append` で貼り戻す（`derivationFormTree_of_produces`）。これを導出列全体に沿って畳み込むことで、任意の終端導出に対する証拠木が得られる（`derivationFormTree_of_derives`）。
+
+```lean
 private theorem derivationFormTree_terminals (g : ContextFreeGrammar T)
     (w : List T) : DerivationFormTree g (terminalSymbols w) w := by
   induction w with
@@ -217,6 +249,13 @@ theorem derivationFormTree_of_derives
   | refl => exact derivationFormTree_terminals g w
   | head hstep hrest ih => exact derivationFormTree_of_produces g hstep ih
 
+```
+
+## 逆方向：導出のシミュレーションの持ち上げ
+
+最後に逆方向として、先頭記号への導出と残りの文への導出を独立に行った結果を連結できること（`derives_cons_of`）を確認し、これを用いて「一歩の生成規則がターゲット文法の導出をシミュレートする」という仮定から「任意の導出全体のシミュレーションが従う」こと（`derives_lift_of_produces`）を示す。これは正規形変換などで規則ごとの対応を文法全体の言語保存へ一般化する際の共通部品として使われる。
+
+```lean
 private theorem derives_cons_of
     (g : ContextFreeGrammar T)
     {x : Symbol T g.NT} {u : List T}
@@ -229,13 +268,6 @@ private theorem derives_cons_of
   simpa [terminalSymbols, List.map_append, List.append_assoc] using h₁.trans h₂
 
 /-- Lift a simulation of source production steps to complete derivations. -/
-```
-
-## 実装の継続
-
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
-
-```lean
 theorem derives_lift_of_produces
     {g₁ : ContextFreeGrammar T} {g₂ : ContextFreeGrammar T}
     {mapSym : Symbol T g₁.NT → Symbol T g₂.NT}

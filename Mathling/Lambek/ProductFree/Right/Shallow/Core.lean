@@ -15,6 +15,10 @@ right-shallow 断片では、右除法の分母は原子式に限定される。
 
 基本的なメタ理論は `Mathling.Lambek.ProductFree.Core` に翻訳して再利用する。
 
+shallow 構文は右除法の両成分を原子名に固定する。文脈は順序を保つ `List.map` で翻訳され、
+非可換な Lambek 文脈の並びを変更しない。この順序保存と連結保存が、一般系の導出規則と
+cut elimination を再利用するための中心不変条件である。
+
 ```lean
 namespace Mathling.Lambek.ProductFree.Right.Shallow
 ```

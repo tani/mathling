@@ -11,7 +11,11 @@
 
 # Mathling / Automata / Conversion / Regex モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+正規表現の抽象構文、表示言語、実行可能なマッチャ、および文字列からのパーサーを一つの API としてまとめる。意味論と計算結果の一致、およびパース失敗を `Option.none` として返す境界が主要な契約である。
+
+## 型と基本コンストラクタ
+
+Mathlib の `RegularExpression` をそのまま Mathling 名前空間へ再輸出し、`empty`/`epsilon`/`symbol`/`union`/`concat`/`star` という短い構成子省略形を与える。これらはすべて `abbrev` であり、対応する Mathlib 側のコンストラクタと定義的に等しいため、後続の証明で展開のコストを気にする必要はない。
 
 ```lean
 public section
@@ -49,7 +53,13 @@ abbrev concat (r s : RegularExpression α) : RegularExpression α := r * s
 /-- Kleene star of a regular expression. -/
 abbrev star (r : RegularExpression α) : RegularExpression α :=
   _root_.RegularExpression.star r
+```
 
+## denoted language: 意味論としての展開補題
+
+$`\mathrm{language} : \mathrm{RegularExpression}\,\alpha \to \mathrm{Language}\,\alpha`$ は正規表現が指し示す言語そのものであり、証明のための「意味論」として機能する。続く `@[simp]` 補題群は、この `language` が各コンストラクタの下でどのように展開されるかを規定するものであり、正規表現に対する構造的な議論を `Language` 上の演算($`0, 1, +, *, {}^*`$)についての等式へ自動的に書き換えるために使われる。
+
+```lean
 /-- The language denoted by a regular expression. -/
 abbrev language (r : RegularExpression α) : Language α :=
   _root_.RegularExpression.matches' r
@@ -69,7 +79,13 @@ abbrev language (r : RegularExpression α) : Language α :=
 
 @[simp] theorem language_star (r : RegularExpression α) :
     language (star r) = (language r)∗ := rfl
+```
 
+## executable matcher とその正当性
+
+`language` が証明に便利な「指示される言語」であるのに対し、`matches` はそれとは独立に定義された実行可能なブール値判定関数(Brzozowski 導関数に基づく Mathlib の `rmatch`)であり、計算効率のために別途用意されている。両者は定義上一致するとは限らないため、`matches_iff_mem_language` がこの実行可能マッチャーと指示される言語の外延的な一致を保証する橋渡し定理となる。以降のモジュールはこの定理を通じてのみ `matches` の正しさを利用する。
+
+```lean
 /-- Decides whether a word matches a regular expression. -/
 abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : Bool :=
   _root_.RegularExpression.rmatch r w
@@ -79,7 +95,21 @@ abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : B
     (r : RegularExpression α) (w : List α) :
     «matches» r w ↔ w ∈ language r :=
   _root_.RegularExpression.rmatch_iff_matches' r w
+```
 
+## 具象構文の内部パーサー
+
+ここから先は、正規表現の具象構文(文字列表現)を解析するための内部実装であり、モジュール外には公開されない(`private`)。演算子の優先順位は和(`|`)・連接(暗黙)・星(`*`)・原子の順に低くなり、これを再帰下降法で below のように相互再帰(`mutual`)する一群の関数として実装する。各関数は残り燃料(`fuel : Nat`)を消費しながら再帰することで停止性を保証しており、燃料が尽きた場合は「式が複雑すぎる」というエラーを返す。
+
+```mermaid
+flowchart LR
+  U["parseUnion (`|`)"] --> C["parseConcat (連接)"]
+  C --> S["parseStar (`*`)"]
+  S --> A["parseAtom (原子・括弧)"]
+  A -->|"'(' ... ')'"| U
+```
+
+```lean
 private def isRegexReserved (c : Char) : Bool :=
   c == '(' || c == ')' || c == '|' || c == '*'
 
@@ -159,9 +189,9 @@ mutual
       | [] => .error "unexpected end of input"
 ```
 
-## 実装の継続
+## 公開パーサー API
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+`end` で内部の `mutual` ブロックを閉じたのち、モジュールの公開エントリポイントである `parse` と `match` を定義する。`parse` は空文字列を `epsilon` として扱い、それ以外は上の相互再帰パーサーを十分な燃料(`4 * cs.length + 4`)付きで起動し、入力を消費し切れなかった場合は「末尾に余分な入力がある」エラーとする。`match` は `parse` の結果に応じて `matches` を呼び出す薄いラッパーであり、構文的に不正な正規表現は(エラーを伝播させず)単に何にもマッチしないものとして扱う。
 
 ```lean
 end

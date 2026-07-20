@@ -10,7 +10,9 @@
 
 # Mathling / Automata / Theory / Pumping モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+Mathlib の有限オートマトン版 pumping lemma を、Mathling が公開する言語レベルの正則性述語へ接続する。得られる分解は語の長さ境界、非空な反復部分、すべての反復回数での言語所属を同時に保証する。
+
+`Language.IsRegular` は「有限状態の DFA が存在して受理する」という存在量化として定義されているため、汲み上げ補題の移送は単純である: 証人の DFA を取り出し（`rcases h with ⟨σ, _, M, rfl⟩`）、その DFA に対して Mathlib が既に持つ `DFA.pumping_lemma` をそのまま適用するだけでよい。汲み上げ定数 $`p`$ は状態数 $`\mathrm{Fintype.card}\ σ`$ に取り、$`p \ge 1`$ は開始状態 `M.start` の存在から従う。
 
 ```lean
 @[expose] public section

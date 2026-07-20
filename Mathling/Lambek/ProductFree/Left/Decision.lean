@@ -15,6 +15,10 @@
 このファイルでは、left 断片の決定可能性を
 `Mathling.Lambek.ProductFree.Decision` への翻訳で与える。
 
+探索関数は left 構文を一般構文へ写してから共通探索器を呼ぶ。主要契約は
+`prove2 Γ A = true` と $`\Gamma \Rightarrow A`$ の同値であり、ここから `Decidable`
+instance を構成する。探索失敗は例外ではなく Boolean の `false` として返る。
+
 まず left 決定手続きの名前空間を開く。
 
 ```lean

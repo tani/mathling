@@ -10,7 +10,7 @@
 
 # Mathling / Grammar / Theory / Pumping モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+Chomsky 標準形の二分導出木から文脈自由言語の pumping 分解を抽出する。高さと葉数の境界、型付き一穴文脈、反復する非終端記号を結び付け、空語の例外を含む言語レベルの定理へ持ち上げる。
 
 ```lean
 @[expose] public section
@@ -135,9 +135,9 @@ def plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
 /-- Terminals strictly to the left of a context's hole. -/
 ```
 
-## 実装の継続
+## 一穴文脈の観測量
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+穴の左側と右側の yield、および plug 後の高さを制御する文脈寄与を定義する。proper な文脈は穴の外側に少なくとも一つの終端記号を持つため、後の pumping 部分が空にならない。
 
 ```lean
 def preYield {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
@@ -265,9 +265,9 @@ end ParseCtx
 /-- Every height between one and a tree's height occurs at some subtree. -/
 ```
 
-## 実装の継続
+## 指定高さの部分木と spine
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+高い二分木から指定高さの部分木を切り出し、根から穴までの経路を `Spine` として記録する。有限個の非終端記号より長い spine に鳩の巣原理を適用する準備を整える。
 
 ```lean
 theorem ParseTree.exists_subtree_height_eq
@@ -411,9 +411,9 @@ theorem exists_context_of_mem
 /-- A repeated variable on a branch gives a nontrivial self-context. -/
 ```
 
-## 実装の継続
+## 反復する非終端記号から pump 可能な分解へ
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+spine 上の重複ラベルを二つの一穴文脈に分解し、同じ非終端記号を再訪する区間を反復可能にする。yield の分解と長さ境界を同時に保持して、木レベルの pumping 証人を構成する。
 
 ```lean
 theorem exists_repeat_of_not_nodup
@@ -568,9 +568,9 @@ private theorem cnfNonterminalResult
 
 ```
 
-## 実装の継続
+## 導出と parse tree の往復
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+Chomsky 標準形の導出結果を分類し、非空な終端語の導出から `ParseTree` を復元する。文脈の反復 `nest` が yield 上では左右の反復部分に対応することもここで証明する。
 
 ```lean
 theorem cnfFormResult_of_derivationTree
@@ -726,9 +726,9 @@ private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
     simpa [g] using hmemg
 ```
 
-## 実装の継続
+## 言語レベルの pumping lemma
 
-次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+標準形変換で得た文法に木レベルの結果を適用し、元の文脈自由言語へ分解を移送する。空語は長さ仮定で除外され、反復部分の非自明性と全反復回数での所属が最終契約になる。
 
 ```lean
 end Mathling.Grammar

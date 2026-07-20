@@ -12,7 +12,7 @@
 
 # Mathling / Automata / Core モジュール
 
-このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+Mathlib の DFA/NFA を Mathling の名前空間から利用するための型別名と、DFA を NFA として忘却する変換を提供する。変換後も受理言語が等しいことがこの層の中心契約であり、後続の正則言語変換はその等式だけに依存する。
 
 ```lean
 @[expose] public section
@@ -46,6 +46,15 @@ abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
 @[simp] theorem εNFA.toNFA_language {α σ : Type*} (M : εNFA α σ) :
     M.toNFA.accepts = M.accepts := _root_.εNFA.toNFA_correct M
 
+```
+
+## 型の再輸出と変換の正しさ
+
+`DFA`／`NFA`／`εNFA` は Mathlib の同名の型をそのまま `Mathling.Automata` 名前空間へ再輸出する `abbrev` であり、新たな構造を導入するものではない。3つの `simp` 補題 `DFA.toNFA_language`／`NFA.toDFA_language`／`εNFA.toNFA_language` は、決定性化・非決定性化・epsilon 除去という各変換が受理言語を保存することを記録する。これらは以降のモジュールで変換を跨いだ書き換えを `simp` に任せるための基礎となる。
+
+続く `Language.isRegular_iff_nfa` は、これらの変換の正しさを使って `IsRegular` の存在量化を DFA から NFA へ移し替える。証明はどちらの向きも一方向の変換を適用するだけでよい: `IsRegular`（DFA の存在）から NFA の存在を得るには `M.toNFA` を、逆向きには `M.toDFA` を witness として渡し、対応する `simp` 補題（`DFA.toNFA_correct`／`NFA.toDFA_correct`）で言語の一致を示す。つまり NFA 存在版の定義は DFA 存在版の定義と同値になる——変換が言語を保存する以上、「間に有限状態機械が挟まる」という条件は DFA でも NFA でも本質的に同じ制約だからである。
+
+```lean
 /-- A language is regular exactly when some finite-state NFA accepts it. -/
 @[important] theorem Language.isRegular_iff_nfa {α : Type*} {L : Language α} :
     L.IsRegular ↔ ∃ σ : Type*, ∃ _ : Fintype σ, ∃ M : NFA α σ, M.accepts = L := by
