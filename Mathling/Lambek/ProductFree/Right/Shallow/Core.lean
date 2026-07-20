@@ -3,6 +3,7 @@
     public import Mathlib.Data.List.Basic
     public import Mathlib.Data.Nat.Basic
     public import Mathling.Lambek.ProductFree.Core
+    public import Mathling.Meta.Important
     public import LiterateLean
     open scoped LiterateLean
 
@@ -228,7 +229,7 @@ lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
 カット許容性は right 断片での結果を翻訳して得る。
 
 ```lean
-theorem cut_admissible
+@[important] theorem cut_admissible
   {Γ Δ Λ : List Tp} {A B : Tp}
   (d_left : Sequent Γ A)
   (d_right : Sequent (Δ ++ [A] ++ Λ) B) :

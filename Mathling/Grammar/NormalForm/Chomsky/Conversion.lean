@@ -1,6 +1,7 @@
     module
 
     public import Mathling.Grammar.ContextFree
+    public import Mathling.Meta.Important
     public import Mathlib.Data.Finset.Basic
     public import Mathlib.Data.Finset.Union
     public import Mathlib.Data.Finset.Prod
@@ -2800,7 +2801,7 @@ inherits a computable linear order. -/
   change LinearOrder (BinaryNT g₄.NT)
   infer_instance
 
-@[simp] theorem toChomskyNormalGrammar_language {T : Type}
+@[important, simp] theorem toChomskyNormalGrammar_language {T : Type}
     [DecidableEq T] (g : ContextFreeGrammar T) [DecidableEq g.NT] :
     (toChomskyNormalGrammar g).language = g.language := by
   let g₁ := freshStart g

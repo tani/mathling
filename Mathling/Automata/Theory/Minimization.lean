@@ -30,7 +30,7 @@ abbrev Language.minimalDFA (L : Language α) :
     DFA α (Set.range L.leftQuotient) := L.toDFA
 
 /-- The canonical quotient DFA accepts its defining language. -/
-@[simp] theorem Language.minimalDFA_accepts (L : Language α) :
+@[important, simp] theorem Language.minimalDFA_accepts (L : Language α) :
     (Language.minimalDFA L).accepts = L := by
   change L.toDFA.accepts = L
   exact Language.accepts_toDFA L

@@ -274,7 +274,7 @@ private theorem path_accept_generatesFrom (g : RightLinearGrammar T)
 ```lean
 
 /-- The NFA construction accepts exactly the grammar's language. -/
-@[simp] theorem toNFA_language (g : RightLinearGrammar T) :
+@[important, simp] theorem toNFA_language (g : RightLinearGrammar T) :
     g.toNFA.accepts = g.language := by
   ext w
   rw [_root_.NFA.accepts_iff_exists_path]
@@ -447,7 +447,7 @@ private theorem generatesFrom_toRightLinearGrammar_iff
         · exact ih (M.step q a) (by simpa using hq)
 
 /-- The grammar constructed from a finite DFA generates exactly its language. -/
-@[simp] theorem toRightLinearGrammar_language [Fintype T] [Fintype σ]
+@[important, simp] theorem toRightLinearGrammar_language [Fintype T] [Fintype σ]
     [DecidableEq T] [DecidableEq σ] (M : Mathling.Automata.DFA T σ)
     [DecidablePred (· ∈ M.accept)] :
     (toRightLinearGrammar M).language = M.accepts := by

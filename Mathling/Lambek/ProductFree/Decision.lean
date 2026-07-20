@@ -712,7 +712,7 @@ lemma translatedProve1_iff_Sequent
 書き直す必要は一切ない。
 
 ```lean
-theorem translatedProve2_iff_Sequent
+@[important] theorem translatedProve2_iff_Sequent
     (toProductFree : α → Tp)
     {Γ : List α} {A : α} :
     translatedProve2 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by

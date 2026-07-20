@@ -1,6 +1,7 @@
     module
 
     public import Mathling.Grammar.NormalForm.Chomsky.Conversion
+    public import Mathling.Meta.Important
     public import Mathlib.Data.Fintype.EquivFin
     public import Mathlib.Data.Finset.Union
 
@@ -3709,7 +3710,7 @@ def toGreibachNormalGrammar
     greibachNormal := restoreGreibachEpsilon_greibach g
     initial_not_output := restoreGreibachEpsilon_initial_not_output g }
 
-@[simp] theorem toGreibachNormalGrammar_language
+@[important, simp] theorem toGreibachNormalGrammar_language
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (toGreibachNormalGrammar g).language = g.language := by
   change (restoreGreibachEpsilon g).language = g.language
