@@ -7,6 +7,7 @@
     public import Mathling.Grammar.NormalForm.Chomsky.Classical
     public import Mathling.Grammar.NormalForm.Greibach.Conversion
     public import Mathling.Grammar.NormalForm.Greibach.Classical
+    public import Mathling.Grammar.Conversion.Pushdown
 
     public import Mathling.Grammar.Theory.Pumping
     public import LiterateLean
