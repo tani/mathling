@@ -57,13 +57,13 @@ def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.
   {g.initial} ∪ g.rules.biUnion fun r =>
     (ContextFreeRule.nonterminals r).toFinset
 
-@[simp] theorem initial_mem_activeNonterminals (g : ContextFreeGrammar T)
+@[grind ., simp] theorem initial_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT] :
     g.initial ∈ activeNonterminals g := by
   classical
   simp [activeNonterminals]
 
-theorem rule_input_mem_activeNonterminals (g : ContextFreeGrammar T)
+@[grind =>] theorem rule_input_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     r.input ∈ activeNonterminals g := by
@@ -89,7 +89,7 @@ private theorem mem_rhsNonterminals_of_nonterminal_mem
           · exact List.mem_cons.mpr (Or.inl (Symbol.nonterminal.inj hEq))
           · exact List.mem_cons.mpr (Or.inr (ih htail))
 
-theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
+@[grind =>] theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} {A : g.NT} (hr : r ∈ g.rules)
     (hA : Symbol.nonterminal A ∈ r.output) :
@@ -113,7 +113,7 @@ theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
 
 ```lean
 /-- Terminal embedding is injective. -/
-theorem terminalSymbols_injective {u v : List T} :
+@[grind .] theorem terminalSymbols_injective {u v : List T} :
     (terminalSymbols (N := N) u) = terminalSymbols v → u = v := by
   intro h
   induction u generalizing v with
@@ -129,7 +129,7 @@ theorem terminalSymbols_injective {u v : List T} :
           exact congrArg (a :: ·) (ih htail)
 
 /-- A context-free rule cannot rewrite a terminal-only sentential form. -/
-theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
+@[grind .] theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
     {v : List (Symbol T N)} :
     r.Rewrites (terminalSymbols w) v → False := by
   intro h
@@ -140,7 +140,7 @@ theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
       | cons _ htail => exact ih htail
 
 /-- A derivation between terminal-only forms does not change the word. -/
-theorem derives_terminals_eq (g : ContextFreeGrammar T) {u v : List T} :
+@[grind .] theorem derives_terminals_eq (g : ContextFreeGrammar T) {u v : List T} :
     g.Derives (terminalSymbols u) (terminalSymbols v) → u = v := by
   intro h
   rcases h.eq_or_head with heq | ⟨_, ⟨r, _, hr⟩, _⟩

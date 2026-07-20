@@ -63,7 +63,7 @@ private theorem toNPDA_reaches_path (M : NFA α σ) {q q' : σ} {w : List α}
   M.toNPDA_reaches_path_aux h
 
 /-- The stack-free NPDA conversion accepts exactly the NFA language. -/
-@[simp] theorem toNPDA_language (M : NFA α σ) :
+@[grind =, simp] theorem toNPDA_language (M : NFA α σ) :
     M.toNPDA.language = M.accepts := by
   ext w
   rw [NFA.accepts_iff_exists_path]
@@ -96,7 +96,7 @@ def toDPDA (M : DFA α σ) : DPDA α σ PUnit where
   initialStack := []
 
 /-- The stack-free DPDA conversion accepts exactly the DFA language. -/
-@[simp] theorem toDPDA_language (M : DFA α σ) :
+@[grind =, simp] theorem toDPDA_language (M : DFA α σ) :
     M.toDPDA.language = M.accepts := by
   have hconversion : DPDA.toNPDA (DFA.toDPDA M) =
       Mathling.Automata.NFA.toNPDA M.toNFA := by

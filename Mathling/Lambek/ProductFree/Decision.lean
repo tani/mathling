@@ -567,7 +567,7 @@ graph LR
 ```
 
 ```lean
-def translatedProve1 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool :=
+@[grind .] def translatedProve1 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool :=
   prove1 (Γ.map toProductFree) (toProductFree A)
 ```
 
@@ -575,7 +575,7 @@ def translatedProve1 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool 
 断片側の自明に停止するフュエル付き探索の定義に使われる。
 
 ```lean
-def translatedProveAux (toProductFree : α → Tp) (n : Nat) (Γ : List α) (A : α) : Bool :=
+@[grind .] def translatedProveAux (toProductFree : α → Tp) (n : Nat) (Γ : List α) (A : α) : Bool :=
   proveAux n (Γ.map toProductFree) (toProductFree A)
 ```
 
@@ -584,7 +584,7 @@ def translatedProveAux (toProductFree : α → Tp) (n : Nat) (Γ : List α) (A :
 決定手続きの土台となる。
 
 ```lean
-def translatedProve2 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool :=
+@[grind .] def translatedProve2 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool :=
   prove2 (Γ.map toProductFree) (toProductFree A)
 ```
 
@@ -595,7 +595,7 @@ def translatedProve2 (toProductFree : α → Tp) (Γ : List α) (A : α) : Bool 
 まず、深さを1つ増やしても探索の成功が保たれることを示す。
 
 ```lean
-lemma translatedProveAux_mono
+@[grind =>] lemma translatedProveAux_mono
     (toProductFree : α → Tp)
     {n : Nat} {Γ : List α} {A : α}
     (h : translatedProveAux toProductFree n Γ A) :
@@ -606,7 +606,7 @@ lemma translatedProveAux_mono
 同様に、任意の大きい深さへの単調性も `proveAux_mono_le` から移送される。
 
 ```lean
-lemma translatedProveAux_mono_le
+@[grind =>] lemma translatedProveAux_mono_le
     (toProductFree : α → Tp)
     {n m : Nat} {Γ : List α} {A : α}
     (h : n ≤ m) (hp : translatedProveAux toProductFree n Γ A) :
@@ -620,7 +620,7 @@ lemma translatedProveAux_mono_le
 でも成功することを述べる。
 
 ```lean
-lemma translatedProveAux_sound
+@[grind =>] lemma translatedProveAux_sound
     (toProductFree : α → Tp)
     {n : Nat} {Γ : List α} {A : α}
     (h : translatedProveAux toProductFree n Γ A) :
@@ -633,7 +633,7 @@ lemma translatedProveAux_sound
 （`proveAux_complete` の押し出し版）。
 
 ```lean
-lemma translatedProveAux_complete
+@[grind =>] lemma translatedProveAux_complete
     (toProductFree : α → Tp)
     {Γ : List α} {A : α}
     (h : translatedProve1 toProductFree Γ A) :
@@ -645,7 +645,7 @@ lemma translatedProveAux_complete
 `translatedProve1` と `translatedProve2` の同値性がそのまま得られる。
 
 ```lean
-lemma translatedProve1_iff_Prove2
+@[grind .] lemma translatedProve1_iff_Prove2
     (toProductFree : α → Tp)
     {Γ : List α} {A : α} :
     translatedProve1 toProductFree Γ A ↔ translatedProve2 toProductFree Γ A := by
@@ -662,7 +662,7 @@ lemma translatedProve1_iff_Prove2
 断片ファイル側ではこれをそのまま断片自身の `Sequent` として読み替えることができる。
 
 ```lean
-lemma translatedProve1_sound
+@[grind =>] lemma translatedProve1_sound
     (toProductFree : α → Tp)
     {Γ : List α} {A : α}
     (h : translatedProve1 toProductFree Γ A) :
@@ -674,7 +674,7 @@ lemma translatedProve1_sound
 の導出可能性から `translatedProve1` の成功が従うことを、`prove1_complete` の押し出しとして示す。
 
 ```lean
-lemma translatedProve1_complete
+@[grind =>] lemma translatedProve1_complete
     (toProductFree : α → Tp)
     {Γ : List α} {A : α}
     (h : Sequent (Γ.map toProductFree) (toProductFree A)) :
@@ -685,7 +685,7 @@ lemma translatedProve1_complete
 上の健全性・完全性を合わせて、`translatedProve1` と押し出した一般シーケントの同値を得る。
 
 ```lean
-lemma translatedProve1_iff_Sequent
+@[grind .] lemma translatedProve1_iff_Sequent
     (toProductFree : α → Tp)
     {Γ : List α} {A : α} :
     translatedProve1 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by
@@ -712,7 +712,7 @@ lemma translatedProve1_iff_Sequent
 書き直す必要は一切ない。
 
 ```lean
-@[important] theorem translatedProve2_iff_Sequent
+@[important, grind .] theorem translatedProve2_iff_Sequent
     (toProductFree : α → Tp)
     {Γ : List α} {A : α} :
     translatedProve2 toProductFree Γ A ↔ Sequent (Γ.map toProductFree) (toProductFree A) := by

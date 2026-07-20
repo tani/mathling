@@ -30,7 +30,7 @@ abbrev Language.minimalDFA (L : Language α) :
     DFA α (Set.range L.leftQuotient) := L.toDFA
 
 /-- The canonical quotient DFA accepts its defining language. -/
-@[important, simp] theorem Language.minimalDFA_accepts (L : Language α) :
+@[important, grind =, simp] theorem Language.minimalDFA_accepts (L : Language α) :
     (Language.minimalDFA L).accepts = L := by
   change L.toDFA.accepts = L
   exact Language.accepts_toDFA L
@@ -46,7 +46,7 @@ $`L`$ の左商（left quotient）$`L.\mathrm{leftQuotient}`$ は、語 $`u`$ �
 
 ```lean
 /-- The quotient DFA has no more states than any DFA accepting the same language. -/
-@[important] theorem Language.minimalDFA_card_le {α σ : Type*} [Fintype σ]
+@[important, grind .] theorem Language.minimalDFA_card_le {α σ : Type*} [Fintype σ]
     (M : DFA α σ) :
     Nat.card (Set.range M.accepts.leftQuotient) ≤ Fintype.card σ := by
   rw [Language.leftQuotient_accepts]

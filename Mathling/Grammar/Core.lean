@@ -27,10 +27,10 @@ namespace Mathling.Grammar
 abbrev terminalSymbols {T N : Type*} (w : List T) : List (Symbol T N) :=
   w.map Symbol.terminal
 
-@[simp] theorem terminalSymbols_nil {T N : Type*} :
+@[grind =, simp] theorem terminalSymbols_nil {T N : Type*} :
     terminalSymbols (T := T) (N := N) [] = [] := rfl
 
-@[simp] theorem terminalSymbols_cons {T N : Type*} (a : T) (w : List T) :
+@[grind =, simp] theorem terminalSymbols_cons {T N : Type*} (a : T) (w : List T) :
     terminalSymbols (N := N) (a :: w) =
       Symbol.terminal a :: terminalSymbols w := rfl
 
@@ -40,11 +40,11 @@ def Symbol.mapNonterminal {T N M : Type*} (f : N → M) :
   | .terminal a => .terminal a
   | .nonterminal A => .nonterminal (f A)
 
-@[simp] theorem Symbol.mapNonterminal_terminal {T N M : Type*}
+@[grind =, simp] theorem Symbol.mapNonterminal_terminal {T N M : Type*}
     (f : N → M) (a : T) :
     Symbol.mapNonterminal f (.terminal a) = .terminal a := rfl
 
-@[simp] theorem Symbol.mapNonterminal_nonterminal {T N M : Type*}
+@[grind =, simp] theorem Symbol.mapNonterminal_nonterminal {T N M : Type*}
     (f : N → M) (A : N) :
     Symbol.mapNonterminal f (.nonterminal A : Symbol T N) =
       (.nonterminal (f A) : Symbol T M) := rfl
@@ -54,11 +54,11 @@ def ContextFreeRule.mapNonterminal {T N M : Type*} (f : N → M)
     (r : ContextFreeRule T N) : ContextFreeRule T M :=
   { input := f r.input, output := r.output.map (Symbol.mapNonterminal f) }
 
-@[simp] theorem ContextFreeRule.mapNonterminal_input {T N M : Type*}
+@[grind =, simp] theorem ContextFreeRule.mapNonterminal_input {T N M : Type*}
     (f : N → M) (r : ContextFreeRule T N) :
     (ContextFreeRule.mapNonterminal f r).input = f r.input := rfl
 
-@[simp] theorem ContextFreeRule.mapNonterminal_output {T N M : Type*}
+@[grind =, simp] theorem ContextFreeRule.mapNonterminal_output {T N M : Type*}
     (f : N → M) (r : ContextFreeRule T N) :
     (ContextFreeRule.mapNonterminal f r).output =
       r.output.map (Symbol.mapNonterminal f) := rfl
@@ -68,10 +68,10 @@ def Symbol.IsNonterminal {T N : Type*} : Symbol T N → Prop
   | .terminal _ => False
   | .nonterminal _ => True
 
-@[simp] theorem Symbol.isNonterminal_terminal {T N : Type*} (a : T) :
+@[grind =, simp] theorem Symbol.isNonterminal_terminal {T N : Type*} (a : T) :
     Symbol.IsNonterminal (.terminal a : Symbol T N) = False := rfl
 
-@[simp] theorem Symbol.isNonterminal_nonterminal {T N : Type*} (A : N) :
+@[grind =, simp] theorem Symbol.isNonterminal_nonterminal {T N : Type*} (A : N) :
     Symbol.IsNonterminal (.nonterminal A : Symbol T N) = True := rfl
 
 /-- Every symbol in the sentential form is a nonterminal. -/
@@ -131,7 +131,6 @@ structure RightLinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
   rightLinear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsRightLinear r
 
-/-- A context-free grammar in one-symbol left-linear normal form. -/
 ```
 
 ## 証拠付き文法構造
@@ -139,6 +138,7 @@ structure RightLinearGrammar (T : Type*) where
 左右線形文法に加え、Chomsky および Greibach 標準形を、規則形状の全称証明と初期記号が右辺に現れない不変条件ごと束ねる。変換の出力型そのものが、後続定理で必要な整形式を保持する。
 
 ```lean
+/-- A context-free grammar in one-symbol left-linear normal form. -/
 structure LeftLinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
   leftLinear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsLeftLinear r

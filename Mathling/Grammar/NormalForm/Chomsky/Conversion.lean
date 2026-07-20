@@ -44,7 +44,7 @@ def language (g : ChomskyNormalGrammar T) : Language T := g.cfg.language
 /-- Forget the Chomsky-normality evidence. -/
 def toContextFreeGrammar (g : ChomskyNormalGrammar T) : ContextFreeGrammar T := g.cfg
 
-@[simp] theorem toContextFreeGrammar_language (g : ChomskyNormalGrammar T) :
+@[grind =, simp] theorem toContextFreeGrammar_language (g : ChomskyNormalGrammar T) :
     g.toContextFreeGrammar.language = g.language := rfl
 
 /-- Proof-only compatibility for consumers of an arbitrary CNF grammar.
@@ -57,7 +57,7 @@ end ChomskyNormalGrammar
 
 namespace ContextFreeGrammar
 
-inductive FreshStartNT (N : Type*) where
+@[grind cases] inductive FreshStartNT (N : Type*) where
   | start
   | old (A : N)
 deriving DecidableEq, Repr
@@ -111,7 +111,7 @@ def freshStart (g : ContextFreeGrammar T)
     initial := .start
     rules := freshStartRules g }
 
-@[simp] private theorem freshStart_initial (g : ContextFreeGrammar T)
+@[grind =, simp] private theorem freshStart_initial (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (freshStart g).initial = FreshStartNT.start := rfl
 
@@ -163,27 +163,27 @@ def eraseFreshStart (S : N) : FreshStartNT N → N
   | .start => S
   | .old A => A
 
-@[simp] private theorem eraseFreshStart_start (S : N) :
+@[grind =, simp] private theorem eraseFreshStart_start (S : N) :
     eraseFreshStart S (FreshStartNT.start : FreshStartNT N) = S := rfl
 
-@[simp] private theorem eraseFreshStart_old_symbol {T N : Type*} (S : N)
+@[grind =, simp] private theorem eraseFreshStart_old_symbol {T N : Type*} (S : N)
     (x : Symbol T N) :
     Symbol.mapNonterminal (eraseFreshStart S)
       (Symbol.mapNonterminal FreshStartNT.old x) = x := by
   cases x <;> rfl
 
-@[simp] private theorem eraseFreshStart_start_symbol {T N : Type*} (S : N) :
+@[grind =, simp] private theorem eraseFreshStart_start_symbol {T N : Type*} (S : N) :
     Symbol.mapNonterminal (eraseFreshStart S)
       (Symbol.nonterminal (FreshStartNT.start : FreshStartNT N)) =
         (Symbol.nonterminal S : Symbol T N) := rfl
 
-@[simp] private theorem eraseFreshStart_terminal_symbol {T N : Type*}
+@[grind =, simp] private theorem eraseFreshStart_terminal_symbol {T N : Type*}
     (S : N) (a : T) :
     Symbol.mapNonterminal (eraseFreshStart S)
       (Symbol.terminal a : Symbol T (FreshStartNT N)) =
         (Symbol.terminal a : Symbol T N) := rfl
 
-@[simp] private theorem freshStart_old_terminal_symbol {T N : Type*} (a : T) :
+@[grind =, simp] private theorem freshStart_old_terminal_symbol {T N : Type*} (a : T) :
     Symbol.mapNonterminal FreshStartNT.old (Symbol.terminal a : Symbol T N) =
       (Symbol.terminal a : Symbol T (FreshStartNT N)) := rfl
 
@@ -467,7 +467,7 @@ def hasEmptyWord (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] : Bool :=
   decide (g.initial ∈ nullableSet g)
 
-@[simp] theorem hasEmptyWord_eq_true_iff (g : ContextFreeGrammar T)
+@[grind =, simp] theorem hasEmptyWord_eq_true_iff (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     hasEmptyWord g = true ↔ [] ∈ g.language := by
   rw [hasEmptyWord, decide_eq_true_eq, mem_nullableSet_iff]
@@ -658,7 +658,7 @@ def removeEpsilon
     initial := g.initial
     rules := removeEpsilonRules g }
 
-@[simp] private theorem removeEpsilon_initial (g : ContextFreeGrammar T)
+@[grind =, simp] private theorem removeEpsilon_initial (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (removeEpsilon g).initial = g.initial := rfl
 
@@ -1371,7 +1371,7 @@ Helper nonterminals store terminal values directly. Since
 `ContextFreeGrammar.NT` lives in `Type`, the complete conversion using this
 construction is available when the terminal alphabet also lives in `Type`. -/
 
-inductive IsolateNT (T N : Type*) where
+@[grind cases] inductive IsolateNT (T N : Type*) where
   | old (A : N)
   | terminal (a : T)
 deriving DecidableEq, Repr
@@ -1590,7 +1590,7 @@ def expandForm (xs : List (Symbol T (IsolateNT T N))) :
     List (Symbol T N) :=
   xs.flatMap expandSymbol
 
-@[simp] theorem expand_isolateOutput (xs : List (Symbol T N)) :
+@[grind =, simp] theorem expand_isolateOutput (xs : List (Symbol T N)) :
     expandForm (isolateOutput xs) = xs := by
   induction xs with
   | nil => rfl
@@ -1599,7 +1599,7 @@ def expandForm (xs : List (Symbol T (IsolateNT T N))) :
         change _ :: expandForm (isolateOutput xs) = _ :: xs <;>
         rw [ih]
 
-@[simp] private theorem expand_map_old
+@[grind =, simp] private theorem expand_map_old
     (xs : List (Symbol T N)) :
     expandForm (xs.map (Symbol.mapNonterminal IsolateNT.old)) = xs := by
   induction xs with
@@ -1726,7 +1726,7 @@ theorem isolateTerminals_language (g : ContextFreeGrammar T)
 
 /-! ## Binarization of long nonterminal right-hand sides -/
 
-inductive BinaryNT (N : Type*) where
+@[grind cases] inductive BinaryNT (N : Type*) where
   | old (A : N)
   | tail (head : N) (suffix : List N)
 deriving DecidableEq, Repr
@@ -1920,7 +1920,7 @@ theorem symbolsAsNonterminals_some_of_all
           exact ⟨A :: As, by
             simp [symbolsAsNonterminals, symbolAsNonterminal, hAs]⟩
 
-@[simp] private theorem symbolsAsNonterminals_map_nonterminal
+@[grind =, simp] private theorem symbolsAsNonterminals_map_nonterminal
     (ns : List N) :
     symbolsAsNonterminals (T := T) (ns.map Symbol.nonterminal) = some ns := by
   induction ns with
@@ -2112,13 +2112,13 @@ def expandBinaryForm
     (xs : List (Symbol T (BinaryNT N))) : List (Symbol T N) :=
   xs.flatMap expandBinarySymbol
 
-@[simp] private theorem expandBinaryForm_append
+@[grind =, simp] private theorem expandBinaryForm_append
     (xs ys : List (Symbol T (BinaryNT N))) :
     expandBinaryForm (xs ++ ys) =
       expandBinaryForm xs ++ expandBinaryForm ys := by
   simp [expandBinaryForm]
 
-@[simp] private theorem expandBinaryForm_map_old
+@[grind =, simp] private theorem expandBinaryForm_map_old
     (xs : List (Symbol T N)) :
     expandBinaryForm
       (xs.map (Symbol.mapNonterminal BinaryNT.old)) = xs := by
@@ -2139,13 +2139,13 @@ def expandBinaryForm
                 Symbol.nonterminal A :: xs
           exact congrArg (Symbol.nonterminal A :: ·) ih
 
-@[simp] private theorem expandBinaryForm_old_singleton
+@[grind =, simp] private theorem expandBinaryForm_old_singleton
     (A : N) :
     expandBinaryForm (T := T)
       [Symbol.nonterminal (T := T) (BinaryNT.old A)] =
         [Symbol.nonterminal (T := T) A] := rfl
 
-@[simp] private theorem expandBinaryForm_terminalSymbols
+@[grind =, simp] private theorem expandBinaryForm_terminalSymbols
     (w : List T) :
     expandBinaryForm
       (terminalSymbols (N := BinaryNT N) w) =
@@ -2599,7 +2599,7 @@ theorem isolateOutput_allNonterminals
       · trivial
       · exact ih htail
 
-@[simp] theorem isolateOutput_length
+@[grind =, simp] theorem isolateOutput_length
     (xs : List (Symbol T N)) :
     (isolateOutput xs).length = xs.length := by
   induction xs with
@@ -2801,7 +2801,7 @@ inherits a computable linear order. -/
   change LinearOrder (BinaryNT g₄.NT)
   infer_instance
 
-@[important, simp] theorem toChomskyNormalGrammar_language {T : Type}
+@[important, grind =, simp] theorem toChomskyNormalGrammar_language {T : Type}
     [DecidableEq T] (g : ContextFreeGrammar T) [DecidableEq g.NT] :
     (toChomskyNormalGrammar g).language = g.language := by
   let g₁ := freshStart g

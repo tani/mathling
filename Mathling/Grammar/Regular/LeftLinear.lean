@@ -91,7 +91,7 @@ def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T where
     · exact Or.inr (Or.inr ⟨a, A, ContextFreeRule.reverse_output_pair h⟩)
 
 /-- Reversing productions reverses the generated language. -/
-@[simp] theorem reverseRightLinear_language (g : LeftLinearGrammar T) :
+@[grind =, simp] theorem reverseRightLinear_language (g : LeftLinearGrammar T) :
     g.reverseRightLinear.language = g.language.reverse := by
   simp [reverseRightLinear, RightLinearGrammar.language, LeftLinearGrammar.language]
 
@@ -133,7 +133,7 @@ def reverseLeftLinear (g : RightLinearGrammar T) : LeftLinearGrammar T where
     · exact Or.inr (Or.inr ⟨B, a, ContextFreeRule.reverse_output_pair h⟩)
 
 /-- Reversing productions reverses the generated language. -/
-@[simp] theorem reverseLeftLinear_language (g : RightLinearGrammar T) :
+@[grind =, simp] theorem reverseLeftLinear_language (g : RightLinearGrammar T) :
     g.reverseLeftLinear.language = g.language.reverse := by
   simp [reverseLeftLinear, LeftLinearGrammar.language, RightLinearGrammar.language]
 
@@ -150,7 +150,7 @@ end RightLinearGrammar
 /-- Over finite alphabets, regular languages are exactly the left-linear languages
 with a finite nonterminal type: reverse a right-linear witness for the reversed
 language back into a left-linear witness for the original language. -/
-@[important] theorem Language.isRegular_iff_exists_leftLinearGrammar
+@[important, grind =] theorem Language.isRegular_iff_exists_leftLinearGrammar
     {T : Type} [Fintype T] {L : Language T} :
     L.IsRegular ↔
       ∃ g : LeftLinearGrammar T, Nonempty (Fintype g.cfg.NT) ∧ g.language = L := by

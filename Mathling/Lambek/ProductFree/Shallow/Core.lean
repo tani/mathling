@@ -124,21 +124,21 @@ def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
 空文脈の翻訳は自明である。
 
 ```lean
-@[simp] lemma ctxToProductFree_nil :
+@[grind =, simp] lemma ctxToProductFree_nil :
     ctxToProductFree [] = [] := rfl
 ```
 
 先頭要素を付けた文脈の翻訳も簡約できる。
 
 ```lean
-@[simp] lemma ctxToProductFree_cons :
+@[grind =, simp] lemma ctxToProductFree_cons :
     ctxToProductFree (A :: Γ) = A.toProductFree :: ctxToProductFree Γ := rfl
 ```
 
 連結に対して翻訳が分配されることを記録する。
 
 ```lean
-@[simp] lemma ctxToProductFree_append :
+@[grind =, simp] lemma ctxToProductFree_append :
     ctxToProductFree (Γ ++ Δ) = ctxToProductFree Γ ++ ctxToProductFree Δ := by
   simp [ctxToProductFree]
 ```
@@ -163,7 +163,7 @@ namespace Sequent
 公理規則は翻訳先の公理からそのまま従う。
 
 ```lean
-theorem ax : Sequent [A] A := by
+@[grind .] theorem ax : Sequent [A] A := by
   simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.Sequent.ax :
       Mathling.Lambek.ProductFree.Sequent [A.toProductFree] A.toProductFree)
@@ -172,7 +172,7 @@ theorem ax : Sequent [A] A := by
 左除法の右規則も翻訳先から持ち上げる。
 
 ```lean
-theorem ldiv_r
+@[grind =>] theorem ldiv_r
   (h_ne : Γ ≠ [])
   (h : Sequent ([Tp.atom A] ++ Γ) (Tp.atom B)) :
   Sequent Γ (Tp.ldiv A B) := by
@@ -184,7 +184,7 @@ theorem ldiv_r
 右除法の右規則では非空性と前提の翻訳を明示する。
 
 ```lean
-theorem rdiv_r
+@[grind =>] theorem rdiv_r
   (h_ne : Γ ≠ [])
   (h : Sequent (Γ ++ [Tp.atom A]) (Tp.atom B)) :
   Sequent Γ (Tp.rdiv B A) := by
@@ -207,7 +207,7 @@ theorem rdiv_r
 左除法の左規則も翻訳先の規則から再利用する。
 
 ```lean
-theorem ldiv_l
+@[grind =>] theorem ldiv_l
   (h_arg : Sequent Δ (Tp.atom A))
   (h_main : Sequent (Γ ++ [Tp.atom B] ++ Λ) C) :
   Sequent (Γ ++ Δ ++ [Tp.ldiv A B] ++ Λ) C := by
@@ -230,7 +230,7 @@ theorem ldiv_l
 右除法の左規則も同様に翻訳から得る。
 
 ```lean
-theorem rdiv_l
+@[grind =>] theorem rdiv_l
   (h_arg : Sequent Δ (Tp.atom A))
   (h_main : Sequent (Γ ++ [Tp.atom B] ++ Λ) C) :
   Sequent (Γ ++ [Tp.rdiv B A] ++ Δ ++ Λ) C := by
@@ -309,7 +309,7 @@ theorem cut_admissible
 左除法の右規則の逆転可能性を再輸出する。
 
 ```lean
-theorem ldiv_invertible {Γ : List Tp} {A B : String}
+@[grind =>] theorem ldiv_invertible {Γ : List Tp} {A B : String}
   (h : Sequent Γ (Tp.ldiv A B)) :
   Sequent ([Tp.atom A] ++ Γ) (Tp.atom B) := by
   simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
@@ -323,7 +323,7 @@ theorem ldiv_invertible {Γ : List Tp} {A B : String}
 右除法についても同じく逆転可能性を得る。
 
 ```lean
-theorem rdiv_invertible {Γ : List Tp} {A B : String}
+@[grind =>] theorem rdiv_invertible {Γ : List Tp} {A B : String}
   (h : Sequent Γ (Tp.rdiv B A)) :
   Sequent (Γ ++ [Tp.atom A]) (Tp.atom B) := by
   simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
@@ -346,7 +346,7 @@ def is_atom : Tp → Prop
 原子式だけからなる文脈では、導出できる原子式は公理の場合に限られる。
 
 ```lean
-theorem atom_generation
+@[grind =>] theorem atom_generation
   (h_ctx : ∀ x ∈ Γ, is_atom x)
   (h_der : Sequent Γ (Tp.atom s)) :
   Γ = [Tp.atom s] := by

@@ -29,7 +29,7 @@ universe u
 variable {T : Type u}
 
 /-- A nonempty derivation tree for a grammar in Chomsky normal form. -/
-inductive ParseTree (g : ChomskyNormalGrammar T) : g.cfg.NT → Type u where
+@[grind cases] inductive ParseTree (g : ChomskyNormalGrammar T) : g.cfg.NT → Type u where
   | leaf (A : g.cfg.NT) (a : T)
       (h : ({ input := A, output := [Symbol.terminal a] } :
         ContextFreeRule T g.cfg.NT) ∈ g.cfg.rules) : ParseTree g A
@@ -52,11 +52,11 @@ def height {g : ChomskyNormalGrammar T} {A : g.cfg.NT} :
   | .leaf _ _ _ => 1
   | .node _ _ _ _ l r => 1 + max (height l) (height r)
 
-@[simp] theorem one_le_height {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
+@[grind ., simp] theorem one_le_height {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) : 1 ≤ height t := by
   cases t <;> simp [height]
 
-@[simp] theorem one_le_yield_length {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
+@[grind ., simp] theorem one_le_yield_length {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) : 1 ≤ (yield t).length := by
   induction t with
   | leaf => simp [yield]
@@ -112,7 +112,7 @@ theorem yield_derives {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
 end ParseTree
 
 /-- A typed one-hole context in a CNF parse tree. -/
-inductive ParseCtx (g : ChomskyNormalGrammar T) : g.cfg.NT → g.cfg.NT → Type u where
+@[grind cases] inductive ParseCtx (g : ChomskyNormalGrammar T) : g.cfg.NT → g.cfg.NT → Type u where
   | hole (A : g.cfg.NT) : ParseCtx g A A
   | left (A B C X : g.cfg.NT)
       (h : ({ input := A, output := [Symbol.nonterminal B, Symbol.nonterminal C] } :
@@ -167,7 +167,7 @@ def IsProper {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
   | .left _ _ _ _ _ _ _ => True
   | .right _ _ _ _ _ _ _ => True
 
-@[simp] theorem yield_plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
+@[grind =, simp] theorem yield_plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
     (c : ParseCtx g A X) (t : ParseTree g X) :
     ParseTree.yield (plug c t) =
       preYield c ++ ParseTree.yield t ++ postYield c := by
@@ -178,7 +178,7 @@ def IsProper {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
   | right A B C X h l c ih =>
       simp [plug, ParseTree.yield, preYield, postYield, ih, List.append_assoc]
 
-@[simp] theorem height_plug_le {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
+@[grind ., simp] theorem height_plug_le {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
     (c : ParseCtx g A X) (t : ParseTree g X) :
     ParseTree.height (plug c t) ≤ ctxHeight c + ParseTree.height t := by
   induction c with
@@ -218,7 +218,7 @@ def compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT} :
   | .left A B C X h c r, d => .left A B C Y h (compose c d) r
   | .right A B C X h l c, d => .right A B C Y h l (compose c d)
 
-@[simp] theorem plug_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
+@[grind =, simp] theorem plug_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
     (c : ParseCtx g A X) (d : ParseCtx g X Y) (t : ParseTree g Y) :
     plug (compose c d) t = plug c (plug d t) := by
   induction c with
@@ -226,7 +226,7 @@ def compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT} :
   | left A B C X h c r ih => simp [compose, plug, ih]
   | right A B C X h l c ih => simp [compose, plug, ih]
 
-@[simp] theorem preYield_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
+@[grind =, simp] theorem preYield_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
     (c : ParseCtx g A X) (d : ParseCtx g X Y) :
     preYield (compose c d) = preYield c ++ preYield d := by
   induction c with
@@ -235,7 +235,7 @@ def compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT} :
   | right A B C X h l c ih =>
       simp [compose, preYield, ih, List.append_assoc]
 
-@[simp] theorem postYield_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
+@[grind =, simp] theorem postYield_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
     (c : ParseCtx g A X) (d : ParseCtx g X Y) :
     postYield (compose c d) = postYield d ++ postYield c := by
   induction c with
@@ -302,7 +302,7 @@ theorem ParseTree.exists_subtree_height_eq
             by simp [ParseCtx.plug, hplug], hs⟩
 
 /-- A root-to-leaf branch, represented by its successive parse-tree roots. -/
-inductive Spine (g : ChomskyNormalGrammar T) :
+@[grind cases] inductive Spine (g : ChomskyNormalGrammar T) :
     {A : g.cfg.NT} → ParseTree g A → Type u where
   | stop (A : g.cfg.NT) (t : ParseTree g A) : Spine g t
   | downLeft (A B C : g.cfg.NT)
@@ -337,7 +337,7 @@ def longest {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
         .downRight A B C h l r (longest r)
 termination_by sizeOf t
 
-@[simp] theorem vars_longest_length
+@[grind =, simp] theorem vars_longest_length
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) : (vars (longest t)).length = t.height := by
   induction t with
@@ -622,7 +622,7 @@ private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
       (List.replicate i w).flatten ++ w := by
   simpa [List.replicate_succ] using append_flatten_replicate_comm w i
 
-@[simp] theorem ParseCtx.yield_nest
+@[grind =, simp] theorem ParseCtx.yield_nest
     {g : ChomskyNormalGrammar T} {X : g.cfg.NT}
     (c : ParseCtx g X X) (s : ParseTree g X) (i : Nat) :
     (c.nest s i).yield =

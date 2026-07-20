@@ -78,7 +78,7 @@ def toNFA (g : RightLinearGrammar T) : Mathling.Automata.NFA T (Option g.cfg.NT)
 
 ```lean
 
-private inductive GeneratesFrom (g : RightLinearGrammar T) :
+@[grind cases] private inductive GeneratesFrom (g : RightLinearGrammar T) :
     g.cfg.NT → List T → Prop
   | epsilon {A}
       (h : ({ input := A, output := [] } : ContextFreeRule T g.cfg.NT) ∈ g.cfg.rules) :
@@ -274,7 +274,7 @@ private theorem path_accept_generatesFrom (g : RightLinearGrammar T)
 ```lean
 
 /-- The NFA construction accepts exactly the grammar's language. -/
-@[important, simp] theorem toNFA_language (g : RightLinearGrammar T) :
+@[important, grind =, simp] theorem toNFA_language (g : RightLinearGrammar T) :
     g.toNFA.accepts = g.language := by
   ext w
   rw [_root_.NFA.accepts_iff_exists_path]
@@ -447,7 +447,7 @@ private theorem generatesFrom_toRightLinearGrammar_iff
         · exact ih (M.step q a) (by simpa using hq)
 
 /-- The grammar constructed from a finite DFA generates exactly its language. -/
-@[important, simp] theorem toRightLinearGrammar_language [Fintype T] [Fintype σ]
+@[important, grind =, simp] theorem toRightLinearGrammar_language [Fintype T] [Fintype σ]
     [DecidableEq T] [DecidableEq σ] (M : Mathling.Automata.DFA T σ)
     [DecidablePred (· ∈ M.accept)] :
     (toRightLinearGrammar M).language = M.accepts := by
@@ -472,7 +472,7 @@ namespace Mathling.Grammar
 
 /-- Over finite alphabets, regular languages are exactly the right-linear languages
 with a finite nonterminal type. -/
-@[important] theorem Language.isRegular_iff_exists_rightLinearGrammar
+@[important, grind =] theorem Language.isRegular_iff_exists_rightLinearGrammar
     {T : Type} [Fintype T] {L : Language T} :
     L.IsRegular ↔
       ∃ g : RightLinearGrammar T, Nonempty (Fintype g.cfg.NT) ∧ g.language = L := by

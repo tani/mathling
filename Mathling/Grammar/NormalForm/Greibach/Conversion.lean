@@ -35,7 +35,7 @@ def language (g : GreibachNormalGrammar T) : Language T := g.cfg.language
 /-- Forget the Greibach-normality evidence. -/
 def toContextFreeGrammar (g : GreibachNormalGrammar T) : ContextFreeGrammar T := g.cfg
 
-@[simp] theorem toContextFreeGrammar_language (g : GreibachNormalGrammar T) :
+@[grind =, simp] theorem toContextFreeGrammar_language (g : GreibachNormalGrammar T) :
     g.toContextFreeGrammar.language = g.language := rfl
 
 end GreibachNormalGrammar
@@ -44,7 +44,7 @@ namespace ContextFreeGrammar
 
 variable [LinearOrder T]
 
-inductive GreibachWorkNT (n : Nat) where
+@[grind cases] inductive GreibachWorkNT (n : Nat) where
   | base (i : Fin n)
   | recursive (i : Fin n)
 deriving DecidableEq, Repr
@@ -222,7 +222,7 @@ theorem nonemptyCNF_language_nonempty
     (filterEmptyRules (toChomskyNormalGrammar g).cfg).language ↔ _
   rw [filterEmptyRules_language_nonempty _ hw]
   simp
-@[simp] private theorem nonemptyCNF_hasEmpty
+@[grind =, simp] private theorem nonemptyCNF_hasEmpty
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (nonemptyCNF g).hasEmpty = true ↔ [] ∈ g.language := by
   rw [(nonemptyCNF g).hasEmpty_iff]
@@ -3109,7 +3109,7 @@ namespace ContextFreeGrammar
 
 variable [LinearOrder T]
 
-inductive GreibachStartNT (N : Type*) where
+@[grind cases] inductive GreibachStartNT (N : Type*) where
   | start
   | old (A : N)
 deriving DecidableEq, Repr
@@ -3710,7 +3710,7 @@ def toGreibachNormalGrammar
     greibachNormal := restoreGreibachEpsilon_greibach g
     initial_not_output := restoreGreibachEpsilon_initial_not_output g }
 
-@[important, simp] theorem toGreibachNormalGrammar_language
+@[important, grind =, simp] theorem toGreibachNormalGrammar_language
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (toGreibachNormalGrammar g).language = g.language := by
   change (restoreGreibachEpsilon g).language = g.language

@@ -104,20 +104,20 @@ def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
 空文脈の翻訳は自明である。
 
 ```lean
-@[simp] lemma ctxToProductFree_nil : ctxToProductFree [] = [] := rfl
+@[grind =, simp] lemma ctxToProductFree_nil : ctxToProductFree [] = [] := rfl
 ```
 
 先頭要素を付けた文脈の翻訳も簡約できる。
 
 ```lean
-@[simp] lemma ctxToProductFree_cons :
+@[grind =, simp] lemma ctxToProductFree_cons :
     ctxToProductFree (A :: Γ) = A.toProductFree :: ctxToProductFree Γ := rfl
 ```
 
 連結についても翻訳が分配される。
 
 ```lean
-@[simp] lemma ctxToProductFree_append :
+@[grind =, simp] lemma ctxToProductFree_append :
     ctxToProductFree (Γ ++ Δ) = ctxToProductFree Γ ++ ctxToProductFree Δ := by
   simp [ctxToProductFree]
 ```
@@ -140,7 +140,7 @@ namespace Sequent
 公理規則は翻訳先の公理そのものである。
 
 ```lean
-theorem ax : Sequent [A] A := by
+@[grind .] theorem ax : Sequent [A] A := by
   simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.Sequent.ax :
       Mathling.Lambek.ProductFree.Sequent [A.toProductFree] A.toProductFree)
@@ -149,7 +149,7 @@ theorem ax : Sequent [A] A := by
 右導入規則は right 断片側の定理を持ち上げる。
 
 ```lean
-theorem rdiv_r
+@[grind =>] theorem rdiv_r
   (h_ne : Γ ≠ [])
   (h : Sequent (Γ ++ [Tp.atom A]) (Tp.atom B)) :
   Sequent Γ (Tp.rdiv B A) := by
@@ -171,7 +171,7 @@ theorem rdiv_r
 左導入規則も翻訳先からそのまま再利用する。
 
 ```lean
-theorem rdiv_l
+@[grind =>] theorem rdiv_l
   (h_arg : Sequent Δ (Tp.atom A))
   (h_main : Sequent (Γ ++ [Tp.atom B] ++ Λ) C) :
   Sequent (Γ ++ [Tp.rdiv B A] ++ Δ ++ Λ) C := by
@@ -229,7 +229,7 @@ lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
 カット許容性は right 断片での結果を翻訳して得る。
 
 ```lean
-@[important] theorem cut_admissible
+@[important, grind =>] theorem cut_admissible
   {Γ Δ Λ : List Tp} {A B : Tp}
   (d_left : Sequent Γ A)
   (d_right : Sequent (Δ ++ [A] ++ Λ) B) :
@@ -248,7 +248,7 @@ lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
 右除法の右規則の逆転可能性も再輸出する。
 
 ```lean
-theorem rdiv_invertible {Γ : List Tp} {B A : String}
+@[grind =>] theorem rdiv_invertible {Γ : List Tp} {B A : String}
   (h : Sequent Γ (Tp.rdiv B A)) :
   Sequent (Γ ++ [Tp.atom A]) (Tp.atom B) := by
   simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
@@ -270,7 +270,7 @@ def is_atom (A : Tp) : Prop :=
 原子式のみの文脈から導出できる原子式は公理の場合に限られる。
 
 ```lean
-theorem atom_generation {Γ : List Tp} {s : String}
+@[grind =>] theorem atom_generation {Γ : List Tp} {s : String}
   (h_ctx : ∀ x ∈ Γ, is_atom x)
   (h_der : Sequent Γ (Tp.atom s)) :
   Γ = [Tp.atom s] := by

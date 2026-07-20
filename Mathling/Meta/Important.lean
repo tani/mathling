@@ -26,7 +26,7 @@ namespace Mathling.Meta
 readers. It has no effect on elaboration, `simp`, or any other tactic — it only
 records that the declaration was tagged. Query tagged declarations with
 `Mathling.Meta.importantAttr.hasTag`. -/
-initialize importantAttr : Lean.TagAttribute ←
+public meta initialize importantAttr : Lean.TagAttribute ←
   Lean.registerTagAttribute `important
     "marks a declaration as important; purely documentational, has no effect"
 

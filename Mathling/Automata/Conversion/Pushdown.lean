@@ -37,7 +37,7 @@ variable {α State Stack : Type*}
 abbrev ID (α State Stack : Type*) := List α × State × List Stack
 
 /-- One consuming or epsilon transition of an NPDA. -/
-inductive Step (M : NPDA α State Stack) : ID α State Stack → ID α State Stack → Prop
+@[grind cases] inductive Step (M : NPDA α State Stack) : ID α State Stack → ID α State Stack → Prop
   | consume {a input q stack q' stack'}
       (h : (q', stack') ∈ M.step q (some a) stack) :
       Step M (a :: input, q, stack) (input, q', stack')
@@ -95,7 +95,7 @@ def toNPDA (M : DPDA α State Stack) : NPDA α State Stack where
 def language (M : DPDA α State Stack) : Language α := M.toNPDA.language
 
 /-- Forgetting determinism preserves a DPDA's language. -/
-@[simp] theorem toNPDA_language (M : DPDA α State Stack) :
+@[grind =, simp] theorem toNPDA_language (M : DPDA α State Stack) :
     M.toNPDA.language = M.language := rfl
 
 end DPDA
@@ -123,7 +123,7 @@ stateDiagram-v2
 
 ```lean
 /-- The phase of a one-turn pushdown computation. -/
-inductive TurnPhase where
+@[grind cases] inductive TurnPhase where
   | push
   | pop
   deriving Repr, DecidableEq
@@ -163,7 +163,7 @@ def toNPDA (M : OneTurnNPDA α State Stack) : NPDA α (State × TurnPhase) Stack
 def language (M : OneTurnNPDA α State Stack) : Language α := M.toNPDA.language
 
 /-- Forgetting the one-turn invariants preserves the accepted language. -/
-@[simp] theorem toNPDA_language (M : OneTurnNPDA α State Stack) :
+@[grind =, simp] theorem toNPDA_language (M : OneTurnNPDA α State Stack) :
     M.toNPDA.language = M.language := rfl
 
 end OneTurnNPDA

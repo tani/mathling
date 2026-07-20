@@ -37,7 +37,7 @@ noncomputable def toGreibachNormalGrammar {T : Type}
 したがって公開等式は計算可能な変換本体の保存定理へそのまま簡約される。
 
 ```lean
-@[important, simp] theorem toGreibachNormalGrammar_language {T : Type}
+@[important, grind =, simp] theorem toGreibachNormalGrammar_language {T : Type}
     (g : ContextFreeGrammar T) :
     (Classical.toGreibachNormalGrammar g).language = g.language := by
   classical

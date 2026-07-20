@@ -35,15 +35,15 @@ abbrev NFA (α σ : Type*) := _root_.NFA α σ
 abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
 
 /-- Converting a DFA to an NFA preserves its language. -/
-@[simp] theorem DFA.toNFA_language {α σ : Type*} (M : DFA α σ) :
+@[grind =, simp] theorem DFA.toNFA_language {α σ : Type*} (M : DFA α σ) :
     M.toNFA.accepts = M.accepts := _root_.DFA.toNFA_correct M
 
 /-- Determinizing an NFA preserves its language. -/
-@[simp] theorem NFA.toDFA_language {α σ : Type*} (M : NFA α σ) :
+@[grind =, simp] theorem NFA.toDFA_language {α σ : Type*} (M : NFA α σ) :
     M.toDFA.accepts = M.accepts := _root_.NFA.toDFA_correct
 
 /-- Removing epsilon transitions preserves an epsilon-NFA's language. -/
-@[simp] theorem εNFA.toNFA_language {α σ : Type*} (M : εNFA α σ) :
+@[grind =, simp] theorem εNFA.toNFA_language {α σ : Type*} (M : εNFA α σ) :
     M.toNFA.accepts = M.accepts := _root_.εNFA.toNFA_correct M
 
 ```
@@ -56,7 +56,7 @@ abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
 
 ```lean
 /-- A language is regular exactly when some finite-state NFA accepts it. -/
-@[important] theorem Language.isRegular_iff_nfa {α : Type*} {L : Language α} :
+@[important, grind =] theorem Language.isRegular_iff_nfa {α : Type*} {L : Language α} :
     L.IsRegular ↔ ∃ σ : Type*, ∃ _ : Fintype σ, ∃ M : NFA α σ, M.accepts = L := by
   constructor
   · rintro h

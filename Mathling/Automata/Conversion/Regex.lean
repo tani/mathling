@@ -64,20 +64,20 @@ $`\mathrm{language} : \mathrm{RegularExpression}\,\alpha \to \mathrm{Language}\,
 abbrev language (r : RegularExpression α) : Language α :=
   _root_.RegularExpression.matches' r
 
-@[simp] theorem language_empty : language (empty : RegularExpression α) = 0 := rfl
+@[grind =, simp] theorem language_empty : language (empty : RegularExpression α) = 0 := rfl
 
-@[simp] theorem language_epsilon : language (epsilon : RegularExpression α) = 1 := rfl
+@[grind =, simp] theorem language_epsilon : language (epsilon : RegularExpression α) = 1 := rfl
 
-@[simp] theorem language_symbol (a : α) :
+@[grind =, simp] theorem language_symbol (a : α) :
     language (symbol a) = ({[a]} : Language α) := rfl
 
-@[simp] theorem language_union (r s : RegularExpression α) :
+@[grind =, simp] theorem language_union (r s : RegularExpression α) :
     language (union r s) = language r + language s := rfl
 
-@[simp] theorem language_concat (r s : RegularExpression α) :
+@[grind =, simp] theorem language_concat (r s : RegularExpression α) :
     language (concat r s) = language r * language s := rfl
 
-@[simp] theorem language_star (r : RegularExpression α) :
+@[grind =, simp] theorem language_star (r : RegularExpression α) :
     language (star r) = (language r)∗ := rfl
 ```
 
@@ -91,7 +91,7 @@ abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : B
   _root_.RegularExpression.rmatch r w
 
 /-- The executable matcher recognizes exactly the denoted language. -/
-@[important, simp] theorem matches_iff_mem_language [DecidableEq α]
+@[important, grind =, simp] theorem matches_iff_mem_language [DecidableEq α]
     (r : RegularExpression α) (w : List α) :
     «matches» r w ↔ w ∈ language r :=
   _root_.RegularExpression.rmatch_iff_matches' r w

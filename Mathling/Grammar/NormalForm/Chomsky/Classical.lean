@@ -37,7 +37,7 @@ noncomputable def toChomskyNormalGrammar {T : Type}
 言語保存定理へ簡約できる。選ばれた順序の具体的な値は等式の両辺に観測されない。
 
 ```lean
-@[important, simp] theorem toChomskyNormalGrammar_language {T : Type}
+@[important, grind =, simp] theorem toChomskyNormalGrammar_language {T : Type}
     (g : ContextFreeGrammar T) :
     (Classical.toChomskyNormalGrammar g).language = g.language := by
   classical
