@@ -2,6 +2,7 @@
 
     public import Mathling.Grammar.NormalForm.Greibach.Classical
     public import Mathling.Grammar.Conversion.Pushdown
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -27,7 +28,7 @@ generates it. Forward: every context-free grammar has a language-preserving
 Greibach-normal presentation (`ContextFreeGrammar.Classical.toGreibachNormalGrammar`).
 Backward: forgetting Greibach-normality evidence returns a plain context-free
 grammar for the same language. -/
-theorem isContextFree_iff_exists_greibachNormalGrammar {T : Type} {L : Language T} :
+@[important] theorem isContextFree_iff_exists_greibachNormalGrammar {T : Type} {L : Language T} :
     L.IsContextFree ↔ ∃ g : GreibachNormalGrammar T, g.language = L := by
   constructor
   · rintro ⟨g, rfl⟩
@@ -40,7 +41,7 @@ theorem isContextFree_iff_exists_greibachNormalGrammar {T : Type} {L : Language 
 finite local NPDA, both state and stack alphabets being existential witnesses.
 This composes `isContextFree_iff_exists_greibachNormalGrammar` with the general
 context-free/pushdown equivalence `isContextFree_iff_exists_npda`. -/
-theorem exists_greibachNormalGrammar_iff_exists_npda {T : Type} {L : Language T} :
+@[important] theorem exists_greibachNormalGrammar_iff_exists_npda {T : Type} {L : Language T} :
     (∃ g : GreibachNormalGrammar T, g.language = L) ↔
       ∃ State Stack : Type, ∃ M : NPDA T State Stack, M.language = L := by
   rw [← isContextFree_iff_exists_greibachNormalGrammar]

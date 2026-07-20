@@ -1,6 +1,7 @@
     module
 
     public import Mathling.Grammar.NormalForm.Greibach.Conversion
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -28,7 +29,7 @@ noncomputable def toGreibachNormalGrammar {T : Type}
   letI : LinearOrder g.NT := linearOrderOfSTO WellOrderingRel
   exact _root_.Mathling.Grammar.ContextFreeGrammar.toGreibachNormalGrammar g
 
-@[simp] theorem toGreibachNormalGrammar_language {T : Type}
+@[important, simp] theorem toGreibachNormalGrammar_language {T : Type}
     (g : ContextFreeGrammar T) :
     (Classical.toGreibachNormalGrammar g).language = g.language := by
   classical

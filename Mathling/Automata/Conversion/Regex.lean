@@ -2,6 +2,7 @@
 
     public import Mathling.Automata.Core
     public import Mathlib.Computability.RegularExpressions
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -74,7 +75,7 @@ abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : B
   _root_.RegularExpression.rmatch r w
 
 /-- The executable matcher recognizes exactly the denoted language. -/
-@[simp] theorem matches_iff_mem_language [DecidableEq α]
+@[important, simp] theorem matches_iff_mem_language [DecidableEq α]
     (r : RegularExpression α) (w : List α) :
     «matches» r w ↔ w ∈ language r :=
   _root_.RegularExpression.rmatch_iff_matches' r w

@@ -4,6 +4,7 @@
     public import Mathlib.Data.List.Basic
     public import Mathling.Lambek.ProductFree.Core
     public import Lean.LibrarySuggestions.Default
+    public import Mathling.Meta.Important
     public import LiterateLean
     open scoped LiterateLean
 
@@ -504,7 +505,7 @@ lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
  `prove2` もシーケントの導出可能性と同値であることがわかる。
 
 ```lean
-@[grind .]
+@[important, grind .]
 theorem prove2_iff_sequent : prove2 Γ A ↔ Γ ⇒ A := by grind
 ```
 

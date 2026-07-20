@@ -3,6 +3,7 @@
     public import Mathling.Grammar.Core
     public import Mathling.Automata.Core
     public import Mathlib.Data.Fintype.Option
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -401,7 +402,7 @@ namespace Mathling.Grammar
 
 /-- Over finite alphabets, regular languages are exactly the right-linear languages
 with a finite nonterminal type. -/
-theorem Language.isRegular_iff_exists_rightLinearGrammar
+@[important] theorem Language.isRegular_iff_exists_rightLinearGrammar
     {T : Type} [Fintype T] {L : Language T} :
     L.IsRegular ↔
       ∃ g : RightLinearGrammar T, Nonempty (Fintype g.cfg.NT) ∧ g.language = L := by

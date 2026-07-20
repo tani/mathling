@@ -3,6 +3,7 @@
     public import Mathling.Automata.Core
     public import Mathlib.Computability.MyhillNerode
     public import Mathlib.Data.Finite.Card
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -36,7 +37,7 @@ abbrev Language.minimalDFA (L : Language α) :
 
 
 /-- The quotient DFA has no more states than any DFA accepting the same language. -/
-theorem Language.minimalDFA_card_le {α σ : Type*} [Fintype σ]
+@[important] theorem Language.minimalDFA_card_le {α σ : Type*} [Fintype σ]
     (M : DFA α σ) :
     Nat.card (Set.range M.accepts.leftQuotient) ≤ Fintype.card σ := by
   rw [Language.leftQuotient_accepts]

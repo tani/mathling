@@ -3,6 +3,7 @@
     public import Mathlib.Computability.DFA
     public import Mathlib.Computability.NFA
     public import Mathlib.Computability.EpsilonNFA
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -46,7 +47,7 @@ abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
     M.toNFA.accepts = M.accepts := _root_.εNFA.toNFA_correct M
 
 /-- A language is regular exactly when some finite-state NFA accepts it. -/
-theorem Language.isRegular_iff_nfa {α : Type*} {L : Language α} :
+@[important] theorem Language.isRegular_iff_nfa {α : Type*} {L : Language α} :
     L.IsRegular ↔ ∃ σ : Type*, ∃ _ : Fintype σ, ∃ M : NFA α σ, M.accepts = L := by
   constructor
   · rintro h

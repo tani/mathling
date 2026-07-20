@@ -1,6 +1,7 @@
     module
 
     public import Mathling.Grammar.NormalForm.Chomsky.Conversion
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -28,7 +29,7 @@ noncomputable def toChomskyNormalGrammar {T : Type}
   letI : LinearOrder g.NT := linearOrderOfSTO WellOrderingRel
   exact _root_.Mathling.Grammar.ContextFreeGrammar.toChomskyNormalGrammar g
 
-@[simp] theorem toChomskyNormalGrammar_language {T : Type}
+@[important, simp] theorem toChomskyNormalGrammar_language {T : Type}
     (g : ContextFreeGrammar T) :
     (Classical.toChomskyNormalGrammar g).language = g.language := by
   classical

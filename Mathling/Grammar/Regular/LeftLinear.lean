@@ -1,6 +1,7 @@
     module
 
     public import Mathling.Grammar.Regular.RightLinear
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -117,7 +118,7 @@ end RightLinearGrammar
 /-- Over finite alphabets, regular languages are exactly the left-linear languages
 with a finite nonterminal type: reverse a right-linear witness for the reversed
 language back into a left-linear witness for the original language. -/
-theorem Language.isRegular_iff_exists_leftLinearGrammar
+@[important] theorem Language.isRegular_iff_exists_leftLinearGrammar
     {T : Type} [Fintype T] {L : Language T} :
     L.IsRegular ↔
       ∃ g : LeftLinearGrammar T, Nonempty (Fintype g.cfg.NT) ∧ g.language = L := by

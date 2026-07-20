@@ -4,6 +4,7 @@
     public import Mathlib.Data.List.Basic
     public import Mathling.Lambek.ProductFree.Left.Shallow.Core
     public import Mathling.Lambek.ProductFree.Decision
+    public import Mathling.Meta.Important
     public import LiterateLean
     open scoped LiterateLean
 
@@ -36,7 +37,7 @@ def prove2 (Γ : List Tp) (A : Tp) : Bool :=
 ```
 
 ```lean
-@[grind .]
+@[important, grind .]
 theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
   simpa [prove2, Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.translatedProve2_iff_Sequent

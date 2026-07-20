@@ -4,6 +4,7 @@
     public import Mathlib.Data.List.Basic
     public import Mathling.Lambek.ProductFree.Decision
     public import Mathling.Lambek.ProductFree.Shallow.Core
+    public import Mathling.Meta.Important
     public import LiterateLean
     open scoped LiterateLean
 
@@ -135,7 +136,7 @@ lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := b
 `prove2` についても同じ同値を使える。
 
 ```lean
-@[grind .]
+@[important, grind .]
 theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
   rw [← prove1_iff_prove2, prove1_iff_sequent]
 ```

@@ -2,6 +2,7 @@
 
     public import Mathling.Grammar.ContextFree
     public import Mathling.Automata.Conversion.Pushdown
+    public import Mathling.Meta.Important
 
     public import LiterateLean
     open scoped LiterateLean
@@ -751,7 +752,7 @@ open Mathling.Automata Mathling.Grammar
 
 /-- A language is context-free exactly when some standard finite local NPDA
 accepts it. Both machine state and stack alphabets are existential witnesses. -/
-theorem isContextFree_iff_exists_npda {T : Type} {L : Language T} :
+@[important] theorem isContextFree_iff_exists_npda {T : Type} {L : Language T} :
     L.IsContextFree ↔
       ∃ State Stack : Type, ∃ M : NPDA T State Stack, M.language = L := by
   constructor
