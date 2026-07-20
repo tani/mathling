@@ -1,6 +1,10 @@
-import Mathling.Grammar.ChomskyNormal
-import Mathlib.Data.Fintype.EquivFin
-import Mathlib.Data.Finset.Union
+module
+
+public import Mathling.Grammar.ChomskyNormal
+public import Mathlib.Data.Fintype.EquivFin
+public import Mathlib.Data.Finset.Union
+
+@[expose] public section
 
 /-!
 # Greibach normal form
@@ -29,39 +33,39 @@ namespace ContextFreeGrammar
 
 variable [LinearOrder T]
 
-private inductive GreibachWorkNT (n : Nat) where
+inductive GreibachWorkNT (n : Nat) where
   | base (i : Fin n)
   | recursive (i : Fin n)
 deriving DecidableEq, Repr
 
-private structure GreibachWorkGrammar (T : Type*) (n : Nat) where
+structure GreibachWorkGrammar (T : Type*) (n : Nat) where
   initial : GreibachWorkNT n
   rules : Finset (ContextFreeRule T (GreibachWorkNT n))
 
-private abbrev GreibachWorkGrammar.toCFG
+abbrev GreibachWorkGrammar.toCFG
     (G : GreibachWorkGrammar T n) : ContextFreeGrammar T :=
   { NT := GreibachWorkNT n
     initial := G.initial
     rules := G.rules }
 
-private abbrev filterEmptyRules (g : ContextFreeGrammar T)
+abbrev filterEmptyRules (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] : ContextFreeGrammar T :=
   { NT := g.NT
     initial := g.initial
     rules := g.rules.filter fun r => r.output ≠ [] }
 
-private structure NonemptyCNF (T : Type*) where
+structure NonemptyCNF (T : Type*) where
   source : ChomskyNormalGrammar T
   grammar : ChomskyNormalGrammar T
   hasEmpty : Bool
   hasEmpty_iff : hasEmpty = true ↔ [] ∈ source.language
   no_empty_rules : ∀ r ∈ grammar.cfg.rules, r.output ≠ []
-private def nonemptyCNF (g : ContextFreeGrammar T)
+def nonemptyCNF (g : ContextFreeGrammar T)
     [LinearOrder g.NT] : NonemptyCNF T := by
-  let c := toChomskyNormalGrammarComputable g
+  let c := toChomskyNormalGrammar g
   letI : LinearOrder c.cfg.NT := by
     dsimp [c]
-    exact toChomskyNormalGrammarComputableNTLinearOrder g
+    exact toChomskyNormalGrammarNTLinearOrder g
   let filtered := filterEmptyRules c.cfg
   have hshape : ∀ r ∈ filtered.rules,
       ContextFreeRule.IsChomskyNormal filtered.initial r := by
@@ -83,14 +87,14 @@ private def nonemptyCNF (g : ContextFreeGrammar T)
       hasEmpty_iff := hasEmptyWord_eq_true_iff c.cfg
       no_empty_rules := fun r hr => (Finset.mem_filter.mp hr).2 }
 
-private instance nonemptyCNFGrammarLinearOrder
+instance nonemptyCNFGrammarLinearOrder
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     LinearOrder (nonemptyCNF g).grammar.cfg.NT := by
-  change LinearOrder (toChomskyNormalGrammarComputable g).cfg.NT
-  exact toChomskyNormalGrammarComputableNTLinearOrder g
+  change LinearOrder (toChomskyNormalGrammar g).cfg.NT
+  exact toChomskyNormalGrammarNTLinearOrder g
  
 
-private theorem filterEmptyRules_step
+theorem filterEmptyRules_step
     (c : ChomskyNormalGrammar T)
     [DecidableEq c.cfg.NT]
     {u v : List (Symbol T c.cfg.NT)}
@@ -119,7 +123,7 @@ private theorem filterEmptyRules_step
   · exact ⟨r, Finset.mem_filter.mpr ⟨hr, hnonempty⟩,
       ContextFreeRule.rewrites_of_exists_parts r p q⟩
 
-private theorem filterEmptyRules_derives
+theorem filterEmptyRules_derives
     (c : ChomskyNormalGrammar T) [DecidableEq c.cfg.NT] :
     ∀ {u v : List (Symbol T c.cfg.NT)},
       Symbol.nonterminal c.cfg.initial ∉ u →
@@ -134,7 +138,7 @@ private theorem filterEmptyRules_derives
       have hstep := filterEmptyRules_step c hprefix.1 hyz
       exact ⟨hstep.1, hprefix.2.trans hstep.2.single⟩
 
-private theorem filterEmptyRules_language_nonempty
+theorem filterEmptyRules_language_nonempty
     (c : ChomskyNormalGrammar T) [DecidableEq c.cfg.NT]
     {w : List T} (hw : w ≠ []) :
     w ∈ (filterEmptyRules c.cfg).language ↔ w ∈ c.language := by
@@ -190,46 +194,46 @@ private theorem filterEmptyRules_language_nonempty
         (filterEmptyRules_derives c
           (c.initial_not_output r hr) hrest).2
 
-private theorem nonemptyCNF_language_nonempty
+theorem nonemptyCNF_language_nonempty
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {w : List T} (hw : w ≠ []) :
     w ∈ (nonemptyCNF g).grammar.language ↔ w ∈ g.language := by
-  letI : LinearOrder (toChomskyNormalGrammarComputable g).cfg.NT :=
-    toChomskyNormalGrammarComputableNTLinearOrder g
+  letI : LinearOrder (toChomskyNormalGrammar g).cfg.NT :=
+    toChomskyNormalGrammarNTLinearOrder g
   change w ∈
-    (filterEmptyRules (toChomskyNormalGrammarComputable g).cfg).language ↔ _
+    (filterEmptyRules (toChomskyNormalGrammar g).cfg).language ↔ _
   rw [filterEmptyRules_language_nonempty _ hw]
   simp
 @[simp] private theorem nonemptyCNF_hasEmpty
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (nonemptyCNF g).hasEmpty = true ↔ [] ∈ g.language := by
   rw [(nonemptyCNF g).hasEmpty_iff]
-  change [] ∈ (toChomskyNormalGrammarComputable g).language ↔ _
+  change [] ∈ (toChomskyNormalGrammar g).language ↔ _
   simp
 
-private def orderedSupport (g : ContextFreeGrammar T) [LinearOrder g.NT] :
+def orderedSupport (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     List g.NT :=
   (activeNonterminals g).sort (· ≤ ·)
 
-private abbrev SupportNT (g : ContextFreeGrammar T) [LinearOrder g.NT] :=
+abbrev SupportNT (g : ContextFreeGrammar T) [LinearOrder g.NT] :=
   Fin (activeNonterminals g).card
-private theorem orderedSupport_nonempty (g : ContextFreeGrammar T)
+theorem orderedSupport_nonempty (g : ContextFreeGrammar T)
     [LinearOrder g.NT] :
     (activeNonterminals g).card > 0 := by
   exact Finset.card_pos.mpr ⟨g.initial, initial_mem_activeNonterminals g⟩
 
-private def encodeSupport (g : ContextFreeGrammar T) [LinearOrder g.NT]
+def encodeSupport (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (A : g.NT) : SupportNT g := by
   by_cases hA : A ∈ orderedSupport g
   · exact ⟨(orderedSupport g).idxOf A, by
       simpa [orderedSupport] using List.idxOf_lt_length_iff.mpr hA⟩
   · exact ⟨0, orderedSupport_nonempty g⟩
 
-private def decodeSupport (g : ContextFreeGrammar T) [LinearOrder g.NT]
+def decodeSupport (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (i : SupportNT g) : g.NT :=
   (orderedSupport g)[i.val]'(by simpa [orderedSupport] using i.isLt)
 
-private theorem decode_encodeSupport (g : ContextFreeGrammar T)
+theorem decode_encodeSupport (g : ContextFreeGrammar T)
     [LinearOrder g.NT]
     {A : g.NT} (hA : A ∈ activeNonterminals g) :
     decodeSupport g (encodeSupport g A) = A := by
@@ -239,7 +243,7 @@ private theorem decode_encodeSupport (g : ContextFreeGrammar T)
   simp only [encodeSupport, dif_pos hlist, decodeSupport]
   exact List.getElem_idxOf (List.idxOf_lt_length_iff.mpr hlist)
 
-private theorem encode_decodeSupport (g : ContextFreeGrammar T)
+theorem encode_decodeSupport (g : ContextFreeGrammar T)
     [LinearOrder g.NT]
     (i : SupportNT g) :
     encodeSupport g (decodeSupport g i) = i := by
@@ -253,13 +257,13 @@ private theorem encode_decodeSupport (g : ContextFreeGrammar T)
   exact List.Nodup.idxOf_getElem
     (Finset.sort_nodup (activeNonterminals g) (· ≤ ·)) i.val hi
 
-private abbrev compactSupport (g : ContextFreeGrammar T)
+abbrev compactSupport (g : ContextFreeGrammar T)
     [DecidableEq T] [LinearOrder g.NT] : ContextFreeGrammar T :=
   { NT := SupportNT g
     initial := encodeSupport g g.initial
     rules := g.rules.image fun r =>
       ContextFreeRule.mapNonterminal (encodeSupport g) r }
-private theorem decode_encode_rule_output
+theorem decode_encode_rule_output
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {r : ContextFreeRule T g.NT}
     (hr : r ∈ g.rules) :
@@ -289,7 +293,7 @@ private theorem decode_encode_rule_output
   intro A hA
   exact rule_rhs_mem_activeNonterminals g hr hA
 
-private theorem compactSupport_forward_step (g : ContextFreeGrammar T)
+theorem compactSupport_forward_step (g : ContextFreeGrammar T)
     [LinearOrder g.NT]
     {u v : List (Symbol T g.NT)} (h : g.Produces u v) :
     (compactSupport g).Derives
@@ -304,7 +308,7 @@ private theorem compactSupport_forward_step (g : ContextFreeGrammar T)
   · exact Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
       hrewrite (encodeSupport g)
 
-private theorem compactSupport_language_forward
+theorem compactSupport_language_forward
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     g.language ≤ (compactSupport g).language := by
   intro w hw
@@ -316,7 +320,7 @@ private theorem compactSupport_language_forward
   simpa [compactSupport, Symbol.mapNonterminal,
     terminalSymbols, Function.comp_def] using h
 
-private theorem compactSupport_reverse_step (g : ContextFreeGrammar T)
+theorem compactSupport_reverse_step (g : ContextFreeGrammar T)
     [LinearOrder g.NT]
     {u v : List (Symbol T (SupportNT g))}
     (h : (compactSupport g).Produces u v) :
@@ -340,7 +344,7 @@ private theorem compactSupport_reverse_step (g : ContextFreeGrammar T)
       (p.map (Symbol.mapNonterminal (decodeSupport g)))
       (q.map (Symbol.mapNonterminal (decodeSupport g)))
 
-private theorem compactSupport_language_reverse
+theorem compactSupport_language_reverse
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactSupport g).language ≤ g.language := by
   intro w hw
@@ -351,21 +355,21 @@ private theorem compactSupport_language_reverse
   simpa [Symbol.mapNonterminal, Function.comp_def,
     decode_encodeSupport g (initial_mem_activeNonterminals g)] using h
 
-private theorem compactSupport_language (g : ContextFreeGrammar T)
+theorem compactSupport_language (g : ContextFreeGrammar T)
     [LinearOrder g.NT] :
     (compactSupport g).language = g.language :=
   le_antisymm (compactSupport_language_reverse g)
     (compactSupport_language_forward g)
-private def embedWork {g : ContextFreeGrammar T} [LinearOrder g.NT] :
+def embedWork {g : ContextFreeGrammar T} [LinearOrder g.NT] :
     SupportNT g → GreibachWorkNT (activeNonterminals g).card :=
   GreibachWorkNT.base
 
-private def projectWork (g : ContextFreeGrammar T) [LinearOrder g.NT] :
+def projectWork (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     GreibachWorkNT (activeNonterminals g).card → SupportNT g
   | .base i => i
   | .recursive _ => encodeSupport g g.initial
 
-private abbrev compactWork
+abbrev compactWork
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     GreibachWorkGrammar T (activeNonterminals g).card :=
   let compact := compactSupport g
@@ -373,7 +377,7 @@ private abbrev compactWork
     rules := compact.rules.image fun r =>
       ContextFreeRule.mapNonterminal (embedWork (g := g)) r }
 
-private theorem compactWork_forward_step
+theorem compactWork_forward_step
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {u v : List (Symbol T (compactSupport g).NT)}
     (h : (compactSupport g).Produces u v) :
@@ -389,7 +393,7 @@ private theorem compactWork_forward_step
   · exact Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
       hrewrite (embedWork (g := g))
 
-private theorem compactWork_language_forward
+theorem compactWork_language_forward
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactSupport g).language ≤ (compactWork g).toCFG.language := by
   intro w hw
@@ -400,7 +404,7 @@ private theorem compactWork_language_forward
   simpa [embedWork, Symbol.mapNonterminal,
     Function.comp_def] using h
 
-private theorem compactWork_reverse_step
+theorem compactWork_reverse_step
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {u v : List (Symbol T (GreibachWorkNT (activeNonterminals g).card))}
     (h : (compactWork g).toCFG.Produces u v) :
@@ -434,7 +438,7 @@ private theorem compactWork_reverse_step
       (p.map (Symbol.mapNonterminal (projectWork g)))
       (q.map (Symbol.mapNonterminal (projectWork g)))
 
-private theorem compactWork_language_reverse
+theorem compactWork_language_reverse
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactWork g).toCFG.language ≤ (compactSupport g).language := by
   intro w hw
@@ -445,7 +449,7 @@ private theorem compactWork_language_reverse
   simpa [projectWork, Symbol.mapNonterminal,
     Function.comp_def] using h
 
-private theorem compactWork_language
+theorem compactWork_language
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactWork g).toCFG.language = g.language := by
   rw [le_antisymm (compactWork_language_reverse g)
@@ -454,51 +458,51 @@ private theorem compactWork_language
 
 
 
-private def startsWithTerminal
+def startsWithTerminal
     (rhs : List (Symbol T (GreibachWorkNT n))) : Prop :=
   ∃ a, ∃ tail : List (GreibachWorkNT n),
     rhs = Symbol.terminal a :: tail.map Symbol.nonterminal
 
 
-private def leadingBaseIndex :
+def leadingBaseIndex :
     List (Symbol T (GreibachWorkNT n)) → Option (Fin n)
   | Symbol.nonterminal (.base i) :: _ => some i
   | _ => none
 
-private abbrev isRuleForBase (i : Fin n)
+abbrev isRuleForBase (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   r.input = .base i
 
-private instance (i : Fin n)
+instance (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) :
     Decidable (isRuleForBase i r) := by
   unfold isRuleForBase
   infer_instance
 
-private def isEarlierLeadingRule (i : Fin n)
+def isEarlierLeadingRule (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   r.input = .base i ∧
     ∃ j : Fin n, leadingBaseIndex r.output = some j ∧ j < i
 
-private def isImmediateLeftRecursive (i : Fin n)
+def isImmediateLeftRecursive (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   r.input = .base i ∧ leadingBaseIndex r.output = some i
-private abbrev rulesForBase
+abbrev rulesForBase
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     Finset (ContextFreeRule T (GreibachWorkNT n)) :=
   G.rules.filter (isRuleForBase i)
 
-private def validWorkOutput
+def validWorkOutput
     (rhs : List (Symbol T (GreibachWorkNT n))) : Prop :=
   startsWithTerminal rhs ∨
     ∃ j : Fin n, ∃ tail : List (GreibachWorkNT n),
       rhs = Symbol.nonterminal (.base j) ::
         tail.map Symbol.nonterminal
 
-private def WorkOutputsValid (G : GreibachWorkGrammar T n) : Prop :=
+def WorkOutputsValid (G : GreibachWorkGrammar T n) : Prop :=
   ∀ r ∈ G.rules, validWorkOutput r.output
 
-private def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
+def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
   ∀ r ∈ G.rules, ∀ i j : Fin n,
     r.input = .base i →
     leadingBaseIndex r.output = some j →
@@ -506,7 +510,7 @@ private def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
       r.output = Symbol.nonterminal (.base j) ::
         Symbol.nonterminal (.base k) ::
           tail.map Symbol.nonterminal
-private theorem compactWork_rule_source
+theorem compactWork_rule_source
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {r : ContextFreeRule T (GreibachWorkNT (activeNonterminals g).card)}
     (hr : r ∈ (compactWork g).rules) :
@@ -518,7 +522,7 @@ private theorem compactWork_rule_source
   obtain ⟨middle, ⟨old, hold, rfl⟩, rfl⟩ := hr
   exact ⟨old, hold, rfl⟩
 
-private theorem compactWork_outputsValid
+theorem compactWork_outputsValid
     (c : ChomskyNormalGrammar T) [LinearOrder c.cfg.NT]
     (hnoempty : ∀ r ∈ c.cfg.rules, r.output ≠ []) :
     WorkOutputsValid (compactWork c.cfg) := by
@@ -532,7 +536,7 @@ private theorem compactWork_outputsValid
       [.base (encodeSupport c.cfg C)], by
         simp [ContextFreeRule.mapNonterminal, embedWork, hBC]⟩
 
-private theorem compactWork_baseRulesHaveTail
+theorem compactWork_baseRulesHaveTail
     (c : ChomskyNormalGrammar T) [LinearOrder c.cfg.NT]
     (hnoempty : ∀ r ∈ c.cfg.rules, r.output ≠ []) :
     BaseRulesHaveTail (compactWork c.cfg) := by
@@ -550,19 +554,19 @@ private theorem compactWork_baseRulesHaveTail
       simp [ContextFreeRule.mapNonterminal, embedWork, hBC]⟩
 
 
-private def BaseOrderedAt
+def BaseOrderedAt
     (G : GreibachWorkGrammar T n) (i : Fin n) : Prop :=
   ∀ r ∈ G.rules, r.input = .base i →
     startsWithTerminal r.output ∨
       ∃ j : Fin n, leadingBaseIndex r.output = some j ∧ i < j
 
-private def LeadingBoundAt
+def LeadingBoundAt
     (G : GreibachWorkGrammar T n) (i : Fin n) (p : Nat) : Prop :=
   ∀ r ∈ G.rules, r.input = .base i →
     startsWithTerminal r.output ∨
       ∃ j : Fin n, leadingBaseIndex r.output = some j ∧ p ≤ j.val
 
-private theorem leadingBaseIndex_append_of_some
+theorem leadingBaseIndex_append_of_some
     {rhs suffix : List (Symbol T (GreibachWorkNT n))}
     {j : Fin n} (h : leadingBaseIndex rhs = some j) :
     leadingBaseIndex (rhs ++ suffix) = some j := by
@@ -577,7 +581,7 @@ private theorem leadingBaseIndex_append_of_some
           | base k =>
               simpa [leadingBaseIndex] using h
 
-private theorem startsWithTerminal_append_nonterminals
+theorem startsWithTerminal_append_nonterminals
     {rhs : List (Symbol T (GreibachWorkNT n))}
     (h : startsWithTerminal rhs)
     (tail : List (GreibachWorkNT n)) :
@@ -587,7 +591,7 @@ private theorem startsWithTerminal_append_nonterminals
   exact ⟨a, rest ++ tail, by
     simp [List.map_append, List.append_assoc]⟩
 
-private theorem validWorkOutput_append_nonterminals
+theorem validWorkOutput_append_nonterminals
     {rhs : List (Symbol T (GreibachWorkNT n))}
     (h : validWorkOutput rhs)
     (tail : List (GreibachWorkNT n)) :
@@ -600,14 +604,14 @@ private theorem validWorkOutput_append_nonterminals
       simp [List.map_append, List.append_assoc]⟩
 
 mutual
-  private inductive SymbolTree (g : ContextFreeGrammar T) :
+  inductive SymbolTree (g : ContextFreeGrammar T) :
       Symbol T g.NT → List T → Prop
     | terminal (a : T) : SymbolTree g (.terminal a) [a]
     | nonterminal (r : ContextFreeRule T g.NT) (hr : r ∈ g.rules)
         {w : List T} (children : FormTree g r.output w) :
         SymbolTree g (.nonterminal r.input) w
 
-  private inductive FormTree (g : ContextFreeGrammar T) :
+  inductive FormTree (g : ContextFreeGrammar T) :
       List (Symbol T g.NT) → List T → Prop
     | nil : FormTree g [] []
     | cons {x : Symbol T g.NT} {u : List T}
@@ -616,7 +620,7 @@ mutual
         FormTree g (x :: xs) (u ++ v)
 end
 
-private theorem formTree_append (g : ContextFreeGrammar T)
+theorem formTree_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {u v : List T}
     (hx : FormTree g xs u) (hy : FormTree g ys v) :
     FormTree g (xs ++ ys) (u ++ v) := by
@@ -627,7 +631,7 @@ private theorem formTree_append (g : ContextFreeGrammar T)
         FormTree.cons head (formTree_append g tail hy)
 termination_by xs.length
 
-private theorem formTree_split_append (g : ContextFreeGrammar T)
+theorem formTree_split_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {w : List T}
     (h : FormTree g (xs ++ ys) w) :
     ∃ u v, w = u ++ v ∧ FormTree g xs u ∧ FormTree g ys v := by
@@ -642,7 +646,7 @@ private theorem formTree_split_append (g : ContextFreeGrammar T)
             FormTree.cons head hu, hv⟩
 termination_by xs
 
-private theorem formTree_terminals (g : ContextFreeGrammar T)
+theorem formTree_terminals (g : ContextFreeGrammar T)
     (w : List T) : FormTree g (terminalSymbols w) w := by
   induction w with
   | nil => exact FormTree.nil
@@ -650,7 +654,7 @@ private theorem formTree_terminals (g : ContextFreeGrammar T)
       simpa [terminalSymbols] using
         FormTree.cons (SymbolTree.terminal a) ih
 
-private theorem formTree_of_produces
+theorem formTree_of_produces
     (g : ContextFreeGrammar T)
     {u v : List (Symbol T g.NT)} {w : List T}
     (hstep : g.Produces u v) (hv : FormTree g v w) :
@@ -668,14 +672,14 @@ private theorem formTree_of_produces
     formTree_append g hp
       (FormTree.cons (SymbolTree.nonterminal r hr hout) hq)
 
-private theorem formTree_of_derives
+theorem formTree_of_derives
     (g : ContextFreeGrammar T) {xs : List (Symbol T g.NT)} {w : List T}
     (h : g.Derives xs (terminalSymbols w)) :
     FormTree g xs w := by
   induction h using Relation.ReflTransGen.head_induction_on with
   | refl => exact formTree_terminals g w
   | head hstep hrest ih => exact formTree_of_produces g hstep ih
-private theorem derives_cons_of
+theorem derives_cons_of
     (g : ContextFreeGrammar T)
     {x : Symbol T g.NT} {u : List T}
     {xs : List (Symbol T g.NT)} {v : List T}
@@ -688,7 +692,7 @@ private theorem derives_cons_of
     List.append_assoc] using h₁.trans h₂
 
 
-private theorem derives_of_symbolTree
+theorem derives_of_symbolTree
     (g : ContextFreeGrammar T) {x : Symbol T g.NT} {w : List T}
     (h : SymbolTree g x w) :
     g.Derives [x] (terminalSymbols w) := by
@@ -706,7 +710,7 @@ private theorem derives_of_symbolTree
       derives_cons_of g ihHead ihTail)
     h
 
-private theorem derives_of_formTree
+theorem derives_of_formTree
     (g : ContextFreeGrammar T)
     {xs : List (Symbol T g.NT)} {w : List T}
     (h : FormTree g xs w) :
@@ -724,7 +728,7 @@ private theorem derives_of_formTree
     (fun head tail ihHead ihTail =>
       derives_cons_of g ihHead ihTail)
     h
-private def substitutedRulesFor
+def substitutedRulesFor
     (G : GreibachWorkGrammar T n) (i j : Fin n)
     (suffix : List (Symbol T (GreibachWorkNT n))) :
     Finset (ContextFreeRule T (GreibachWorkNT n)) :=
@@ -732,7 +736,7 @@ private def substitutedRulesFor
     { input := GreibachWorkNT.base i
       output := r.output ++ suffix }
 
-private def substituteEarlierRule
+def substituteEarlierRule
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) :
     Finset (ContextFreeRule T (GreibachWorkNT n)) := by
@@ -746,12 +750,12 @@ private def substituteEarlierRule
     | _ => exact {r}
   · exact {r}
 
-private abbrev substituteEarlier
+abbrev substituteEarlier
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     GreibachWorkGrammar T n :=
   { initial := G.initial
     rules := G.rules.biUnion (substituteEarlierRule G i) }
-private theorem substituted_rule_old_derives
+theorem substituted_rule_old_derives
     (G : GreibachWorkGrammar T n) {i j : Fin n}
     {suffix : List (Symbol T (GreibachWorkNT n))}
     {target source : ContextFreeRule T (GreibachWorkNT n)}
@@ -778,7 +782,7 @@ private theorem substituted_rule_old_derives
     simpa [hsourceInput] using
       (ContextFreeRule.Rewrites.head (r := source) suffix)
   exact hfirst.single.trans hsecond.single
-private theorem substituteEarlier_reverse_step
+theorem substituteEarlier_reverse_step
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {u v : List (Symbol T (GreibachWorkNT n))}
     (h : (substituteEarlier G i).toCFG.Produces u v) :
@@ -820,7 +824,7 @@ private theorem substituteEarlier_reverse_step
       ⟨target, htarget,
         ContextFreeRule.rewrites_of_exists_parts target p q⟩
 
-private theorem substituteEarlier_mem_of_generated
+theorem substituteEarlier_mem_of_generated
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {old new : ContextFreeRule T (GreibachWorkNT n)}
     (hold : old ∈ G.rules)
@@ -830,7 +834,7 @@ private theorem substituteEarlier_mem_of_generated
   simp only [substituteEarlier, Finset.mem_biUnion]
   exact ⟨old, hold, hnew⟩
 
-private theorem substituteEarlier_old_of_input_ne
+theorem substituteEarlier_old_of_input_ne
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {r : ContextFreeRule T (GreibachWorkNT n)}
     (hr : r ∈ (substituteEarlier G i).rules)
@@ -856,7 +860,7 @@ private theorem substituteEarlier_old_of_input_ne
   next =>
     simpa using Finset.mem_singleton.mp hgenerated ▸ hold
 
-private theorem symbolTree_nonterminal_cases
+theorem symbolTree_nonterminal_cases
     (g : ContextFreeGrammar T) {A : g.NT} {w : List T}
     (h : SymbolTree g (.nonterminal A) w) :
     ∃ r, r ∈ g.rules ∧ r.input = A ∧ FormTree g r.output w := by
@@ -864,7 +868,7 @@ private theorem symbolTree_nonterminal_cases
   | nonterminal r hr children =>
       exact ⟨r, hr, rfl, children⟩
 
-private theorem substituteEarlier_node
+theorem substituteEarlier_node
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     {w : List T}
@@ -954,7 +958,7 @@ private theorem substituteEarlier_node
     exact @SymbolTree.nonterminal T
       ((substituteEarlier G i).toCFG) r hmem w children
 
-private theorem substituteEarlier_language_reverse
+theorem substituteEarlier_language_reverse
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     (substituteEarlier G i).toCFG.language ≤ G.toCFG.language := by
   intro w hw
@@ -966,7 +970,7 @@ private theorem substituteEarlier_language_reverse
   change G.toCFG.Derives
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   simpa only [List.map_id] using h
-private theorem substituteEarlier_formTree
+theorem substituteEarlier_formTree
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {xs : List (Symbol T (GreibachWorkNT n))} {w : List T}
     (h : FormTree G.toCFG xs w) :
@@ -986,7 +990,7 @@ private theorem substituteEarlier_formTree
       FormTree.cons ihHead ihTail)
     h
 
-private theorem substituteEarlier_language_forward
+theorem substituteEarlier_language_forward
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     G.toCFG.language ≤ (substituteEarlier G i).toCFG.language := by
   intro w hw
@@ -1001,13 +1005,13 @@ private theorem substituteEarlier_language_forward
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   exact hderives
 
-private theorem substituteEarlier_language
+theorem substituteEarlier_language
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     (substituteEarlier G i).toCFG.language = G.toCFG.language :=
   le_antisymm (substituteEarlier_language_reverse G i)
     (substituteEarlier_language_forward G i)
 
-private def SubstituteGeneratedCase
+def SubstituteGeneratedCase
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   (new = old ∧ ¬isEarlierLeadingRule i old) ∨
@@ -1018,7 +1022,7 @@ private def SubstituteGeneratedCase
       j < i ∧ source ∈ G.rules ∧ source.input = .base j ∧
       new.input = .base i ∧ new.output = source.output ++ suffix
 
-private theorem substituteGeneratedCase_of_mem
+theorem substituteGeneratedCase_of_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n))
     (hnew : new ∈ substituteEarlierRule G i old) :
@@ -1061,7 +1065,7 @@ private theorem substituteGeneratedCase_of_mem
       intro h
       exact hinput h.1⟩
 
-private def eliminateImmediateRule
+def eliminateImmediateRule
     (i : Fin n) (r : ContextFreeRule T (GreibachWorkNT n)) :
     Finset (ContextFreeRule T (GreibachWorkNT n)) := by
   by_cases hinput : r.input = .base i
@@ -1086,18 +1090,18 @@ private def eliminateImmediateRule
                 [Symbol.nonterminal (.recursive i)] } }
   · exact {r}
 
-private abbrev eliminateImmediateLeftRecursion
+abbrev eliminateImmediateLeftRecursion
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     GreibachWorkGrammar T n :=
   { initial := G.initial
     rules := G.rules.biUnion (eliminateImmediateRule i) }
 
-private def RecFresh
+def RecFresh
     (G : GreibachWorkGrammar T n) (i : Fin n) : Prop :=
   ∀ r ∈ G.rules,
     r.input ≠ .recursive i ∧
       Symbol.nonterminal (.recursive i) ∉ r.output
-private theorem compactWork_recFresh
+theorem compactWork_recFresh
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (i : Fin (activeNonterminals g).card) :
     RecFresh (compactWork g) i := by
@@ -1110,14 +1114,14 @@ private theorem compactWork_recFresh
     obtain ⟨x, hx, heq⟩ := List.mem_map.mp hmem
     cases x <;> simp [embedWork] at heq
 
-private theorem compactWork_initial_not_recursive
+theorem compactWork_initial_not_recursive
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (i : Fin (activeNonterminals g).card) :
     (compactWork g).initial ≠ .recursive i := by
   simp [compactWork]
 
 
-private theorem eliminateImmediate_mem_of_generated
+theorem eliminateImmediate_mem_of_generated
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {old new : ContextFreeRule T (GreibachWorkNT n)}
     (hold : old ∈ G.rules)
@@ -1127,7 +1131,7 @@ private theorem eliminateImmediate_mem_of_generated
   simp only [eliminateImmediateLeftRecursion, Finset.mem_biUnion]
   exact ⟨old, hold, hnew⟩
 
-private theorem eliminateImmediate_left_rules_mem
+theorem eliminateImmediate_left_rules_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     (tail : List (Symbol T (GreibachWorkNT n)))
@@ -1149,7 +1153,7 @@ private theorem eliminateImmediate_left_rules_mem
     rw [houtput]
     simp
 
-private theorem eliminateImmediate_nonleft_rules_mem
+theorem eliminateImmediate_nonleft_rules_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     (hinput : r.input = .base i)
@@ -1178,7 +1182,7 @@ private theorem eliminateImmediate_nonleft_rules_mem
                   exact hnoleft (by simp [leadingBaseIndex, houtput])
                 simp [hji]
 
-private theorem eliminateImmediate_companion_or_recursive_tail
+theorem eliminateImmediate_companion_or_recursive_tail
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (r : ContextFreeRule T (GreibachWorkNT n))
     (hr : r ∈ (eliminateImmediateLeftRecursion G i).rules)
@@ -1247,13 +1251,13 @@ private theorem eliminateImmediate_companion_or_recursive_tail
     · exact (holdInput hbase).elim
     · exact (holdFresh.1 hrec).elim
 
-private theorem formTree_nil_word
+theorem formTree_nil_word
     (g : ContextFreeGrammar T) {w : List T}
     (h : FormTree g [] w) : w = [] := by
   cases h
   rfl
 
-private def CanAppendImmediateSymbol
+def CanAppendImmediateSymbol
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (x : Symbol T (GreibachWorkNT n)) (w : List T) : Prop :=
   ∀ (_ : x = .nonterminal (.base i) ∨
@@ -1267,7 +1271,7 @@ private def CanAppendImmediateSymbol
         FormTree (eliminateImmediateLeftRecursion G i).toCFG tail v →
         SymbolTree (eliminateImmediateLeftRecursion G i).toCFG x (w ++ v)
 
-private def CanAppendImmediateForm
+def CanAppendImmediateForm
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (xs : List (Symbol T (GreibachWorkNT n))) (w : List T) : Prop :=
   ∀ (pfx : List (Symbol T (GreibachWorkNT n))),
@@ -1281,7 +1285,7 @@ private def CanAppendImmediateForm
           FormTree (eliminateImmediateLeftRecursion G i).toCFG tail v →
           FormTree (eliminateImmediateLeftRecursion G i).toCFG xs (w ++ v)
 
-private theorem canAppendImmediate
+theorem canAppendImmediate
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i) :
     (∀ {x w} (h : SymbolTree (eliminateImmediateLeftRecursion G i).toCFG x w),
       CanAppendImmediateSymbol G i x w) ∧
@@ -1393,7 +1397,7 @@ private theorem canAppendImmediate
           simpa [List.append_assoc] using
             FormTree.cons head happended)
     h
-private theorem eliminateImmediate_retained_mem
+theorem eliminateImmediate_retained_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     (hinput : r.input ≠ .base i) :
@@ -1401,7 +1405,7 @@ private theorem eliminateImmediate_retained_mem
   apply eliminateImmediate_mem_of_generated G i hr
   simp [eliminateImmediateRule, hinput]
 
-private theorem eliminateImmediate_forward_node
+theorem eliminateImmediate_forward_node
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     {w : List T}
@@ -1455,7 +1459,7 @@ private theorem eliminateImmediate_forward_node
     exact @SymbolTree.nonterminal T E r
       (by simpa [E, GreibachWorkGrammar.toCFG] using hmem) w children
 
-private theorem eliminateImmediate_forward_formTree
+theorem eliminateImmediate_forward_formTree
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     {xs : List (Symbol T (GreibachWorkNT n))} {w : List T}
     (h : FormTree G.toCFG xs w) :
@@ -1474,7 +1478,7 @@ private theorem eliminateImmediate_forward_formTree
     (fun head rest ihHead ihRest => FormTree.cons ihHead ihRest)
     h
 
-private theorem eliminateImmediate_language_forward
+theorem eliminateImmediate_language_forward
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i) :
     G.toCFG.language ≤
       (eliminateImmediateLeftRecursion G i).toCFG.language := by
@@ -1490,7 +1494,7 @@ private theorem eliminateImmediate_language_forward
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   exact hderives
 
-private def ReverseImmediateSymbol
+def ReverseImmediateSymbol
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (x : Symbol T (GreibachWorkNT n)) (w : List T) : Prop :=
   (x ≠ Symbol.nonterminal (.recursive i) → SymbolTree G.toCFG x w) ∧
@@ -1499,7 +1503,7 @@ private def ReverseImmediateSymbol
       (.nonterminal (.base i)) u →
       SymbolTree G.toCFG (.nonterminal (.base i)) (u ++ w))
 
-private def ReverseImmediateForm
+def ReverseImmediateForm
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (xs : List (Symbol T (GreibachWorkNT n))) (w : List T) : Prop :=
   (Symbol.nonterminal (.recursive i) ∉ xs → FormTree G.toCFG xs w) ∧
@@ -1512,7 +1516,7 @@ private def ReverseImmediateForm
         SymbolTree G.toCFG (.nonterminal (.base i)) (z ++ v))
 
 
-private theorem reverseImmediate_terminal
+theorem reverseImmediate_terminal
     (G : GreibachWorkGrammar T n) (i : Fin n) (a : T) :
     ReverseImmediateSymbol G i (.terminal a) [a] := by
   constructor
@@ -1521,7 +1525,7 @@ private theorem reverseImmediate_terminal
   · intro h
     cases h
 
-private theorem reverseImmediate_nil
+theorem reverseImmediate_nil
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     ReverseImmediateForm G i [] [] := by
   constructor
@@ -1530,7 +1534,7 @@ private theorem reverseImmediate_nil
   · intro pfx heq _
     cases pfx <;> simp at heq
 
-private theorem reverseImmediate_cons
+theorem reverseImmediate_cons
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {x : Symbol T (GreibachWorkNT n)} {u : List T}
     {xs : List (Symbol T (GreibachWorkNT n))} {v : List T}
@@ -1573,7 +1577,7 @@ private theorem reverseImmediate_cons
         · simp [hv, List.append_assoc]
         · exact FormTree.cons (head.1 hpnot) hprefix
 
-private def ImmediateGeneratedCase
+def ImmediateGeneratedCase
     (i : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   new = old ∨
@@ -1589,7 +1593,7 @@ private def ImmediateGeneratedCase
     (new.output = tail ∨
       new.output = tail ++ [Symbol.nonterminal (.recursive i)])
 
-private theorem immediateGeneratedCase_of_mem
+theorem immediateGeneratedCase_of_mem
     (i : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n))
     (hnew : new ∈ eliminateImmediateRule i old) :
@@ -1650,7 +1654,7 @@ private theorem immediateGeneratedCase_of_mem
     subst new
     exact Or.inl rfl
 
-private theorem reverseImmediate_nonterminal
+theorem reverseImmediate_nonterminal
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (r : ContextFreeRule T (GreibachWorkNT n))
     (hr : r ∈ (eliminateImmediateLeftRecursion G i).rules)
@@ -1725,7 +1729,7 @@ private theorem reverseImmediate_nonterminal
         rw [hw]
         simpa [List.append_assoc] using hcontinued
 
-private theorem eliminateImmediate_reverse_formTree
+theorem eliminateImmediate_reverse_formTree
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     {xs : List (Symbol T (GreibachWorkNT n))} {w : List T}
     (h : FormTree (eliminateImmediateLeftRecursion G i).toCFG xs w) :
@@ -1747,7 +1751,7 @@ private theorem eliminateImmediate_reverse_formTree
       reverseImmediate_cons G i ihHead ihTail)
     h
 
-private theorem eliminateImmediate_language_reverse
+theorem eliminateImmediate_language_reverse
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (hinitial : G.initial ≠ .recursive i) :
     (eliminateImmediateLeftRecursion G i).toCFG.language ≤
@@ -1767,7 +1771,7 @@ private theorem eliminateImmediate_language_reverse
         exact hinitial (Symbol.nonterminal.inj h).symm)
   exact derives_of_formTree G.toCFG holdTree
 
-private theorem eliminateImmediateLeftRecursion_language
+theorem eliminateImmediateLeftRecursion_language
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (hinitial : G.initial ≠ .recursive i) :
     (eliminateImmediateLeftRecursion G i).toCFG.language =
@@ -1776,7 +1780,7 @@ private theorem eliminateImmediateLeftRecursion_language
     (eliminateImmediate_language_reverse G i hfresh hinitial)
     (eliminateImmediate_language_forward G i hfresh)
 
-private theorem substituteEarlier_preserves_recFresh
+theorem substituteEarlier_preserves_recFresh
     (G : GreibachWorkGrammar T n) (i k : Fin n)
     (hfresh : RecFresh G k) :
     RecFresh (substituteEarlier G i) k := by
@@ -1819,7 +1823,7 @@ private theorem substituteEarlier_preserves_recFresh
     subst new
     exact holdFresh
 
-private theorem eliminateImmediate_preserves_recFresh
+theorem eliminateImmediate_preserves_recFresh
     (G : GreibachWorkGrammar T n) (i k : Fin n) (hik : i ≠ k)
     (hfresh : RecFresh G k) :
     RecFresh (eliminateImmediateLeftRecursion G i) k := by
@@ -1861,7 +1865,7 @@ private theorem eliminateImmediate_preserves_recFresh
           hik (GreibachWorkNT.recursive.inj
             (Symbol.nonterminal.inj h)).symm⟩
 
-private theorem validWorkOutput_tail_of_leadingBase
+theorem validWorkOutput_tail_of_leadingBase
     {rhs : List (Symbol T (GreibachWorkNT n))}
     {j : Fin n} {suffix : List (Symbol T (GreibachWorkNT n))}
     (hvalid : validWorkOutput rhs)
@@ -1876,7 +1880,7 @@ private theorem validWorkOutput_tail_of_leadingBase
     cases hk
     exact ⟨tail, rfl⟩
 
-private theorem substituteEarlier_outputsValid
+theorem substituteEarlier_outputsValid
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G) :
     WorkOutputsValid (substituteEarlier G i) := by
@@ -1895,7 +1899,7 @@ private theorem substituteEarlier_outputsValid
     exact validWorkOutput_append_nonterminals
       (hvalid source hsource) tail
 
-private theorem eliminateImmediate_outputsValid
+theorem eliminateImmediate_outputsValid
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -1931,7 +1935,7 @@ private theorem eliminateImmediate_outputsValid
       exact Or.inr ⟨k, rest ++ [.recursive i], by
         simp [List.map_append]⟩
 
-private theorem substituteEarlier_baseRulesHaveTail
+theorem substituteEarlier_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -1966,7 +1970,7 @@ private theorem substituteEarlier_baseRulesHaveTail
         rw [hnewOutput, htailSource, hsuffix]
         simp [List.map_append]⟩
 
-private theorem eliminateImmediate_baseRulesHaveTail
+theorem eliminateImmediate_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (htail : BaseRulesHaveTail G) :
     BaseRulesHaveTail (eliminateImmediateLeftRecursion G i) := by
@@ -2005,7 +2009,7 @@ private theorem eliminateImmediate_baseRulesHaveTail
   · obtain ⟨tail, _holdInput, _holdOutput, hnewInput, _⟩ := hleft
     cases hinput.symm.trans hnewInput
 
-private theorem leadingBound_zero
+theorem leadingBound_zero
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G) :
     LeadingBoundAt G i 0 := by
@@ -2014,7 +2018,7 @@ private theorem leadingBound_zero
   · exact Or.inl hterminal
   · exact Or.inr ⟨j, by simp [leadingBaseIndex, houtput], Nat.zero_le _⟩
 
-private theorem substituteEarlier_leadingBound
+theorem substituteEarlier_leadingBound
     (G : GreibachWorkGrammar T n) (i : Fin n) (p : Nat)
     (hvalid : WorkOutputsValid G)
     (hbound : LeadingBoundAt G i p)
@@ -2055,7 +2059,7 @@ private theorem substituteEarlier_leadingBound
         exact leadingBaseIndex_append_of_some hk,
         by omega⟩
 
-private theorem substituteEarlier_preserves_baseOrdered
+theorem substituteEarlier_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i k : Fin n)
     (hik : k ≠ i) (hordered : BaseOrderedAt G k) :
     BaseOrderedAt (substituteEarlier G i) k := by
@@ -2072,7 +2076,7 @@ private theorem substituteEarlier_preserves_baseOrdered
       (hnewInput.symm.trans hinput)
     exact (hik this).elim
 
-private theorem eliminateImmediate_preserves_baseOrdered
+theorem eliminateImmediate_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i k : Fin n)
     (hik : k ≠ i) (hordered : BaseOrderedAt G k) :
     BaseOrderedAt (eliminateImmediateLeftRecursion G i) k := by
@@ -2092,13 +2096,13 @@ private theorem eliminateImmediate_preserves_baseOrdered
   · rcases hleft with ⟨tail, holdInput, holdOutput, hinput, houtput⟩
     cases hnewInput.symm.trans hinput
 
-private def repeatSubstituteEarlier
+def repeatSubstituteEarlier
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     Nat → GreibachWorkGrammar T n
   | 0 => G
   | k + 1 => substituteEarlier (repeatSubstituteEarlier G i k) i
 
-private theorem repeatSubstituteEarlier_language
+theorem repeatSubstituteEarlier_language
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat) :
     (repeatSubstituteEarlier G i k).toCFG.language =
       G.toCFG.language := by
@@ -2107,7 +2111,7 @@ private theorem repeatSubstituteEarlier_language
   | succ k ih =>
       rw [repeatSubstituteEarlier, substituteEarlier_language, ih]
 
-private theorem repeatSubstituteEarlier_recFresh
+theorem repeatSubstituteEarlier_recFresh
     (G : GreibachWorkGrammar T n) (i j : Fin n) (k : Nat)
     (hfresh : RecFresh G j) :
     RecFresh (repeatSubstituteEarlier G i k) j := by
@@ -2116,7 +2120,7 @@ private theorem repeatSubstituteEarlier_recFresh
   | succ k ih =>
       exact substituteEarlier_preserves_recFresh _ i j ih
 
-private theorem repeatSubstituteEarlier_initial
+theorem repeatSubstituteEarlier_initial
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat) :
     (repeatSubstituteEarlier G i k).initial = G.initial := by
   induction k with
@@ -2124,7 +2128,7 @@ private theorem repeatSubstituteEarlier_initial
   | succ k ih =>
       simpa [repeatSubstituteEarlier, substituteEarlier] using ih
 
-private theorem repeatSubstituteEarlier_outputsValid
+theorem repeatSubstituteEarlier_outputsValid
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat)
     (hvalid : WorkOutputsValid G) :
     WorkOutputsValid (repeatSubstituteEarlier G i k) := by
@@ -2133,7 +2137,7 @@ private theorem repeatSubstituteEarlier_outputsValid
   | succ k ih =>
       exact substituteEarlier_outputsValid _ i ih
 
-private theorem repeatSubstituteEarlier_baseRulesHaveTail
+theorem repeatSubstituteEarlier_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2145,7 +2149,7 @@ private theorem repeatSubstituteEarlier_baseRulesHaveTail
       · exact repeatSubstituteEarlier_outputsValid G i k hvalid
       · exact ih
 
-private theorem repeatSubstituteEarlier_preserves_baseOrdered
+theorem repeatSubstituteEarlier_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i j : Fin n) (k : Nat)
     (hji : j ≠ i) (hordered : BaseOrderedAt G j) :
     BaseOrderedAt (repeatSubstituteEarlier G i k) j := by
@@ -2154,7 +2158,7 @@ private theorem repeatSubstituteEarlier_preserves_baseOrdered
   | succ k ih =>
       exact substituteEarlier_preserves_baseOrdered _ i j hji ih
 
-private theorem repeatSubstituteEarlier_leadingBound
+theorem repeatSubstituteEarlier_leadingBound
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat)
     (hk : k ≤ i.val)
     (hvalid : WorkOutputsValid G)
@@ -2172,14 +2176,14 @@ private theorem repeatSubstituteEarlier_leadingBound
         exact repeatSubstituteEarlier_preserves_baseOrdered
           G i j k (ne_of_lt hji) (hearlier j hji)
 
-private def substitutionPasses (i : Fin n) : Nat := i.val
+def substitutionPasses (i : Fin n) : Nat := i.val
 
-private def orderedForwardStep
+def orderedForwardStep
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     GreibachWorkGrammar T n :=
   eliminateImmediateLeftRecursion
     (repeatSubstituteEarlier G i (substitutionPasses i)) i
-private theorem eliminateImmediateRule_not_retains_self
+theorem eliminateImmediateRule_not_retains_self
     (i : Fin n) (r : ContextFreeRule T (GreibachWorkNT n))
     (hinput : r.input = .base i)
     (hleading : leadingBaseIndex r.output = some i)
@@ -2214,7 +2218,7 @@ private theorem eliminateImmediateRule_not_retains_self
   next hinput' =>
     exact (hinput' hinput).elim
 
-private theorem orderedForwardStep_current_ordered
+theorem orderedForwardStep_current_ordered
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (hearlier : ∀ j : Fin n, j < i → BaseOrderedAt G j) :
@@ -2261,13 +2265,13 @@ private theorem orderedForwardStep_current_ordered
   · rcases hleft with ⟨tail, holdInput, holdOutput, hinput, houtput⟩
     cases hnewInput.symm.trans hinput
 
-private def orderedForwardFold :
+def orderedForwardFold :
     GreibachWorkGrammar T n → List (Fin n) →
       GreibachWorkGrammar T n
   | G, [] => G
   | G, i :: is => orderedForwardFold (orderedForwardStep G i) is
 
-private theorem orderedForwardStep_outputsValid
+theorem orderedForwardStep_outputsValid
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2278,12 +2282,12 @@ private theorem orderedForwardStep_outputsValid
   · exact repeatSubstituteEarlier_baseRulesHaveTail
       G i (substitutionPasses i) hvalid htail
 
-private def FreshFor
+def FreshFor
     (G : GreibachWorkGrammar T n) (is : List (Fin n)) : Prop :=
 
   ∀ i ∈ is, RecFresh G i
 
-private theorem orderedForwardStep_baseRulesHaveTail
+theorem orderedForwardStep_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2292,7 +2296,7 @@ private theorem orderedForwardStep_baseRulesHaveTail
   exact repeatSubstituteEarlier_baseRulesHaveTail
     G i (substitutionPasses i) hvalid htail
 
-private theorem orderedForwardStep_preserves_baseOrdered
+theorem orderedForwardStep_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i j : Fin n)
     (hji : j ≠ i) (hordered : BaseOrderedAt G j) :
     BaseOrderedAt (orderedForwardStep G i) j := by
@@ -2301,7 +2305,7 @@ private theorem orderedForwardStep_preserves_baseOrdered
   · exact repeatSubstituteEarlier_preserves_baseOrdered
       G i j (substitutionPasses i) hji hordered
 
-private theorem orderedForwardStep_freshFor
+theorem orderedForwardStep_freshFor
     (G : GreibachWorkGrammar T n) (i : Fin n) (is : List (Fin n))
     (hinodup : i ∉ is) (hfresh : FreshFor G (i :: is)) :
     FreshFor (orderedForwardStep G i) is := by
@@ -2313,13 +2317,13 @@ private theorem orderedForwardStep_freshFor
   · apply repeatSubstituteEarlier_recFresh
     exact hfresh k (by simp [hk])
 
-private theorem orderedForwardStep_initial
+theorem orderedForwardStep_initial
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     (orderedForwardStep G i).initial = G.initial := by
   simp only [orderedForwardStep, eliminateImmediateLeftRecursion]
   exact repeatSubstituteEarlier_initial G i (substitutionPasses i)
 
-private theorem orderedForwardFold_initial
+theorem orderedForwardFold_initial
     (G : GreibachWorkGrammar T n) (is : List (Fin n)) :
     (orderedForwardFold G is).initial = G.initial := by
   induction is generalizing G with
@@ -2328,7 +2332,7 @@ private theorem orderedForwardFold_initial
       rw [orderedForwardFold, ih (orderedForwardStep G i),
         orderedForwardStep_initial]
 
-private theorem orderedForwardFold_language
+theorem orderedForwardFold_language
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hnodup : is.Nodup) (hfresh : FreshFor G is)
     (hinitial : ∀ i ∈ is, G.initial ≠ .recursive i) :
@@ -2360,7 +2364,7 @@ private theorem orderedForwardFold_language
         _ = G.toCFG.language :=
           repeatSubstituteEarlier_language G i (substitutionPasses i)
 
-private theorem orderedForwardFold_outputsValid
+theorem orderedForwardFold_outputsValid
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2372,7 +2376,7 @@ private theorem orderedForwardFold_outputsValid
         (orderedForwardStep_outputsValid G i hvalid htail)
         (orderedForwardStep_baseRulesHaveTail G i hvalid htail)
 
-private theorem orderedForwardFold_baseRulesHaveTail
+theorem orderedForwardFold_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2384,7 +2388,7 @@ private theorem orderedForwardFold_baseRulesHaveTail
         (orderedForwardStep_outputsValid G i hvalid htail)
         (orderedForwardStep_baseRulesHaveTail G i hvalid htail)
 
-private theorem orderedForwardFold_all_ordered
+theorem orderedForwardFold_all_ordered
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hsorted : is.Pairwise (· < ·))
     (hvalid : WorkOutputsValid G)
@@ -2421,13 +2425,13 @@ private theorem orderedForwardFold_all_ordered
         (orderedForwardStep_outputsValid G i hvalid htail)
         (orderedForwardStep_baseRulesHaveTail G i hvalid htail)
         hstepOutside
-private theorem finRange_pairwise_lt :
+theorem finRange_pairwise_lt :
     (List.finRange n).Pairwise (· < ·) := by
   simp only [List.pairwise_iff_getElem]
   intro i j hi hj hij
   simpa using hij
 
-private def substituteLeadingRulesFor
+def substituteLeadingRulesFor
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (input : GreibachWorkNT n)
     (suffix : List (Symbol T (GreibachWorkNT n))) :
@@ -2435,7 +2439,7 @@ private def substituteLeadingRulesFor
   (rulesForBase G j).image fun source =>
     { input := input, output := source.output ++ suffix }
 
-private def substituteLeadingRule
+def substituteLeadingRule
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) :
     Finset (ContextFreeRule T (GreibachWorkNT n)) := by
@@ -2447,13 +2451,13 @@ private def substituteLeadingRule
         exact {r}
   | _ => exact {r}
 
-private def substituteLeadingBase
+def substituteLeadingBase
     (G : GreibachWorkGrammar T n) (j : Fin n) :
     GreibachWorkGrammar T n :=
   { initial := G.initial
     rules := G.rules.biUnion (substituteLeadingRule G j) }
 
-private def SubstituteLeadingCase
+def SubstituteLeadingCase
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   (new = old ∧ leadingBaseIndex old.output ≠ some j) ∨
@@ -2461,7 +2465,7 @@ private def SubstituteLeadingCase
       old.output = Symbol.nonterminal (.base j) :: suffix ∧
       new.input = old.input ∧ new.output = source.output ++ suffix
 
-private theorem substituteLeadingCase_of_mem
+theorem substituteLeadingCase_of_mem
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n))
     (hnew : new ∈ substituteLeadingRule G j old) :
@@ -2492,7 +2496,7 @@ private theorem substituteLeadingCase_of_mem
             | recursive k => simp [leadingBaseIndex, houtput] at hleading
             | base k => exact (hother k xs houtput).elim
 
-private theorem substituteLeading_old_derives
+theorem substituteLeading_old_derives
     (G : GreibachWorkGrammar T n) (j : Fin n)
     {suffix : List (Symbol T (GreibachWorkNT n))}
     {target source : ContextFreeRule T (GreibachWorkNT n)}
@@ -2519,7 +2523,7 @@ private theorem substituteLeading_old_derives
       (ContextFreeRule.Rewrites.head (r := source) suffix)
   exact hfirst.single.trans hsecond.single
 
-private theorem substituteLeading_reverse_step
+theorem substituteLeading_reverse_step
     (G : GreibachWorkGrammar T n) (j : Fin n)
     {u v : List (Symbol T (GreibachWorkNT n))}
     (h : (substituteLeadingBase G j).toCFG.Produces u v) :
@@ -2553,7 +2557,7 @@ private theorem substituteLeading_reverse_step
       ⟨target, htarget,
         ContextFreeRule.rewrites_of_exists_parts target p q⟩
 
-private theorem substituteLeading_language_reverse
+theorem substituteLeading_language_reverse
     (G : GreibachWorkGrammar T n) (j : Fin n) :
     (substituteLeadingBase G j).toCFG.language ≤ G.toCFG.language := by
   intro w hw
@@ -2565,16 +2569,16 @@ private theorem substituteLeading_language_reverse
   change G.toCFG.Derives
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   simpa only [substituteLeadingBase, List.map_id] using h
-private def BaseStartsWithTerminal
+def BaseStartsWithTerminal
     (G : GreibachWorkGrammar T n) (j : Fin n) : Prop :=
   ∀ r ∈ G.rules, r.input = .base j → startsWithTerminal r.output
 
-private def LeadingAllowedBy
+def LeadingAllowedBy
     (G : GreibachWorkGrammar T n) (is : List (Fin n)) : Prop :=
   ∀ r ∈ G.rules, startsWithTerminal r.output ∨
     ∃ j ∈ is, leadingBaseIndex r.output = some j
 
-private theorem baseStartsWithTerminal_of_ordered_allowed
+theorem baseStartsWithTerminal_of_ordered_allowed
     (G : GreibachWorkGrammar T n) (j : Fin n) (is : List (Fin n))
     (hsorted : (j :: is).Pairwise (· > ·))
     (hordered : BaseOrderedAt G j)
@@ -2592,7 +2596,7 @@ private theorem baseStartsWithTerminal_of_ordered_allowed
       · exact (Fin.lt_asymm hjk
           (List.rel_of_pairwise_cons hsorted htail)).elim
 
-private theorem substituteLeading_preserves_baseOrdered
+theorem substituteLeading_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (j k : Fin n)
     (hvalid : WorkOutputsValid G)
     (hterminal : BaseStartsWithTerminal G j)
@@ -2616,7 +2620,7 @@ private theorem substituteLeading_preserves_baseOrdered
     exact Or.inl
       (startsWithTerminal_append_nonterminals hsourceTerminal oldTail)
 
-private theorem substituteLeading_outputsValid
+theorem substituteLeading_outputsValid
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hvalid : WorkOutputsValid G)
     (hterminal : BaseStartsWithTerminal G j) :
@@ -2638,7 +2642,7 @@ private theorem substituteLeading_outputsValid
     exact Or.inl
       (startsWithTerminal_append_nonterminals hsourceTerminal oldTail)
 
-private theorem substituteLeading_allowed
+theorem substituteLeading_allowed
     (G : GreibachWorkGrammar T n) (j : Fin n) (is : List (Fin n))
     (hvalid : WorkOutputsValid G)
     (hterminal : BaseStartsWithTerminal G j)
@@ -2666,7 +2670,7 @@ private theorem substituteLeading_allowed
     exact Or.inl
       (startsWithTerminal_append_nonterminals hsourceTerminal oldTail)
 
-private theorem substituteLeading_mem_of_generated
+theorem substituteLeading_mem_of_generated
     (G : GreibachWorkGrammar T n) (j : Fin n)
     {old new : ContextFreeRule T (GreibachWorkNT n)}
     (hold : old ∈ G.rules)
@@ -2676,7 +2680,7 @@ private theorem substituteLeading_mem_of_generated
   simp only [substituteLeadingBase, Finset.mem_biUnion]
   exact ⟨old, hold, hnew⟩
 
-private theorem substituteLeading_old_of_base_input
+theorem substituteLeading_old_of_base_input
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j)
     {r : ContextFreeRule T (GreibachWorkNT n)}
@@ -2706,7 +2710,7 @@ private theorem substituteLeading_old_of_base_input
   next =>
     exact Finset.mem_singleton.mp hgenerated ▸ hold
 
-private theorem substituteLeading_node
+theorem substituteLeading_node
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
@@ -2801,7 +2805,7 @@ private theorem substituteLeading_node
                 exact @SymbolTree.nonterminal T
                   (substituteLeadingBase G j).toCFG r hmem w children
 
-private theorem substituteLeading_formTree
+theorem substituteLeading_formTree
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j)
     {xs : List (Symbol T (GreibachWorkNT n))} {w : List T}
@@ -2821,7 +2825,7 @@ private theorem substituteLeading_formTree
     (fun _ _ ihHead ihTail => FormTree.cons ihHead ihTail)
     h
 
-private theorem substituteLeading_language_forward
+theorem substituteLeading_language_forward
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j) :
     G.toCFG.language ≤ (substituteLeadingBase G j).toCFG.language := by
@@ -2836,20 +2840,20 @@ private theorem substituteLeading_language_forward
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   exact hderives
 
-private theorem substituteLeading_language
+theorem substituteLeading_language
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j) :
     (substituteLeadingBase G j).toCFG.language = G.toCFG.language :=
   le_antisymm (substituteLeading_language_reverse G j)
     (substituteLeading_language_forward G j hterminal)
 
-private def substituteLeadingFold :
+def substituteLeadingFold :
     GreibachWorkGrammar T n → List (Fin n) →
       GreibachWorkGrammar T n
   | G, [] => G
   | G, j :: is => substituteLeadingFold (substituteLeadingBase G j) is
 
-private theorem leadingAllowedBy_of_valid
+theorem leadingAllowedBy_of_valid
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hall : ∀ j : Fin n, j ∈ is)
     (hvalid : WorkOutputsValid G) :
@@ -2859,7 +2863,7 @@ private theorem leadingAllowedBy_of_valid
   · exact Or.inl hterminal
   · exact Or.inr ⟨j, hall j, by simp [leadingBaseIndex, houtput]⟩
 
-private theorem substituteLeadingFold_result
+theorem substituteLeadingFold_result
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hsorted : is.Pairwise (· > ·))
     (hvalid : WorkOutputsValid G)
@@ -2893,7 +2897,7 @@ private theorem substituteLeadingFold_result
       rw [substituteLeadingFold]
       exact htail.2.2.2.trans (substituteLeading_language G j hterminal)
 
-private theorem substituteLeadingFold_all_terminal
+theorem substituteLeadingFold_all_terminal
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hsorted : is.Pairwise (· > ·))
     (hvalid : WorkOutputsValid G)
@@ -2908,7 +2912,7 @@ private theorem substituteLeadingFold_all_terminal
   · exact hterminal
   · simp at hj
 
-private theorem substituteLeadingFold_language
+theorem substituteLeadingFold_language
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hsorted : is.Pairwise (· > ·))
     (hvalid : WorkOutputsValid G)
@@ -2917,12 +2921,12 @@ private theorem substituteLeadingFold_language
     (substituteLeadingFold G is).toCFG.language = G.toCFG.language :=
   (substituteLeadingFold_result G is hsorted hvalid hordered hallowed).2.2.2
 
-private def orderedGreibachTransform
+def orderedGreibachTransform
     (G : GreibachWorkGrammar T n) : GreibachWorkGrammar T n :=
   let forward := orderedForwardFold G (List.finRange n)
   substituteLeadingFold forward (List.finRange n).reverse
 
-private theorem orderedGreibachTransform_language
+theorem orderedGreibachTransform_language
     (G : GreibachWorkGrammar T n)
     (hfresh : ∀ i : Fin n, RecFresh G i)
     (hinitial : ∀ i : Fin n, G.initial ≠ .recursive i)
@@ -2961,7 +2965,7 @@ private theorem orderedGreibachTransform_language
       · intro i hi
         exact hinitial i
 
-private theorem orderedGreibachTransform_isGreibach
+theorem orderedGreibachTransform_isGreibach
     (G : GreibachWorkGrammar T n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2989,7 +2993,7 @@ private theorem orderedGreibachTransform_isGreibach
   intro r hr
   exact Or.inr (hterminal r hr)
 
-private theorem orderedGreibachTransform_startsWithTerminal
+theorem orderedGreibachTransform_startsWithTerminal
     (G : GreibachWorkGrammar T n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -3021,19 +3025,19 @@ namespace ContextFreeGrammar
 
 variable [LinearOrder T]
 
-private inductive GreibachStartNT (N : Type*) where
+inductive GreibachStartNT (N : Type*) where
   | start
   | old (A : N)
 deriving DecidableEq, Repr
 
-private def copyInitialRule
+def copyInitialRule
     (r : ContextFreeRule T N) :
     ContextFreeRule T (GreibachStartNT N) :=
   { input := .start
     output := r.output.map
       (Symbol.mapNonterminal GreibachStartNT.old) }
 
-private abbrev inlineGreibachStart
+abbrev inlineGreibachStart
     (G : ContextFreeGrammar T) [DecidableEq G.NT] :
     ContextFreeGrammar T :=
   { NT := GreibachStartNT G.NT
@@ -3044,11 +3048,11 @@ private abbrev inlineGreibachStart
       ((G.rules.filter fun r => r.input = G.initial).image
         copyInitialRule) }
 
-private def eraseGreibachStart (S : N) : GreibachStartNT N → N
+def eraseGreibachStart (S : N) : GreibachStartNT N → N
   | .start => S
   | .old A => A
 
-private theorem oldGreibachSymbols_not_start
+theorem oldGreibachSymbols_not_start
     (xs : List (Symbol T N)) :
     Symbol.nonterminal
       (GreibachStartNT.start : GreibachStartNT N) ∉
@@ -3058,7 +3062,7 @@ private theorem oldGreibachSymbols_not_start
   | cons x xs ih =>
       cases x <;> simp_all
 
-private theorem inlineGreibachStart_initial_not_output
+theorem inlineGreibachStart_initial_not_output
     (G : ContextFreeGrammar T) [DecidableEq G.NT] :
     ∀ r ∈ (inlineGreibachStart G).rules,
       Symbol.nonterminal (inlineGreibachStart G).initial ∉
@@ -3073,7 +3077,7 @@ private theorem inlineGreibachStart_initial_not_output
   · simpa [copyInitialRule] using
       oldGreibachSymbols_not_start old.output
 
-private theorem inlineGreibachStart_old_step
+theorem inlineGreibachStart_old_step
     (G : ContextFreeGrammar T) [DecidableEq G.NT] {u v}
     (h : G.Produces u v) :
     (inlineGreibachStart G).Derives
@@ -3089,7 +3093,7 @@ private theorem inlineGreibachStart_old_step
     Finset.mem_image]
   exact Or.inl ⟨r, hr, rfl⟩
 
-private theorem inlineGreibachStart_reverse_step
+theorem inlineGreibachStart_reverse_step
     (G : ContextFreeGrammar T) [DecidableEq G.NT] {u v}
     (h : (inlineGreibachStart G).Produces u v) :
     G.Derives
@@ -3141,7 +3145,7 @@ private theorem inlineGreibachStart_reverse_step
     rw [hrule] at hmapped
     exact hmapped
 
-private theorem inlineGreibachStart_copy_step
+theorem inlineGreibachStart_copy_step
     (G : ContextFreeGrammar T) [DecidableEq G.NT]
     {v : List (Symbol T G.NT)}
     (h : G.Produces [Symbol.nonterminal G.initial] v) :
@@ -3167,7 +3171,7 @@ private theorem inlineGreibachStart_copy_step
       Finset.mem_filter.mpr ⟨hr, hinput.symm⟩, rfl⟩
   · exact ContextFreeRule.Rewrites.input_output
 
-private theorem inlineGreibachStart_language
+theorem inlineGreibachStart_language
     (G : ContextFreeGrammar T) [DecidableEq G.NT] :
     (inlineGreibachStart G).language = G.language := by
   ext w
@@ -3193,7 +3197,7 @@ private theorem inlineGreibachStart_language
 
 
 
-private theorem inlineGreibachStart_startsWithTerminal
+theorem inlineGreibachStart_startsWithTerminal
     (G : ContextFreeGrammar T) [DecidableEq G.NT]
     (hterminal : ∀ r ∈ G.rules, ∃ (a : T) (tail : List G.NT),
       r.output = Symbol.terminal a :: tail.map Symbol.nonterminal) :
@@ -3215,7 +3219,7 @@ private theorem inlineGreibachStart_startsWithTerminal
     simp [copyInitialRule, hout, List.map_map,
       Function.comp_def]
 
-private theorem inlineGreibachStart_greibach
+theorem inlineGreibachStart_greibach
     (G : ContextFreeGrammar T) [DecidableEq G.NT]
     (hterminal : ∀ r ∈ G.rules, ∃ (a : T) (tail : List G.NT),
       r.output = Symbol.terminal a :: tail.map Symbol.nonterminal) :
@@ -3227,50 +3231,50 @@ private theorem inlineGreibachStart_greibach
 
 
 
-private def nonemptyGreibachWork
+def nonemptyGreibachWork
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     GreibachWorkGrammar T
       (activeNonterminals (nonemptyCNF g).grammar.cfg).card :=
   compactWork (nonemptyCNF g).grammar.cfg
 
-private abbrev NonemptyGreibachNT
+abbrev NonemptyGreibachNT
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :=
   GreibachStartNT
     (GreibachWorkNT (activeNonterminals (nonemptyCNF g).grammar.cfg).card)
 
-private def nonemptyGreibachRules
+def nonemptyGreibachRules
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     Finset (ContextFreeRule T (NonemptyGreibachNT g)) :=
   (inlineGreibachStart
     (orderedGreibachTransform (nonemptyGreibachWork g)).toCFG).rules
 
-private abbrev nonemptyGreibachCFG
+abbrev nonemptyGreibachCFG
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ContextFreeGrammar T :=
   { NT := NonemptyGreibachNT g
     initial := .start
     rules := nonemptyGreibachRules g }
 
-private theorem nonemptyGreibachCFG_eq_inline
+theorem nonemptyGreibachCFG_eq_inline
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     nonemptyGreibachCFG g =
       inlineGreibachStart
         (orderedGreibachTransform (nonemptyGreibachWork g)).toCFG := by
   rfl
 
-private theorem nonemptyGreibachWork_valid
+theorem nonemptyGreibachWork_valid
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     WorkOutputsValid (nonemptyGreibachWork g) :=
   compactWork_outputsValid (nonemptyCNF g).grammar
     (nonemptyCNF g).no_empty_rules
 
-private theorem nonemptyGreibachWork_tail
+theorem nonemptyGreibachWork_tail
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     BaseRulesHaveTail (nonemptyGreibachWork g) :=
   compactWork_baseRulesHaveTail (nonemptyCNF g).grammar
     (nonemptyCNF g).no_empty_rules
 
-private theorem nonemptyGreibachCFG_language_nonempty
+theorem nonemptyGreibachCFG_language_nonempty
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {w : List T} (hw : w ≠ []) :
     w ∈ (nonemptyGreibachCFG g).language ↔ w ∈ g.language := by
@@ -3287,7 +3291,7 @@ private theorem nonemptyGreibachCFG_language_nonempty
 
 set_option maxHeartbeats 0 in
 -- The generated finite index is definitionally tied to the computed grammar support.
-private theorem nonemptyGreibachCFG_greibach
+theorem nonemptyGreibachCFG_greibach
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (r : ContextFreeRule T (NonemptyGreibachNT g))
     (hr : r ∈ nonemptyGreibachRules g) :
@@ -3307,7 +3311,7 @@ private theorem nonemptyGreibachCFG_greibach
 
 set_option maxHeartbeats 0 in
 -- The generated finite index is definitionally tied to the computed grammar support.
-private theorem nonemptyGreibachCFG_initial_not_output
+theorem nonemptyGreibachCFG_initial_not_output
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (r : ContextFreeRule T (NonemptyGreibachNT g))
     (hr : r ∈ nonemptyGreibachRules g) :
@@ -3320,7 +3324,7 @@ private theorem nonemptyGreibachCFG_initial_not_output
 
 set_option maxHeartbeats 0 in
 -- The generated finite index is definitionally tied to the computed grammar support.
-private theorem nonemptyGreibachCFG_no_empty_rules
+theorem nonemptyGreibachCFG_no_empty_rules
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (r : ContextFreeRule T (NonemptyGreibachNT g))
     (hr : r ∈ nonemptyGreibachRules g) :
@@ -3339,11 +3343,11 @@ set_option maxHeartbeats 0 in
 -- Restoring ε threads a generated finite index through the complete GNF proof.
 section
 
-private def greibachEmptyRule (G : ContextFreeGrammar T) :
+def greibachEmptyRule (G : ContextFreeGrammar T) :
     ContextFreeRule T G.NT :=
   { input := G.initial, output := [] }
 
-private def restoreGreibachEpsilonRules
+def restoreGreibachEpsilonRules
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     Finset (ContextFreeRule T (NonemptyGreibachNT g)) :=
   if (nonemptyCNF g).hasEmpty = true
@@ -3351,14 +3355,14 @@ private def restoreGreibachEpsilonRules
       (nonemptyGreibachRules g)
     else nonemptyGreibachRules g
 
-private abbrev restoreGreibachEpsilon
+abbrev restoreGreibachEpsilon
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ContextFreeGrammar T :=
   { NT := NonemptyGreibachNT g
     initial := .start
     rules := restoreGreibachEpsilonRules g }
 
-private theorem restoreGreibachEpsilon_base_step
+theorem restoreGreibachEpsilon_base_step
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (h : (nonemptyGreibachCFG g).Produces u v) :
     (restoreGreibachEpsilon g).Derives u v := by
@@ -3371,7 +3375,7 @@ private theorem restoreGreibachEpsilon_base_step
   · exact Finset.mem_insert_of_mem hr
   · exact hr
 
-private theorem restoreGreibachEpsilon_step_without_initial
+theorem restoreGreibachEpsilon_step_without_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (hno : Symbol.nonterminal (nonemptyGreibachCFG g).initial ∉ u)
     (h : (restoreGreibachEpsilon g).Produces u v) :
@@ -3388,7 +3392,7 @@ private theorem restoreGreibachEpsilon_step_without_initial
     · exact ⟨r, hr, hrewrite⟩
   next =>
     exact ⟨r, hr, hrewrite⟩
-private theorem nonemptyGreibachCFG_step_preserves_initial
+theorem nonemptyGreibachCFG_step_preserves_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (hno : Symbol.nonterminal (nonemptyGreibachCFG g).initial ∉ u)
     (h : (nonemptyGreibachCFG g).Produces u v) :
@@ -3400,7 +3404,7 @@ private theorem nonemptyGreibachCFG_step_preserves_initial
     nonemptyGreibachCFG_initial_not_output g r hr⟩, hno.2⟩
 
 
-private theorem restoreGreibachEpsilon_derives_without_initial
+theorem restoreGreibachEpsilon_derives_without_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ∀ {u v},
       Symbol.nonterminal (nonemptyGreibachCFG g).initial ∉ u →
@@ -3417,7 +3421,7 @@ private theorem restoreGreibachEpsilon_derives_without_initial
       exact ⟨nonemptyGreibachCFG_step_preserves_initial
         g hprefix.1 hstep,
         hprefix.2.trans hstep.single⟩
-private theorem restoreGreibachEpsilon_language_nonempty
+theorem restoreGreibachEpsilon_language_nonempty
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {w : List T} (hw : w ≠ []) :
     w ∈ (restoreGreibachEpsilon g).language ↔
@@ -3478,7 +3482,7 @@ private theorem restoreGreibachEpsilon_language_nonempty
         simpa using restoreGreibachEpsilon_base_step g
           (by simpa using hstep)) h
     simpa using h'
-private theorem derives_nonempty_of_no_empty_rules
+theorem derives_nonempty_of_no_empty_rules
     (G : ContextFreeGrammar T)
     (hnoempty : ∀ r ∈ G.rules, r.output ≠ []) :
     ∀ {u v}, u ≠ [] → G.Derives u v → v ≠ [] := by
@@ -3502,7 +3506,7 @@ private theorem derives_nonempty_of_no_empty_rules
               rw [hout] at hempty
               simp at hempty
 
-private theorem nonemptyGreibachCFG_empty_not_mem
+theorem nonemptyGreibachCFG_empty_not_mem
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     [] ∉ (nonemptyGreibachCFG g).language := by
   intro h
@@ -3511,7 +3515,7 @@ private theorem nonemptyGreibachCFG_empty_not_mem
     (nonemptyGreibachCFG_no_empty_rules g)
     (by simp) h rfl
 
-private theorem restoreGreibachEpsilon_empty_mem
+theorem restoreGreibachEpsilon_empty_mem
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     [] ∈ (restoreGreibachEpsilon g).language ↔ [] ∈ g.language := by
   classical
@@ -3535,7 +3539,7 @@ private theorem restoreGreibachEpsilon_empty_mem
       exact (nonemptyGreibachCFG_empty_not_mem g hbase).elim
     · exact fun h => (hempty h).elim
 
-private theorem restoreGreibachEpsilon_language
+theorem restoreGreibachEpsilon_language
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (restoreGreibachEpsilon g).language = g.language := by
   ext w
@@ -3545,7 +3549,7 @@ private theorem restoreGreibachEpsilon_language
       rw [restoreGreibachEpsilon_language_nonempty g (by simp)]
       exact nonemptyGreibachCFG_language_nonempty g (by simp)
 
-private theorem restoreGreibachEpsilon_greibach
+theorem restoreGreibachEpsilon_greibach
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ∀ r ∈ (restoreGreibachEpsilon g).rules,
       ContextFreeRule.IsGreibachNormal
@@ -3562,7 +3566,7 @@ private theorem restoreGreibachEpsilon_greibach
   next =>
     exact nonemptyGreibachCFG_greibach g r hr
 
-private theorem restoreGreibachEpsilon_initial_not_output
+theorem restoreGreibachEpsilon_initial_not_output
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ∀ r ∈ (restoreGreibachEpsilon g).rules,
       Symbol.nonterminal (restoreGreibachEpsilon g).initial ∉ r.output := by
@@ -3580,16 +3584,16 @@ private theorem restoreGreibachEpsilon_initial_not_output
 
 /-- Computably convert a context-free grammar with ordered symbols to an
 equivalent grammar in Greibach normal form. -/
-def toGreibachNormalGrammarComputable
+def toGreibachNormalGrammar
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     GreibachNormalGrammar T :=
   { cfg := restoreGreibachEpsilon g
     greibachNormal := restoreGreibachEpsilon_greibach g
     initial_not_output := restoreGreibachEpsilon_initial_not_output g }
 
-@[simp] theorem toGreibachNormalGrammarComputable_language
+@[simp] theorem toGreibachNormalGrammar_language
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
-    (toGreibachNormalGrammarComputable g).language = g.language := by
+    (toGreibachNormalGrammar g).language = g.language := by
   change (restoreGreibachEpsilon g).language = g.language
   exact restoreGreibachEpsilon_language g
 
@@ -3598,23 +3602,6 @@ end
 end ContextFreeGrammar
 namespace ContextFreeGrammar
 
-/-- Convert an arbitrary context-free grammar to Greibach normal form.
-
-This compatibility entry point chooses classical orders. Use
-`toGreibachNormalGrammarComputable` when executable code is required. -/
-noncomputable def toGreibachNormalGrammar
-    (g : ContextFreeGrammar T) : GreibachNormalGrammar T := by
-  classical
-  letI : LinearOrder T := linearOrderOfSTO WellOrderingRel
-  letI : LinearOrder g.NT := linearOrderOfSTO WellOrderingRel
-  exact toGreibachNormalGrammarComputable g
-
-@[simp] theorem toGreibachNormalGrammar_language
-    (g : ContextFreeGrammar T) :
-    (toGreibachNormalGrammar g).language = g.language := by
-  classical
-  simp [toGreibachNormalGrammar,
-    toGreibachNormalGrammarComputable_language]
 
 
 end ContextFreeGrammar

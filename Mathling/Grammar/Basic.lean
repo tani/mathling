@@ -1,9 +1,15 @@
-import Mathling.Grammar.RightLinear
-import Mathling.Grammar.LeftLinear
-import Mathling.Grammar.Linear
-import Mathling.Grammar.ChomskyNormal
-import Mathling.Grammar.GreibachNormal
-import Mathling.Grammar.Pumping
+module
+
+public import Mathling.Grammar.RightLinear
+public import Mathling.Grammar.LeftLinear
+public import Mathling.Grammar.Linear
+public import Mathling.Grammar.ChomskyNormal
+public import Mathling.Grammar.ChomskyNormal.Classical
+public import Mathling.Grammar.GreibachNormal
+public import Mathling.Grammar.GreibachNormal.Classical
+public import Mathling.Grammar.Pumping
+
+@[expose] public section
 
 /-!
 # Grammars

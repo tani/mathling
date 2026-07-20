@@ -1,4 +1,8 @@
-import Mathling.Grammar.ChomskyNormal
+module
+
+public import Mathling.Grammar.ChomskyNormal.Classical
+
+@[expose] public section
 
 /-!
 # Pumping lemma for context-free languages
@@ -629,7 +633,7 @@ theorem Language.IsContextFree.pumping_lemma
         ∀ i : ℕ, u ++ (List.replicate i v).flatten ++ x ++
           (List.replicate i y).flatten ++ z ∈ L := by
   rcases h with ⟨g₀, rfl⟩
-  let g := ContextFreeGrammar.toChomskyNormalGrammar g₀
+  let g := ContextFreeGrammar.Classical.toChomskyNormalGrammar g₀
   let m := (ContextFreeGrammar.activeNonterminals g.cfg).card
   have hp : 1 ≤ 2 ^ m := by simpa using Nat.one_le_pow' m 1
   refine ⟨2 ^ m, hp, ?_⟩
