@@ -1,4 +1,8 @@
-import Mathling.CCG.Category
+module
+
+public import Mathling.CCG.Category
+
+@[expose] public section
 
 /-!
 # The finite candidate category set `K_{Γ,y}` (paper §23)

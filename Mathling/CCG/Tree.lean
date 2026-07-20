@@ -1,4 +1,8 @@
-import Mathling.CCG.Derivation
+module
+
+public import Mathling.CCG.Derivation
+
+@[expose] public section
 
 /-!
 # Explicit derivation trees for the eight-rule CCG system

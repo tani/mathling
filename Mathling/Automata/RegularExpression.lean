@@ -1,5 +1,9 @@
-import Mathling.Automata.Finite
-import Mathlib.Computability.RegularExpressions
+module
+
+public import Mathling.Automata.Finite
+public import Mathlib.Computability.RegularExpressions
+
+public section
 
 /-!
 # Regular expressions

@@ -1,5 +1,9 @@
-import Mathlib.Data.List.Basic
-import Mathlib.Data.Nat.Basic
+module
+
+public import Mathlib.Data.List.Basic
+public import Mathlib.Data.Nat.Basic
+
+@[expose] public section
 
 /-!
 # CCG categories and the finite candidate set

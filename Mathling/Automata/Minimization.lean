@@ -1,6 +1,10 @@
-import Mathling.Automata.Finite
-import Mathlib.Computability.MyhillNerode
-import Mathlib.Data.Finite.Card
+module
+
+public import Mathling.Automata.Finite
+public import Mathlib.Computability.MyhillNerode
+public import Mathlib.Data.Finite.Card
+
+@[expose] public section
 
 /-!
 # DFA minimization

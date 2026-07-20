@@ -1,4 +1,8 @@
-import Mathling.Automata.Pushdown
+module
+
+public import Mathling.Automata.Pushdown
+
+@[expose] public section
 
 /-!
 # Finite-to-pushdown conversions

@@ -1,5 +1,9 @@
-import Mathling.Grammar.ContextFree
-import Mathling.Automata.Pushdown
+module
+
+public import Mathling.Grammar.ContextFree
+public import Mathling.Automata.Pushdown
+
+public section
 
 /-!
 # Linear grammars

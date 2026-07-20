@@ -1,5 +1,9 @@
-import Mathling.CCG.Derivation
-import Mathling.CCG.Finite
+module
+
+public import Mathling.CCG.Derivation
+public import Mathling.CCG.Finite
+
+@[expose] public section
 
 /-!
 # Atom erasure for the eight-rule CCG system

@@ -1,4 +1,8 @@
-import Mathling.Automata.Finite
+module
+
+public import Mathling.Automata.Finite
+
+@[expose] public section
 
 /-!
 # Pushdown automata

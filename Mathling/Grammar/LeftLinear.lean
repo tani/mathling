@@ -1,4 +1,8 @@
-import Mathling.Grammar.RightLinear
+module
+
+public import Mathling.Grammar.RightLinear
+
+@[expose] public section
 
 /-!
 # Left-linear grammars

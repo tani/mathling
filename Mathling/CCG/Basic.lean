@@ -1,13 +1,17 @@
-import Mathling.CCG.Category
-import Mathling.CCG.Derivation
-import Mathling.CCG.Finite
-import Mathling.CCG.Atoms
-import Mathling.CCG.Tree
-import Mathling.CCG.Occurrence
-import Mathling.CCG.Trace
-import Mathling.CCG.Band
-import Mathling.CCG.Depth
-import Mathling.CCG.Protected
+module
+
+public import Mathling.CCG.Category
+public import Mathling.CCG.Derivation
+public import Mathling.CCG.Finite
+public import Mathling.CCG.Atoms
+public import Mathling.CCG.Tree
+public import Mathling.CCG.Occurrence
+public import Mathling.CCG.Trace
+public import Mathling.CCG.Band
+public import Mathling.CCG.Depth
+public import Mathling.CCG.Protected
+
+@[expose] public section
 
 /-!
 # Basic definitions for the eight-rule CCG system

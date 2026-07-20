@@ -1,8 +1,12 @@
-import Mathling.CCG.Atoms
-import Mathling.CCG.Band
-import Mathling.CCG.Finite
-import Mathlib.Data.Fintype.Card
-import Mathlib.Data.Fintype.Prod
+module
+
+public import Mathling.CCG.Atoms
+public import Mathling.CCG.Band
+public import Mathling.CCG.Finite
+public import Mathlib.Data.Fintype.Card
+public import Mathlib.Data.Fintype.Prod
+
+@[expose] public section
 
 /-!
 # Depth-counting layer for CCG derivation trees

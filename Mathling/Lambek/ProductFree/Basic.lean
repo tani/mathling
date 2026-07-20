@@ -1,7 +1,11 @@
-    import Mathlib.Data.Nat.Basic
-    import Mathlib.Data.List.Basic
-    import LiterateLean
+    module
+
+    public import Mathlib.Data.Nat.Basic
+    public import Mathlib.Data.List.Basic
+    public import LiterateLean
     open scoped LiterateLean
+
+    @[expose] public section
 
 # Lambek 計算（積なし）の基本定義と性質
 

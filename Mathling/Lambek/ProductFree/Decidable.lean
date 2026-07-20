@@ -1,9 +1,13 @@
-    import Mathlib.Data.Bool.Basic
-    import Mathlib.Data.List.Basic
-    import Mathling.Lambek.ProductFree.Basic
-    import Lean.LibrarySuggestions.Default
-    import LiterateLean
+    module
+
+    public import Mathlib.Data.Bool.Basic
+    public import Mathlib.Data.List.Basic
+    public import Mathling.Lambek.ProductFree.Basic
+    public import Lean.LibrarySuggestions.Default
+    public import LiterateLean
     open scoped LiterateLean
+
+    @[expose] public section
 
 # Lambek 計算の決定可能性の証明
 

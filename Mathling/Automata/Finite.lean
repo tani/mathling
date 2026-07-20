@@ -1,6 +1,10 @@
-import Mathlib.Computability.DFA
-import Mathlib.Computability.NFA
-import Mathlib.Computability.EpsilonNFA
+module
+
+public import Mathlib.Computability.DFA
+public import Mathlib.Computability.NFA
+public import Mathlib.Computability.EpsilonNFA
+
+@[expose] public section
 
 /-!
 # Finite automata

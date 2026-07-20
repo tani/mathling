@@ -1,4 +1,8 @@
-import Mathling.CCG.Tree
+module
+
+public import Mathling.CCG.Tree
+
+@[expose] public section
 
 /-!
 # Category positions and one-hole contexts

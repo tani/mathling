@@ -1,6 +1,10 @@
-import Mathling.Grammar.Core
-import Mathlib.Data.Finset.Union
-import Mathlib.Data.List.Sublists
+module
+
+public import Mathling.Grammar.Core
+public import Mathlib.Data.Finset.Union
+public import Mathlib.Data.List.Sublists
+
+@[expose] public section
 
 /-!
 # Context-free grammar support

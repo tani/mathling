@@ -1,4 +1,8 @@
-import Mathling.CCG.Search
+module
+
+public import Mathling.CCG.Search
+
+@[expose] public section
 
 /-!
 # Soundness of the bounded recognizer

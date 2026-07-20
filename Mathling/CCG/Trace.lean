@@ -1,7 +1,11 @@
-import Mathling.CCG.Tree
-import Mathling.CCG.Occurrence
-import Mathlib.Data.Nat.Find
-import Mathlib.Logic.Relation
+module
+
+public import Mathling.CCG.Tree
+public import Mathling.CCG.Occurrence
+public import Mathlib.Data.Nat.Find
+public import Mathlib.Logic.Relation
+
+@[expose] public section
 
 /-!
 # Node occurrences, trace edges, visibility, and size-minimal derivations

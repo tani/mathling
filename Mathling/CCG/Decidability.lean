@@ -1,11 +1,15 @@
-import Mathling.CCG.Search
-import Mathling.CCG.Soundness
-import Mathling.CCG.Completeness
-import Mathling.CCG.Parser
-import Mathling.CCG.Finite
-import Mathling.CCG.Atoms
-import Mathling.CCG.Depth
-import Mathling.CCG.Protected
+module
+
+public import Mathling.CCG.Search
+public import Mathling.CCG.Soundness
+public import Mathling.CCG.Completeness
+public import Mathling.CCG.Parser
+public import Mathling.CCG.Finite
+public import Mathling.CCG.Atoms
+public import Mathling.CCG.Depth
+public import Mathling.CCG.Protected
+
+@[expose] public section
 
 /-!
 # Decision procedure for the eight-rule CCG system

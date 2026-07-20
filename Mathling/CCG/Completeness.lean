@@ -1,4 +1,8 @@
-import Mathling.CCG.Search
+module
+
+public import Mathling.CCG.Search
+
+@[expose] public section
 
 /-!
 # Relative completeness of the bounded recognizer

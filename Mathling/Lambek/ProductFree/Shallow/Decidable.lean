@@ -1,9 +1,13 @@
-    import Mathlib.Data.Bool.Basic
-    import Mathlib.Data.List.Basic
-    import Mathling.Lambek.ProductFree.Decidable
-    import Mathling.Lambek.ProductFree.Shallow.Basic
-    import LiterateLean
+    module
+
+    public import Mathlib.Data.Bool.Basic
+    public import Mathlib.Data.List.Basic
+    public import Mathling.Lambek.ProductFree.Decidable
+    public import Mathling.Lambek.ProductFree.Shallow.Basic
+    public import LiterateLean
     open scoped LiterateLean
+
+    @[expose] public section
 
 # Decidability for the Shallow Fragment
 

@@ -1,5 +1,9 @@
-import Mathlib.Data.Bool.Basic
-import Mathling.CCG.Derivation
+module
+
+public import Mathlib.Data.Bool.Basic
+public import Mathling.CCG.Derivation
+
+@[expose] public section
 
 /-!
 # The fuel-bounded backward recognizer

@@ -1,5 +1,9 @@
-import Mathling.CCG.Soundness
-import Mathling.CCG.Completeness
+module
+
+public import Mathling.CCG.Soundness
+public import Mathling.CCG.Completeness
+
+@[expose] public section
 
 /-!
 # Parser entry points and the recognizer/derivation equivalence

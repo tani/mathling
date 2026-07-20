@@ -1,4 +1,8 @@
-import Mathling.CCG.Band
+module
+
+public import Mathling.CCG.Band
+
+@[expose] public section
 
 /-!
 # The protected-skeleton case of boundary-free piece elimination

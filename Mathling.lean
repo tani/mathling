@@ -1,17 +1,21 @@
-import Mathling.Lambek.ProductFree.Basic
-import Mathling.Lambek.ProductFree.Decidable
-import Mathling.Lambek.ProductFree.Right.Basic
-import Mathling.Lambek.ProductFree.Right.Decidable
-import Mathling.Lambek.ProductFree.Right.Shallow.Basic
-import Mathling.Lambek.ProductFree.Right.Shallow.Decidable
-import Mathling.Lambek.ProductFree.Left.Basic
-import Mathling.Lambek.ProductFree.Left.Decidable
-import Mathling.Lambek.ProductFree.Left.Shallow.Basic
-import Mathling.Lambek.ProductFree.Left.Shallow.Decidable
-import Mathling.Lambek.ProductFree.Shallow.Basic
-import Mathling.Lambek.ProductFree.Shallow.Decidable
+module
 
-import Mathling.CCG.Basic
-import Mathling.CCG.Decidability
-import Mathling.Automata.Basic
-import Mathling.Grammar.Basic
+public import Mathling.Lambek.ProductFree.Basic
+public import Mathling.Lambek.ProductFree.Decidable
+public import Mathling.Lambek.ProductFree.Right.Basic
+public import Mathling.Lambek.ProductFree.Right.Decidable
+public import Mathling.Lambek.ProductFree.Right.Shallow.Basic
+public import Mathling.Lambek.ProductFree.Right.Shallow.Decidable
+public import Mathling.Lambek.ProductFree.Left.Basic
+public import Mathling.Lambek.ProductFree.Left.Decidable
+public import Mathling.Lambek.ProductFree.Left.Shallow.Basic
+public import Mathling.Lambek.ProductFree.Left.Shallow.Decidable
+public import Mathling.Lambek.ProductFree.Shallow.Basic
+public import Mathling.Lambek.ProductFree.Shallow.Decidable
+
+public import Mathling.CCG.Basic
+public import Mathling.CCG.Decidability
+public import Mathling.Automata.Basic
+public import Mathling.Grammar.Basic
+
+@[expose] public section

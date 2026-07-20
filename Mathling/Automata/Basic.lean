@@ -1,7 +1,11 @@
-import Mathling.Automata.Conversions
-import Mathling.Automata.RegularExpression
-import Mathling.Automata.Minimization
-import Mathling.Automata.Pumping
+module
+
+public import Mathling.Automata.Conversions
+public import Mathling.Automata.RegularExpression
+public import Mathling.Automata.Minimization
+public import Mathling.Automata.Pumping
+
+@[expose] public section
 
 /-!
 # Automata

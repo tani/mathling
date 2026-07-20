@@ -1,8 +1,12 @@
-    import Mathlib.Data.List.Basic
-    import Mathlib.Data.Nat.Basic
-    import Mathling.Lambek.ProductFree.Basic
-    import LiterateLean
+    module
+
+    public import Mathlib.Data.List.Basic
+    public import Mathlib.Data.Nat.Basic
+    public import Mathling.Lambek.ProductFree.Basic
+    public import LiterateLean
     open scoped LiterateLean
+
+    @[expose] public section
 
 # Shallow Fragment of Product-Free Lambek Calculus
 

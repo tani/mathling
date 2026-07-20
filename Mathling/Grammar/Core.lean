@@ -1,4 +1,8 @@
-import Mathlib.Computability.ContextFreeGrammar
+module
+
+public import Mathlib.Computability.ContextFreeGrammar
+
+@[expose] public section
 
 /-!
 # Grammar hierarchy

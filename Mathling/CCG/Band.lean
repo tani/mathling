@@ -1,6 +1,10 @@
-import Mathling.CCG.Atoms
-import Mathling.CCG.Trace
-import Mathlib.Data.Fintype.Card
+module
+
+public import Mathling.CCG.Atoms
+public import Mathling.CCG.Trace
+public import Mathlib.Data.Fintype.Card
+
+@[expose] public section
 
 /-!
 # Contraction and boundary-free invisible-piece elimination
