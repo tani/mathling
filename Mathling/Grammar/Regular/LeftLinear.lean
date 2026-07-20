@@ -39,6 +39,23 @@ def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
 
 end LeftLinearGrammar
 
+/-- Reversing a rule with empty output leaves the output empty. -/
+private theorem ContextFreeRule.reverse_output_nil {T N : Type*}
+    {r : ContextFreeRule T N} (h : r.output = []) : r.reverse.output = [] := by
+  simp [ContextFreeRule.reverse, h]
+
+/-- Reversing a rule with singleton output leaves the output unchanged. -/
+private theorem ContextFreeRule.reverse_output_singleton {T N : Type*}
+    {r : ContextFreeRule T N} {a : T} (h : r.output = [Symbol.terminal a]) :
+    r.reverse.output = [Symbol.terminal a] := by
+  simp [ContextFreeRule.reverse, h]
+
+/-- Reversing a rule with two-symbol output swaps the two symbols. -/
+private theorem ContextFreeRule.reverse_output_pair {T N : Type*}
+    {r : ContextFreeRule T N} {x y : Symbol T N} (h : r.output = [x, y]) :
+    r.reverse.output = [y, x] := by
+  simp [ContextFreeRule.reverse, h]
+
 namespace LeftLinearGrammar
 
 variable {T : Type*}
@@ -52,13 +69,9 @@ def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T where
       ⟨ContextFreeRule.reverse, ContextFreeRule.reverse_injective⟩ at hr
     obtain ⟨source, hsource, rfl⟩ := Finset.mem_map.mp hr
     rcases g.leftLinear source hsource with h | ⟨a, h⟩ | ⟨A, a, h⟩
-    · exact Or.inl (by simp [ContextFreeRule.reverse, h]; rfl)
-    · exact Or.inr (Or.inl ⟨a, by
-        simp [ContextFreeRule.reverse, h]
-        rfl⟩)
-    · exact Or.inr (Or.inr ⟨a, A, by
-        simp [ContextFreeRule.reverse, h]
-        rfl⟩)
+    · exact Or.inl (ContextFreeRule.reverse_output_nil h)
+    · exact Or.inr (Or.inl ⟨a, ContextFreeRule.reverse_output_singleton h⟩)
+    · exact Or.inr (Or.inr ⟨a, A, ContextFreeRule.reverse_output_pair h⟩)
 
 /-- Reversing productions reverses the generated language. -/
 @[simp] theorem reverseRightLinear_language (g : LeftLinearGrammar T) :
@@ -90,13 +103,9 @@ def reverseLeftLinear (g : RightLinearGrammar T) : LeftLinearGrammar T where
       ⟨ContextFreeRule.reverse, ContextFreeRule.reverse_injective⟩ at hr
     obtain ⟨source, hsource, rfl⟩ := Finset.mem_map.mp hr
     rcases g.rightLinear source hsource with h | ⟨a, h⟩ | ⟨a, B, h⟩
-    · exact Or.inl (by simp [ContextFreeRule.reverse, h]; rfl)
-    · exact Or.inr (Or.inl ⟨a, by
-        simp [ContextFreeRule.reverse, h]
-        rfl⟩)
-    · exact Or.inr (Or.inr ⟨B, a, by
-        simp [ContextFreeRule.reverse, h]
-        rfl⟩)
+    · exact Or.inl (ContextFreeRule.reverse_output_nil h)
+    · exact Or.inr (Or.inl ⟨a, ContextFreeRule.reverse_output_singleton h⟩)
+    · exact Or.inr (Or.inr ⟨B, a, ContextFreeRule.reverse_output_pair h⟩)
 
 /-- Reversing productions reverses the generated language. -/
 @[simp] theorem reverseLeftLinear_language (g : RightLinearGrammar T) :
@@ -116,11 +125,8 @@ theorem Language.isRegular_iff_exists_leftLinearGrammar
   · intro hL
     have hrev : L.reverse.IsRegular := Language.isRegular_reverse_iff.mpr hL
     obtain ⟨g, ⟨inst⟩, hg⟩ := Language.isRegular_iff_exists_rightLinearGrammar.mp hrev
-    letI : Fintype g.cfg.NT := inst
-    refine ⟨g.reverseLeftLinear, ⟨?_⟩, ?_⟩
-    · change Fintype g.cfg.NT
-      infer_instance
-    · rw [g.reverseLeftLinear_language, hg, Language.reverse_reverse]
+    refine ⟨g.reverseLeftLinear, ⟨inst⟩, ?_⟩
+    rw [g.reverseLeftLinear_language, hg, Language.reverse_reverse]
   · rintro ⟨g, ⟨inst⟩, rfl⟩
     letI : Fintype g.cfg.NT := inst
     exact g.language_isRegular

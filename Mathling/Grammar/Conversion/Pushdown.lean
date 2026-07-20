@@ -122,20 +122,14 @@ theorem output_supported (g : ContextFreeGrammar T)
 theorem expansionRule_mem (g : ContextFreeGrammar T)
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     expansionRule r ∈ (toNPDA g).rules := by
-  apply List.mem_append.mpr
-  left
-  apply List.mem_append.mpr
-  left
-  exact List.mem_map.mpr ⟨r, Finset.mem_toList.mpr hr, rfl⟩
+  simp only [toNPDA, List.mem_append, List.mem_map, Finset.mem_toList]
+  exact Or.inl (Or.inl ⟨r, hr, rfl⟩)
 
 theorem terminalRule_mem (g : ContextFreeGrammar T)
     {a : T} (ha : a ∈ terminalSupport g) :
     terminalRule g a ∈ (toNPDA g).rules := by
-  apply List.mem_append.mpr
-  left
-  apply List.mem_append.mpr
-  right
-  exact List.mem_map.mpr ⟨a, ha, rfl⟩
+  simp only [toNPDA, List.mem_append, List.mem_map]
+  exact Or.inl (Or.inr ⟨a, ha, rfl⟩)
 
 theorem finishRule_mem (g : ContextFreeGrammar T) :
     finishRule g ∈ (toNPDA g).rules := by
@@ -441,12 +435,6 @@ theorem length_eq_of_mem_listsOfLength {choices path : List State} {n : Nat}
 theorem rule_source_mem_stateSupport (M : NPDA T State Stack)
     {r : PushdownRule T State Stack} (hr : r ∈ M.rules) :
     r.source ∈ M.stateSupport := by
-  apply List.mem_append_right
-  exact List.mem_flatMap.mpr ⟨r, hr, by simp⟩
-
-theorem rule_target_mem_stateSupport (M : NPDA T State Stack)
-    {r : PushdownRule T State Stack} (hr : r ∈ M.rules) :
-    r.target ∈ M.stateSupport := by
   apply List.mem_append_right
   exact List.mem_flatMap.mpr ⟨r, hr, by simp⟩
 
