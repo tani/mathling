@@ -65,7 +65,7 @@ def height {g : ChomskyNormalGrammar T} {A : g.cfg.NT} :
       omega
 
 /-- A binary parse tree of height `h` has at most `2^(h-1)` leaves. -/
-theorem yield_length_le {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
+@[grind] theorem yield_length_le {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) : (yield t).length ≤ 2 ^ (height t - 1) := by
   induction t with
   | leaf => simp [yield, height]
@@ -93,7 +93,7 @@ theorem yield_length_le {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
           omega
 
 /-- A parse tree witnesses a grammar derivation of its yield. -/
-theorem yield_derives {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
+@[grind] theorem yield_derives {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) :
     g.cfg.Derives [Symbol.nonterminal A] (terminalSymbols (yield t)) := by
   induction t with
@@ -132,7 +132,6 @@ def plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
   | .left A B C X h c r, t => .node A B C h (plug c t) r
   | .right A B C X h l c, t => .node A B C h l (plug c t)
 
-/-- Terminals strictly to the left of a context's hole. -/
 ```
 
 ## 一穴文脈の観測量
@@ -140,6 +139,7 @@ def plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
 穴の左側と右側の yield、および plug 後の高さを制御する文脈寄与を定義する。proper な文脈は穴の外側に少なくとも一つの終端記号を持つため、後の pumping 部分が空にならない。
 
 ```lean
+/-- Terminals strictly to the left of a context's hole. -/
 def preYield {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
     ParseCtx g A X → List T
   | .hole _ => []
@@ -197,7 +197,7 @@ def IsProper {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
       omega
 
 /-- A proper context contributes at least one terminal outside its hole. -/
-theorem proper_yield_pos {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
+@[grind] theorem proper_yield_pos {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
     (c : ParseCtx g A X) (hc : IsProper c) :
     1 ≤ (preYield c ++ postYield c).length := by
   cases c with
@@ -245,7 +245,7 @@ def compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT} :
   | right A B C X h l c ih => simp [compose, postYield, ih]
 
 /-- Plugging a context cannot decrease the height of its argument. -/
-theorem height_le_plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
+@[grind] theorem height_le_plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
     (c : ParseCtx g A X) (t : ParseTree g X) :
     ParseTree.height t ≤ ParseTree.height (plug c t) := by
   induction c with
@@ -262,7 +262,6 @@ theorem height_le_plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
 end ParseCtx
 
 
-/-- Every height between one and a tree's height occurs at some subtree. -/
 ```
 
 ## 指定高さの部分木と spine
@@ -270,7 +269,8 @@ end ParseCtx
 高い二分木から指定高さの部分木を切り出し、根から穴までの経路を `Spine` として記録する。有限個の非終端記号より長い spine に鳩の巣原理を適用する準備を整える。
 
 ```lean
-theorem ParseTree.exists_subtree_height_eq
+/-- Every height between one and a tree's height occurs at some subtree. -/
+@[grind] theorem ParseTree.exists_subtree_height_eq
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {k : Nat}
     (t : ParseTree g A) (hk : 1 ≤ k) (hk' : k ≤ t.height) :
     ∃ (X : g.cfg.NT) (c : ParseCtx g A X) (s : ParseTree g X),
@@ -358,7 +358,10 @@ theorem root_mem_active
   | node A B C h l r =>
       exact ContextFreeGrammar.rule_input_mem_activeNonterminals g.cfg h
 
-theorem vars_mem_active
+grind_pattern root_mem_active =>
+  ParseTree.height t, A ∈ ContextFreeGrammar.activeNonterminals g.cfg
+
+@[grind] theorem vars_mem_active
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {t : ParseTree g A}
     (b : Spine g t) :
     ∀ X ∈ vars b, X ∈ ContextFreeGrammar.activeNonterminals g.cfg := by
@@ -384,7 +387,7 @@ theorem vars_mem_active
       · exact ih X hX
 
 /-- An entry on a branch determines a subtree and the context above it. -/
-theorem exists_context_of_mem
+@[grind] theorem exists_context_of_mem
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {t : ParseTree g A}
     (b : Spine g t) {X : g.cfg.NT} (hX : X ∈ vars b) :
     ∃ (c : ParseCtx g A X) (s : ParseTree g X), c.plug s = t := by
@@ -408,7 +411,6 @@ theorem exists_context_of_mem
       · obtain ⟨c, s, hs⟩ := ih hX
         exact ⟨.right A B C X h l c, s, by simp [ParseCtx.plug, hs]⟩
 
-/-- A repeated variable on a branch gives a nontrivial self-context. -/
 ```
 
 ## 反復する非終端記号から pump 可能な分解へ
@@ -416,7 +418,8 @@ theorem exists_context_of_mem
 spine 上の重複ラベルを二つの一穴文脈に分解し、同じ非終端記号を再訪する区間を反復可能にする。yield の分解と長さ境界を同時に保持して、木レベルの pumping 証人を構成する。
 
 ```lean
-theorem exists_repeat_of_not_nodup
+/-- A repeated variable on a branch gives a nontrivial self-context. -/
+@[grind] theorem exists_repeat_of_not_nodup
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {t : ParseTree g A}
     (b : Spine g t) (hdup : ¬ (vars b).Nodup) :
     ∃ (X : g.cfg.NT) (cin : ParseCtx g X X) (s : ParseTree g X)
@@ -449,7 +452,7 @@ end Spine
 
 /-- A sufficiently tall parse tree contains a repeated variable on a bounded
 suffix of a root-to-leaf branch. -/
-theorem ParseTree.exists_pump
+@[grind] theorem ParseTree.exists_pump
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} (t : ParseTree g A)
     (hm : (ContextFreeGrammar.activeNonterminals g.cfg).card < t.height) :
     ∃ (X : g.cfg.NT) (cout : ParseCtx g A X)
@@ -504,7 +507,7 @@ mutual
         CnfFormResult g (x :: xs) (u ++ v)
 end
 
-private theorem cnfNonterminalResult
+@[grind] private theorem cnfNonterminalResult
     (g : ChomskyNormalGrammar T)
     (r : ContextFreeRule T g.cfg.NT) (hr : r ∈ g.cfg.rules)
     {w : List T} (hc : CnfFormResult g r.output w) :
@@ -573,7 +576,7 @@ private theorem cnfNonterminalResult
 Chomsky 標準形の導出結果を分類し、非空な終端語の導出から `ParseTree` を復元する。文脈の反復 `nest` が yield 上では左右の反復部分に対応することもここで証明する。
 
 ```lean
-theorem cnfFormResult_of_derivationTree
+@[grind] theorem cnfFormResult_of_derivationTree
     {g : ChomskyNormalGrammar T}
     {xs : List (Symbol T g.cfg.NT)} {w : List T}
     (h : ContextFreeGrammar.DerivationFormTree g.cfg xs w) :
@@ -588,7 +591,7 @@ theorem cnfFormResult_of_derivationTree
     h
 
 /-- A nonempty terminal derivation in CNF has a binary parse tree. -/
-theorem ParseTree.exists_of_derives
+@[grind] theorem ParseTree.exists_of_derives
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {w : List T}
     (hw : w ≠ [])
     (h : g.cfg.Derives [Symbol.nonterminal A] (terminalSymbols w)) :
@@ -608,7 +611,7 @@ def ParseCtx.nest {g : ChomskyNormalGrammar T} {X : g.cfg.NT}
   | 0 => s
   | i + 1 => c.plug (nest c s i)
 
-private theorem append_flatten_replicate_comm (w : List T) (i : Nat) :
+@[grind] private theorem append_flatten_replicate_comm (w : List T) (i : Nat) :
     w ++ (List.replicate i w).flatten =
       (List.replicate i w).flatten ++ w := by
   induction i with
@@ -617,7 +620,7 @@ private theorem append_flatten_replicate_comm (w : List T) (i : Nat) :
       simp only [List.replicate_succ, List.flatten_cons]
       rw [List.append_assoc, ih, ← List.append_assoc]
 
-private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
+@[grind] private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
     (List.replicate (i + 1) w).flatten =
       (List.replicate i w).flatten ++ w := by
   simpa [List.replicate_succ] using append_flatten_replicate_comm w i
@@ -651,7 +654,7 @@ private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
           simp [List.append_assoc]
 
 /-- Every context-free language satisfies the pumping lemma. -/
-@[important] theorem Language.IsContextFree.pumping_lemma
+@[grind, important] theorem Language.IsContextFree.pumping_lemma
     {T : Type} {L : Language T} (h : L.IsContextFree) :
     ∃ p ≥ 1, ∀ w ∈ L, p ≤ w.length →
       ∃ u v x y z, w = u ++ v ++ x ++ y ++ z ∧

@@ -115,7 +115,7 @@ def freshStart (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (freshStart g).initial = FreshStartNT.start := rfl
 
-theorem mem_freshStart_rules (g : ContextFreeGrammar T)
+@[grind] theorem mem_freshStart_rules (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (r : ContextFreeRule T (FreshStartNT g.NT)) :
     r ∈ freshStartRules g ↔
@@ -128,7 +128,7 @@ theorem mem_freshStart_rules (g : ContextFreeGrammar T)
       ContextFreeRule.mapNonterminal FreshStartNT.old oldRule) ↔ _
   rw [Finset.mem_insert, Finset.mem_image]
 
-theorem oldSymbols_not_start {T N : Type*}
+@[grind] theorem oldSymbols_not_start {T N : Type*}
     (xs : List (Symbol T N)) :
     Symbol.nonterminal (FreshStartNT.start : FreshStartNT N) ∉
       xs.map (Symbol.mapNonterminal FreshStartNT.old) := by
@@ -137,7 +137,7 @@ theorem oldSymbols_not_start {T N : Type*}
   | cons x xs ih =>
       cases x <;> simp_all
 
-theorem freshStart_initial_not_output (g : ContextFreeGrammar T)
+@[grind] theorem freshStart_initial_not_output (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     ∀ r ∈ (freshStart g).rules,
       Symbol.nonterminal (freshStart g).initial ∉ r.output := by
@@ -187,7 +187,7 @@ def eraseFreshStart (S : N) : FreshStartNT N → N
     Symbol.mapNonterminal FreshStartNT.old (Symbol.terminal a : Symbol T N) =
       (Symbol.terminal a : Symbol T (FreshStartNT N)) := rfl
 
-theorem freshStart_forward_step (g : ContextFreeGrammar T)
+@[grind] theorem freshStart_forward_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {u v}
     (h : g.Produces u v) :
     (freshStart g).Derives
@@ -203,14 +203,14 @@ theorem freshStart_forward_step (g : ContextFreeGrammar T)
   rw [mem_freshStart_rules]
   exact Or.inr ⟨r, hr, rfl⟩
 
-theorem rewrite_self_eq {T N : Type*} {A : N}
+@[grind] theorem rewrite_self_eq {T N : Type*} {A : N}
     {u v : List (Symbol T N)}
     (h : ({ input := A, output := [Symbol.nonterminal A] } :
       ContextFreeRule T N).Rewrites u v) : u = v := by
   obtain ⟨p, q, rfl, rfl⟩ := h.exists_parts
   simp
 
-theorem freshStart_reverse_step (g : ContextFreeGrammar T)
+@[grind] theorem freshStart_reverse_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {u v : List (Symbol T (FreshStartNT g.NT))}
     (h : (freshStart g).Produces u v) :
@@ -252,7 +252,7 @@ theorem freshStart_reverse_step (g : ContextFreeGrammar T)
 ここまでで `freshStart_forward_step` と `freshStart_reverse_step` により、`g` の一手の書き換えと `freshStart g` の一手の書き換えが `FreshStartNT.old`／`eraseFreshStart` を介して一対一に対応することを確認した。次の `freshStart_language` は、この単一ステップの対応を `Derives`（反射推移閉包）へ持ち上げ、開始記号からの脱糖を追跡することで $`(\mathrm{freshStart}\ g).\mathrm{language} = g.\mathrm{language}`$ という同値を証明する。この等式がパイプライン全体を貫く `calc` 連鎖の最初の一段となる。
 
 ```lean
-theorem freshStart_language (g : ContextFreeGrammar T)
+@[grind] theorem freshStart_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (freshStart g).language = g.language := by
   ext w
@@ -338,7 +338,7 @@ def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
   let closed := support.powerset.filter fun S => nullableClosed g S = true
   support.filter fun A => closed.filter (fun S => A ∉ S) = ∅
 
-theorem nullableClosed_eq_true (g : ContextFreeGrammar T)
+@[grind] theorem nullableClosed_eq_true (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {S : Finset g.NT} :
     nullableClosed g S = true ↔
       ∀ r ∈ g.rules, rhsNullableIn S r.output = true → r.input ∈ S := by
@@ -350,7 +350,7 @@ theorem nullableClosed_eq_true (g : ContextFreeGrammar T)
   · intro h r hr hbad
     exact hbad.2 (h r hr hbad.1)
 
-theorem nullable_mem_of_closed (g : ContextFreeGrammar T)
+@[grind] theorem nullable_mem_of_closed (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {S : Finset g.NT}
     (hclosed : nullableClosed g S = true) {A : g.NT}
     (hA : Nullable g A) : A ∈ S := by
@@ -377,7 +377,7 @@ theorem nullable_mem_of_closed (g : ContextFreeGrammar T)
     htree rfl
   simpa [rhsNullableIn] using hall
 
-theorem derives_nil_of_rhsNullableIn (g : ContextFreeGrammar T)
+@[grind] theorem derives_nil_of_rhsNullableIn (g : ContextFreeGrammar T)
     [DecidableEq g.NT] {S : Finset g.NT}
     (hS : ∀ A ∈ S, Nullable g A) :
     ∀ {xs : List (Symbol T g.NT)}, rhsNullableIn S xs = true →
@@ -399,7 +399,7 @@ theorem derives_nil_of_rhsNullableIn (g : ContextFreeGrammar T)
 ここまでで、`nullableClosed` によって特徴づけられる閉包性と、実際に空列を導出できることとの二方向の関係——閉集合はすべての nullable 非終端記号を含むこと（`nullable_mem_of_closed`）、および `rhsNullableIn` を満たす右辺は実際に $`\varepsilon`$ へ導出できること（`derives_nil_of_rhsNullableIn`）——を確立した。残るは `nullableSet g` が文法の有限台 `activeNonterminals g` に収まることを確認したうえで、最小不動点としての `nullableSet` の構成が意味論的な `Nullable` 述語と完全に一致することを証明する `mem_nullableSet_iff` である。この一致が、以降の ε-規則除去で「どの非終端記号を消去してよいか」を決定可能にする。
 
 ```lean
-theorem nullable_mem_activeNonterminals (g : ContextFreeGrammar T)
+@[grind] theorem nullable_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT] {A : g.NT} (hA : Nullable g A) :
     A ∈ activeNonterminals g := by
   rcases hA.eq_or_head with heq | ⟨v, hstep, _⟩
@@ -416,7 +416,7 @@ theorem nullable_mem_activeNonterminals (g : ContextFreeGrammar T)
     exact rule_input_mem_activeNonterminals g hr
 
 /-- The executable nullable-set computation agrees with semantic nullability. -/
-theorem mem_nullableSet_iff (g : ContextFreeGrammar T)
+@[grind] theorem mem_nullableSet_iff (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {A : g.NT} :
     A ∈ nullableSet g ↔ Nullable g A := by
   classical
@@ -454,8 +454,6 @@ theorem mem_nullableSet_iff (g : ContextFreeGrammar T)
     exact hmissing (nullable_mem_of_closed g
       (Finset.mem_filter.mp hS).2 hnullable)
 
-/-- Executably decide whether a finite context-free grammar generates the empty
-word. -/
 ```
 
 ## 空語判定と nullable variant
@@ -463,6 +461,8 @@ word. -/
 初期記号の nullable 性を Boolean に落とし、規則右辺から nullable 記号を選択的に削除した全 variant を列挙する。元の記号順序を保った部分列だけを生成することが重要な不変条件である。
 
 ```lean
+/-- Executably decide whether a finite context-free grammar generates the empty
+word. -/
 def hasEmptyWord (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] : Bool :=
   decide (g.initial ∈ nullableSet g)
@@ -486,7 +486,7 @@ def nullableVariants (g : ContextFreeGrammar T)
         kept ∪ nullableVariants g xs
       else kept
 
-theorem self_mem_nullableVariants (g : ContextFreeGrammar T)
+@[grind] theorem self_mem_nullableVariants (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (xs : List (Symbol T g.NT)) : xs ∈ nullableVariants g xs := by
   classical
@@ -499,7 +499,7 @@ theorem self_mem_nullableVariants (g : ContextFreeGrammar T)
           simp only [nullableVariants]
           split <;> simp [ih]
 
-theorem derives_of_mem_nullableVariants (g : ContextFreeGrammar T)
+@[grind] theorem derives_of_mem_nullableVariants (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     ∀ {rhs rhs' : List (Symbol T g.NT)},
       rhs' ∈ nullableVariants g rhs → g.Derives rhs rhs' := by
@@ -531,7 +531,7 @@ theorem derives_of_mem_nullableVariants (g : ContextFreeGrammar T)
             obtain ⟨ys, hys, rfl⟩ := Finset.mem_image.mp h
             simpa using (ih hys).append_left [Symbol.nonterminal A]
 
-theorem mem_nullableVariants_append (g : ContextFreeGrammar T)
+@[grind] theorem mem_nullableVariants_append (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {xs ys zs : List (Symbol T g.NT)} :
     zs ∈ nullableVariants g (xs ++ ys) ↔
@@ -604,7 +604,7 @@ theorem mem_nullableVariants_append (g : ContextFreeGrammar T)
 variant の所属補題を確立した後、非初期の空右辺を除外した規則集合を構成する。元言語が空語を含む場合だけ fresh start から ε を許し、それ以外の規則形状を保つ。
 
 ```lean
-theorem mem_of_mem_nullableVariants (g : ContextFreeGrammar T)
+@[grind] theorem mem_of_mem_nullableVariants (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {xs ys : List (Symbol T g.NT)}
     (hys : ys ∈ nullableVariants g xs) {x : Symbol T g.NT}
@@ -662,7 +662,7 @@ def removeEpsilon
     [DecidableEq T] [DecidableEq g.NT] :
     (removeEpsilon g).initial = g.initial := rfl
 
-theorem mem_removeEpsilon_rules
+@[grind] theorem mem_removeEpsilon_rules
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     (r : ContextFreeRule T g.NT) :
     r ∈ removeEpsilonRules g ↔
@@ -687,7 +687,7 @@ theorem mem_removeEpsilon_rules
       simpa [mem_nullableSet_iff g] using hnullable
     simp [hnullable, hnotmem, Finset.mem_image]
 
-theorem removeEpsilon_no_noninitial_empty (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_no_noninitial_empty (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     ∀ r ∈ (removeEpsilon g).rules,
       r.output = [] → r.input = (removeEpsilon g).initial := by
@@ -699,7 +699,7 @@ theorem removeEpsilon_no_noninitial_empty (g : ContextFreeGrammar T)
   · exact (hne hout).elim
   · rfl
 
-theorem removeEpsilon_initial_not_output (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_initial_not_output (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (h : ∀ r ∈ g.rules,
       Symbol.nonterminal g.initial ∉ r.output) :
@@ -713,7 +713,7 @@ theorem removeEpsilon_initial_not_output (g : ContextFreeGrammar T)
   · exact h oldRule hold (mem_of_mem_nullableVariants g hvariant hmem)
   · exact List.not_mem_nil hmem
 
-theorem removeEpsilon_reverse_step (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_reverse_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {u v : List (Symbol T g.NT)}
     (h : (removeEpsilon g).Produces u v) : g.Derives u v := by
@@ -741,7 +741,7 @@ theorem removeEpsilon_reverse_step (g : ContextFreeGrammar T)
 削除済み規則の一歩を元文法の複数歩へ展開し、nullable 記号の消去を意味論的に正当化する。反射推移閉包へ持ち上げて、変換後の語が元言語にも属することを示す。
 
 ```lean
-theorem removeEpsilon_language_reverse (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_language_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (removeEpsilon g).language ≤ g.language := by
   intro w hw
@@ -771,7 +771,7 @@ def ErasesNullable (g : ContextFreeGrammar T)
     (u v : List (Symbol T g.NT)) : Prop :=
   v ∈ nullableVariants g u
 
-theorem removeEpsilon_produces_variant (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_produces_variant (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules)
     {rhs' : List (Symbol T g.NT)}
@@ -788,7 +788,7 @@ theorem removeEpsilon_produces_variant (g : ContextFreeGrammar T)
   left
   exact ⟨⟨r, hr, rhs', hvariant, rfl⟩, hne⟩
 
-theorem removeEpsilon_start_empty (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_start_empty (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (h : Nullable g g.initial) :
     (removeEpsilon g).Derives [Symbol.nonterminal g.initial] [] := by
@@ -799,7 +799,7 @@ theorem removeEpsilon_start_empty (g : ContextFreeGrammar T)
     removeEpsilonRules g
   rw [mem_removeEpsilon_rules]
   exact Or.inr ⟨h, rfl⟩
-theorem removeEpsilon_simulation (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_simulation (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {u s : List (Symbol T g.NT)} (h : g.Derives u s) :
     ∃ u' ∈ nullableVariants g u, (removeEpsilon g).Derives u' s := by
@@ -879,7 +879,7 @@ theorem removeEpsilon_simulation (g : ContextFreeGrammar T)
 元文法の導出から nullable 記号を消去した対応導出を構成し、非空語について変換後文法へ移送する。空語の場合は fresh-start 規則で別処理し、最終的な言語等式を得る。
 
 ```lean
-theorem derives_from_empty_eq (g : ContextFreeGrammar T)
+@[grind] theorem derives_from_empty_eq (g : ContextFreeGrammar T)
     {v : List (Symbol T g.NT)} (h : g.Derives [] v) : v = [] := by
   rcases h.eq_or_head with heq | ⟨w, hstep, _⟩
   · exact heq.symm
@@ -887,7 +887,7 @@ theorem derives_from_empty_eq (g : ContextFreeGrammar T)
     have hmem := hrewrite.nonterminal_input_mem
     simp at hmem
 
-theorem removeEpsilon_language_forward (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_language_forward (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     g.language ≤ (removeEpsilon g).language := by
   intro w hw
@@ -909,7 +909,7 @@ theorem removeEpsilon_language_forward (g : ContextFreeGrammar T)
       have hw_nil : w = [] := List.eq_nil_of_length_eq_zero hlength
       exact (hwempty hw_nil).elim
 
-theorem removeEpsilon_language (g : ContextFreeGrammar T)
+@[grind] theorem removeEpsilon_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (removeEpsilon g).language = g.language :=
   le_antisymm (removeEpsilon_language_reverse g)
@@ -925,7 +925,7 @@ def isUnitRule (r : ContextFreeRule T N) : Bool :=
   | [.nonterminal _] => true
   | _ => false
 
-theorem isUnitRule_eq_true (r : ContextFreeRule T N) :
+@[grind] theorem isUnitRule_eq_true (r : ContextFreeRule T N) :
     isUnitRule r = true ↔ IsUnitRule r := by
   rcases r with ⟨input, output⟩
   cases output with
@@ -962,7 +962,7 @@ def unitReachSet (g : ContextFreeGrammar T) [DecidableEq T]
     A ∈ S ∧ unitClosed g S = true
   support.filter fun B => closed.filter (fun S => B ∉ S) = ∅
 
-theorem unitClosed_eq_true (g : ContextFreeGrammar T)
+@[grind] theorem unitClosed_eq_true (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {S : Finset g.NT} :
     unitClosed g S = true ↔
       ∀ {B C}, B ∈ S → UnitStep g B C → C ∈ S := by
@@ -978,7 +978,7 @@ theorem unitClosed_eq_true (g : ContextFreeGrammar T)
     next C _ =>
       simp only [Bool.and_eq_true, decide_eq_true_eq] at hescapes
       exact hescapes.2 (h hescapes.1 hr)
-theorem unitReach_mem_of_closed (g : ContextFreeGrammar T)
+@[grind] theorem unitReach_mem_of_closed (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {S : Finset g.NT} {A B : g.NT}
     (hclosed : unitClosed g S = true) (hA : A ∈ S)
     (hreach : UnitReach g A B) : B ∈ S := by
@@ -990,7 +990,7 @@ theorem unitReach_mem_of_closed (g : ContextFreeGrammar T)
 
 /-- Computed unit reachability agrees with reflexive-transitive closure on the
 finite grammar support. -/
-theorem mem_unitReachSet_iff (g : ContextFreeGrammar T)
+@[grind] theorem mem_unitReachSet_iff (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {A B : g.NT}
     (hA : A ∈ activeNonterminals g) :
     B ∈ unitReachSet g A ↔ UnitReach g A B := by
@@ -1052,7 +1052,7 @@ abbrev removeUnit
           r.input = p.2 ∧ isUnitRule r = false).image
           fun r => ({ input := p.1, output := r.output } :
             ContextFreeRule T g.NT) }
-theorem mem_removeUnit_rules_iff (g : ContextFreeGrammar T)
+@[grind] theorem mem_removeUnit_rules_iff (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (r : ContextFreeRule T g.NT) :
     r ∈ (removeUnit g).rules ↔
@@ -1083,7 +1083,7 @@ theorem mem_removeUnit_rules_iff (g : ContextFreeGrammar T)
       Finset.mem_image.mpr
         ⟨oldRule, Finset.mem_filter.mpr
           ⟨hold, hinput, by simpa [← isUnitRule_eq_true] using hnonunit⟩, rfl⟩⟩
-theorem removeUnit_no_unit (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_no_unit (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     ∀ r ∈ (removeUnit g).rules, ¬IsUnitRule r := by
   change ∀ r : ContextFreeRule T g.NT,
@@ -1093,7 +1093,7 @@ theorem removeUnit_no_unit (g : ContextFreeGrammar T)
   obtain ⟨p, _, _, oldRule, _, _, hnonunit, rfl⟩ :=
     (mem_removeUnit_rules_iff g r).mp hr
   simpa [IsUnitRule] using hnonunit
-theorem removeUnit_initial_not_output (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_initial_not_output (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (h : ∀ r ∈ g.rules,
       Symbol.nonterminal g.initial ∉ r.output) :
@@ -1105,7 +1105,7 @@ theorem removeUnit_initial_not_output (g : ContextFreeGrammar T)
     (mem_removeUnit_rules_iff g r).mp hr
   exact h oldRule hold
 
-theorem removeUnit_rule_mem (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_rule_mem (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {A B : g.NT} {r : ContextFreeRule T g.NT}
     (hA : A ∈ activeNonterminals g) (hB : B ∈ activeNonterminals g)
@@ -1136,7 +1136,7 @@ def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
     (u v : List (Symbol T g.NT)) : Prop :=
   List.Forall₂ (UnitSymbolLift g) u v
 
-theorem unitLift_refl_of_active (g : ContextFreeGrammar T)
+@[grind] theorem unitLift_refl_of_active (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     (xs : List (Symbol T g.NT))
     (hactive : ∀ A, Symbol.nonterminal A ∈ xs →
@@ -1154,7 +1154,7 @@ theorem unitLift_refl_of_active (g : ContextFreeGrammar T)
         intro A hA
         exact hactive A (List.mem_cons_of_mem x hA)
 
-theorem unitLift_rule_output (g : ContextFreeGrammar T)
+@[grind] theorem unitLift_rule_output (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     UnitLift g r.output r.output :=
@@ -1168,7 +1168,7 @@ theorem unitLift_rule_output (g : ContextFreeGrammar T)
 元の一歩を unit 到達部分と実規則部分へ分解し、除去後文法の導出へ持ち上げる。局所シミュレーションを導出列全体へ拡張して、元言語から変換後言語への包含を得る。
 
 ```lean
-theorem unitLift_parts (g : ContextFreeGrammar T)
+@[grind] theorem unitLift_parts (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {u' p q : List (Symbol T g.NT)} {x : Symbol T g.NT}
     (h : UnitLift g u' (p ++ x :: q)) :
@@ -1186,7 +1186,7 @@ theorem unitLift_parts (g : ContextFreeGrammar T)
           exact ⟨_ :: p', x', q', rfl,
             List.Forall₂.cons hy hp', hx', hq'⟩
 
-theorem removeUnit_lift_step (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_lift_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {u v u' : List (Symbol T g.NT)} (hstep : g.Produces u v)
     (hlift : UnitLift g u' u) :
@@ -1245,7 +1245,7 @@ theorem removeUnit_lift_step (g : ContextFreeGrammar T)
               (List.rel_append (unitLift_rule_output g hr) hq')
 
 
-theorem removeUnit_simulation (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_simulation (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {u v u' : List (Symbol T g.NT)} (h : g.Derives u v)
     (hlift : UnitLift g u' u) :
@@ -1259,7 +1259,7 @@ theorem removeUnit_simulation (g : ContextFreeGrammar T)
       obtain ⟨v', hv', hlift'⟩ := ih hliftMiddle
       exact ⟨v', hmiddle.trans hv', hlift'⟩
 
-theorem unitLift_terminalSymbols_eq (g : ContextFreeGrammar T)
+@[grind] theorem unitLift_terminalSymbols_eq (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {u : List (Symbol T g.NT)} {w : List T}
     (h : UnitLift g u (terminalSymbols w)) :
@@ -1280,7 +1280,7 @@ theorem unitLift_terminalSymbols_eq (g : ContextFreeGrammar T)
               exact congrArg (Symbol.terminal a :: ·) (ih htail)
           | nonterminal A => simp [UnitSymbolLift] at hx
 
-theorem removeUnit_language_forward (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_language_forward (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     g.language ≤ (removeUnit g).language := by
   intro w hw
@@ -1301,7 +1301,7 @@ theorem removeUnit_language_forward (g : ContextFreeGrammar T)
 `unitReach` の各辺と引き上げた規則を元文法の導出へ戻す。除去後の一歩を元の複数歩で模倣し、逆包含と最終的な言語保存を閉じる。
 
 ```lean
-theorem derives_unitReach (g : ContextFreeGrammar T) {A B : g.NT}
+@[grind] theorem derives_unitReach (g : ContextFreeGrammar T) {A B : g.NT}
     (h : UnitReach g A B) :
     g.Derives [Symbol.nonterminal A] [Symbol.nonterminal B] := by
   induction h with
@@ -1311,7 +1311,7 @@ theorem derives_unitReach (g : ContextFreeGrammar T) {A B : g.NT}
         ⟨{ input := _, output := [Symbol.nonterminal _] }, hstep,
           ContextFreeRule.Rewrites.input_output⟩
 
-theorem removeUnit_reverse_step (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_reverse_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {u v : List (Symbol T g.NT)}
     (h : (removeUnit g).Produces u v) : g.Derives u v := by
@@ -1330,7 +1330,7 @@ theorem removeUnit_reverse_step (g : ContextFreeGrammar T)
       simpa [hinput] using
         ContextFreeRule.rewrites_of_exists_parts oldRule p q⟩
   exact hchain.trans_produces hlast
-theorem removeUnit_language_reverse (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_language_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (removeUnit g).language ≤ g.language := by
   intro w hw
@@ -1352,7 +1352,7 @@ theorem removeUnit_language_reverse (g : ContextFreeGrammar T)
       List.map (Symbol.terminal : T → Symbol T g.NT) w :=
     List.map_id _
   exact hroot ▸ hyield ▸ h
-theorem removeUnit_language (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (removeUnit g).language = g.language :=
   le_antisymm (removeUnit_language_reverse g)
@@ -1432,7 +1432,7 @@ abbrev isolateTerminals
 長い右辺に現れる終端記号を専用非終端記号へ置換した規則集合を外延的に特徴付ける。元規則と新しい terminal 規則の双方が確実に含まれることを、後続シミュレーション用の API として示す。
 
 ```lean
-theorem mem_isolateTerminals_rules_iff
+@[grind] theorem mem_isolateTerminals_rules_iff
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     (r : ContextFreeRule T (IsolateNT T g.NT)) :
     r ∈ (isolateTerminals g).rules ↔
@@ -1460,7 +1460,20 @@ theorem mem_isolateTerminals_rules_iff
       simp only [hlong, if_pos, Finset.mem_image]
       exact ⟨a, ha, rfl⟩
 
-theorem isolate_old_rule_mem (g : ContextFreeGrammar T)
+@[grind] theorem terminal_mem_filterMap {N : Type*}
+    {a : T} {xs : List (Symbol T N)} :
+    a ∈ xs.filterMap symbolTerminal ↔ Symbol.terminal a ∈ xs := by
+  constructor
+  · intro h
+    obtain ⟨s, hs, hsa⟩ := List.mem_filterMap.mp h
+    cases s <;> simp [symbolTerminal] at hsa
+    subst hsa
+    exact hs
+  · intro h
+    apply List.mem_filterMap.mpr
+    exact ⟨Symbol.terminal a, h, by simp [symbolTerminal]⟩
+
+@[grind] theorem isolate_old_rule_mem (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules)
     (hlong : 2 ≤ r.output.length) :
@@ -1472,7 +1485,7 @@ theorem isolate_old_rule_mem (g : ContextFreeGrammar T)
   left
   exact ⟨r, hr, by simp [isolatedRule, hlong]⟩
 
-theorem isolate_terminal_rule_mem (g : ContextFreeGrammar T)
+@[grind] theorem isolate_terminal_rule_mem (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} {a : T}
     (hr : r ∈ g.rules) (hlong : 2 ≤ r.output.length)
@@ -1485,7 +1498,7 @@ theorem isolate_terminal_rule_mem (g : ContextFreeGrammar T)
   refine ⟨r, hr, hlong, a, ?_, rfl⟩
   exact List.mem_toFinset.mpr (terminal_mem_filterMap.mpr hterminal)
 
-theorem isolate_short_rule_mem (g : ContextFreeGrammar T)
+@[grind] theorem isolate_short_rule_mem (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules)
     (hshort : ¬ 2 ≤ r.output.length) :
@@ -1495,7 +1508,7 @@ theorem isolate_short_rule_mem (g : ContextFreeGrammar T)
   left
   exact ⟨r, hr, by simp [isolatedRule, hshort]⟩
 
-theorem derives_isolateOutput (g : ContextFreeGrammar T)
+@[grind] theorem derives_isolateOutput (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules)
     (hlong : 2 ≤ r.output.length) :
@@ -1528,7 +1541,7 @@ theorem derives_isolateOutput (g : ContextFreeGrammar T)
               [Symbol.nonterminal (IsolateNT.old A)]
   exact go r.output fun _ => id
 
-theorem isolateTerminals_forward_step
+@[grind] theorem isolateTerminals_forward_step
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     {u v : List (Symbol T g.NT)} (h : g.Produces u v) :
     (isolateTerminals g).Derives
@@ -1569,7 +1582,7 @@ theorem isolateTerminals_forward_step
 分離後の記号を元の記号列へ展開する写像を定義し、形式全体へ `List.flatMap` で持ち上げる。新旧規則の一歩が展開後に元文法の導出になることを用いて逆包含を証明する。
 
 ```lean
-theorem isolateTerminals_language_forward
+@[grind] theorem isolateTerminals_language_forward
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     g.language ≤ (isolateTerminals g).language := by
   intro w hw
@@ -1610,7 +1623,7 @@ def expandForm (xs : List (Symbol T (IsolateNT T N))) :
           (xs.map (Symbol.mapNonterminal IsolateNT.old)) = _ :: xs <;>
         rw [ih]
 
-theorem isolateTerminals_reverse_step
+@[grind] theorem isolateTerminals_reverse_step
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     {u v : List (Symbol T (IsolateNT T g.NT))}
     (h : (isolateTerminals g).Produces u v) :
@@ -1671,7 +1684,7 @@ theorem isolateTerminals_reverse_step
         (g := g) (expandForm p ++
           Symbol.terminal a :: expandForm q))
 
-theorem isolateTerminals_reverse_derives
+@[grind] theorem isolateTerminals_reverse_derives
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     ∀ {u v : List (Symbol T (IsolateNT T g.NT))},
       (isolateTerminals g).Derives u v →
@@ -1682,7 +1695,7 @@ theorem isolateTerminals_reverse_derives
   | head hstep _ ih =>
       exact (isolateTerminals_reverse_step g hstep).trans ih
 
-theorem expand_terminalSymbols (w : List T) :
+@[grind] theorem expand_terminalSymbols (w : List T) :
     expandForm (terminalSymbols w :
       List (Symbol T (IsolateNT T N))) = terminalSymbols w := by
   induction w with
@@ -1701,7 +1714,7 @@ theorem expand_terminalSymbols (w : List T) :
 終端記号分離の双方向包含を言語等式にまとめる。続いて、元の非終端記号と長い右辺の suffix を区別して保持する `BinaryNT` を導入し、二分化段階の型境界を作る。
 
 ```lean
-theorem isolateTerminals_language_reverse
+@[grind] theorem isolateTerminals_language_reverse
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     (isolateTerminals g).language ≤ g.language := by
   intro w hw
@@ -1718,7 +1731,7 @@ theorem isolateTerminals_language_reverse
   rw [hinitial, expand_terminalSymbols] at h
   exact h
 
-theorem isolateTerminals_language (g : ContextFreeGrammar T)
+@[grind] theorem isolateTerminals_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (isolateTerminals g).language = g.language :=
   le_antisymm (isolateTerminals_language_reverse g)
@@ -1795,7 +1808,7 @@ abbrev binarize (g : ContextFreeGrammar T)
             match symbolsAsNonterminals r.output with
             | some ns => binarizeLongRules r.input ns
             | none => ∅ }
-theorem mem_binarize_rules_iff (g : ContextFreeGrammar T)
+@[grind] theorem mem_binarize_rules_iff (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (rule : ContextFreeRule T (binarize g).NT) :
     rule ∈ (binarize g).rules ↔
@@ -1832,7 +1845,7 @@ theorem mem_binarize_rules_iff (g : ContextFreeGrammar T)
 長い右辺を連鎖状の二項規則へ分解したとき、各 suffix 用非終端記号が対応する残りの記号列を導出することを示す。Option を返す記号変換の成功条件も明示し、部分関数の失敗を規則形状で排除する。
 
 ```lean
-theorem symbolsAsNonterminals_eq_some
+@[grind] theorem symbolsAsNonterminals_eq_some
     {xs : List (Symbol T N)} {ns : List N}
     (h : symbolsAsNonterminals xs = some ns) :
     xs = ns.map Symbol.nonterminal := by
@@ -1853,7 +1866,7 @@ theorem symbolsAsNonterminals_eq_some
               subst ns
               exact congrArg (Symbol.nonterminal A :: ·) (ih htail)
 
-theorem binarizeTail_derives
+@[grind] theorem binarizeTail_derives
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     (A : g.NT) :
     ∀ (X Y : g.NT) (rest : List g.NT),
@@ -1905,7 +1918,7 @@ theorem binarizeTail_derives
         [Symbol.nonterminal (BinaryNT.old X), tailSymbol A (Y :: Z :: rest)]
         (binarySymbols (T := T) (X :: Y :: Z :: rest)) at htail'
       exact hfirst.single.trans htail'
-theorem symbolsAsNonterminals_some_of_all
+@[grind] theorem symbolsAsNonterminals_some_of_all
     (xs : List (Symbol T N)) (h : allNonterminals xs) :
     ∃ ns, symbolsAsNonterminals xs = some ns := by
   induction xs with
@@ -1928,7 +1941,7 @@ theorem symbolsAsNonterminals_some_of_all
   | cons A ns ih =>
       simp [symbolsAsNonterminals, symbolAsNonterminal, ih]
 
-theorem binarize_old_rule_derives (g : ContextFreeGrammar T)
+@[grind] theorem binarize_old_rule_derives (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules)
     (hall : 2 ≤ r.output.length → allNonterminals r.output) :
@@ -2073,7 +2086,7 @@ theorem binarize_old_rule_derives (g : ContextFreeGrammar T)
 元の長い規則一歩を二分化規則列で模倣し、言語の順向き包含を得る。逆方向のため、補助非終端記号を元の suffix へ展開する写像を記号列全体に定義する。
 
 ```lean
-theorem binarize_forward_step (g : ContextFreeGrammar T)
+@[grind] theorem binarize_forward_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (hall : ∀ r ∈ g.rules, 2 ≤ r.output.length →
       allNonterminals r.output)
@@ -2089,7 +2102,7 @@ theorem binarize_forward_step (g : ContextFreeGrammar T)
       (p.map (Symbol.mapNonterminal BinaryNT.old))).append_right
         (q.map (Symbol.mapNonterminal BinaryNT.old))
 
-theorem binarize_language_forward (g : ContextFreeGrammar T)
+@[grind] theorem binarize_language_forward (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (hall : ∀ r ∈ g.rules, 2 ≤ r.output.length →
       allNonterminals r.output) :
@@ -2158,7 +2171,7 @@ def expandBinaryForm
           Symbol.terminal a :: terminalSymbols (N := N) w
       exact congrArg (Symbol.terminal a :: ·) ih
 
-theorem expand_binarizeTailRule_eq [DecidableEq T] [DecidableEq N]
+@[grind] theorem expand_binarizeTailRule_eq [DecidableEq T] [DecidableEq N]
     (A : N) :
     ∀ (X Y : N) (rest : List N)
       (rule : ContextFreeRule T (BinaryNT N)),
@@ -2180,7 +2193,7 @@ theorem expand_binarizeTailRule_eq [DecidableEq T] [DecidableEq N]
       · exact ih Y Z rule hrule
 
 
-theorem binarize_copied_rule_reverse (g : ContextFreeGrammar T)
+@[grind] theorem binarize_copied_rule_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     g.Derives
@@ -2203,7 +2216,7 @@ theorem binarize_copied_rule_reverse (g : ContextFreeGrammar T)
 二分化で生成される各種類の規則を、展開後の元文法導出へ戻す。局所補題を導出列に持ち上げて逆包含を証明し、二分化前後の言語等式を得る。
 
 ```lean
-theorem binarize_rule_reverse (g : ContextFreeGrammar T)
+@[grind] theorem binarize_rule_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {rule : ContextFreeRule T (BinaryNT g.NT)}
     (hrule : rule ∈ (binarize g).rules) :
@@ -2278,7 +2291,7 @@ theorem binarize_rule_reverse (g : ContextFreeGrammar T)
                               · rw [expand_binarizeTailRule_eq
                                   oldRule.input Y Z suffix rule htail]
 
-theorem binarize_reverse_step (g : ContextFreeGrammar T)
+@[grind] theorem binarize_reverse_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {u v : List (Symbol T (BinaryNT g.NT))}
     (h : (binarize g).Produces u v) :
@@ -2290,7 +2303,7 @@ theorem binarize_reverse_step (g : ContextFreeGrammar T)
   simpa only [List.flatMap_append, List.append_assoc] using
     (hmiddle.append_left (List.flatMap expandBinarySymbol p)).append_right
       (List.flatMap expandBinarySymbol q)
-theorem binarize_derives_reverse (g : ContextFreeGrammar T)
+@[grind] theorem binarize_derives_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {u v : List (Symbol T (BinaryNT g.NT))}
     (h : (binarize g).Derives u v) :
@@ -2300,7 +2313,7 @@ theorem binarize_derives_reverse (g : ContextFreeGrammar T)
   | tail hder hstep ih =>
       exact ih.trans (binarize_reverse_step g hstep)
 
-theorem binarize_language_reverse (g : ContextFreeGrammar T)
+@[grind] theorem binarize_language_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (binarize g).language ≤ g.language := by
   intro w hw
@@ -2312,7 +2325,7 @@ theorem binarize_language_reverse (g : ContextFreeGrammar T)
   rw [expandBinaryForm_old_singleton,
     expandBinaryForm_terminalSymbols] at hsim
   exact hsim
-theorem binarizeTailRules_binary [DecidableEq T] [DecidableEq N]
+@[grind] theorem binarizeTailRules_binary [DecidableEq T] [DecidableEq N]
     (A : N) :
     ∀ (X Y : N) (rest : List N)
       (rule : ContextFreeRule T (BinaryNT N)),
@@ -2340,7 +2353,7 @@ theorem binarizeTailRules_binary [DecidableEq T] [DecidableEq N]
 二分化後の全規則が、終端一個または非終端二個という Chomsky 形状を満たすことを示す。長い suffix 用の補助規則と旧規則由来のケースを分けて検証する。
 
 ```lean
-theorem binarizeLongRules_binary [DecidableEq T] [DecidableEq N]
+@[grind] theorem binarizeLongRules_binary [DecidableEq T] [DecidableEq N]
     (A : N)
     {ns : List N} {rule : ContextFreeRule T (BinaryNT N)}
     (hrule : rule ∈ binarizeLongRules (T := T) A ns) :
@@ -2361,7 +2374,7 @@ theorem binarizeLongRules_binary [DecidableEq T] [DecidableEq N]
                   BinaryNT.tail A (Y :: Z :: rest), rfl⟩
               · exact binarizeTailRules_binary A Y Z rest rule hrule
 
-theorem binarize_is_chomsky (g : ContextFreeGrammar T)
+@[grind] theorem binarize_is_chomsky (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (hε : ∀ r ∈ g.rules, r.output = [] → r.input = g.initial)
     (hunit : ∀ r ∈ g.rules, ¬IsUnitRule r)
@@ -2416,7 +2429,7 @@ theorem binarize_is_chomsky (g : ContextFreeGrammar T)
                   obtain ⟨B, C, houtput⟩ :=
                     binarizeLongRules_binary oldRule.input hgenerated
                   exact Or.inr (Or.inr ⟨B, C, houtput⟩)
-theorem old_mem_binarizeTail_output [DecidableEq T] [DecidableEq N]
+@[grind] theorem old_mem_binarizeTail_output [DecidableEq T] [DecidableEq N]
     (A : N) :
     ∀ (X Y : N) (rest : List N)
       (rule : ContextFreeRule T (BinaryNT N)),
@@ -2438,7 +2451,7 @@ theorem old_mem_binarizeTail_output [DecidableEq T] [DecidableEq N]
         exact List.mem_cons.mpr (Or.inl hBX)
       · exact List.mem_cons_of_mem X (ih Y Z rule hrule hmem)
 
-theorem old_mem_binarizeLong_output [DecidableEq T] [DecidableEq N]
+@[grind] theorem old_mem_binarizeLong_output [DecidableEq T] [DecidableEq N]
     (A : N)
     {ns : List N} {rule : ContextFreeRule T (BinaryNT N)}
     (hrule : rule ∈ binarizeLongRules (T := T) A ns)
@@ -2467,7 +2480,7 @@ theorem old_mem_binarizeLong_output [DecidableEq T] [DecidableEq N]
 補助非終端記号への埋め込みが元の初期記号と衝突しないことを示し、二分化後の右辺に初期記号が現れない性質を保存する。unit 到達が初期記号へ戻れないこともここで確立する。
 
 ```lean
-theorem old_mem_map_binary_old
+@[grind] theorem old_mem_map_binary_old
     {A : N} {xs : List (Symbol T N)}
     (hmem : Symbol.nonterminal (BinaryNT.old A) ∈
       xs.map (Symbol.mapNonterminal BinaryNT.old)) :
@@ -2480,7 +2493,7 @@ theorem old_mem_map_binary_old
       subst B
       exact hx
 
-theorem binarize_initial_not_output (g : ContextFreeGrammar T)
+@[grind] theorem binarize_initial_not_output (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (h : ∀ r ∈ g.rules,
       Symbol.nonterminal g.initial ∉ r.output) :
@@ -2531,7 +2544,7 @@ theorem binarize_initial_not_output (g : ContextFreeGrammar T)
                     ⟨g.initial, hinitial, rfl⟩
 
 
-theorem unitReach_to_initial_eq (g : ContextFreeGrammar T)
+@[grind] theorem unitReach_to_initial_eq (g : ContextFreeGrammar T)
     (hnot : ∀ r ∈ g.rules,
       Symbol.nonterminal g.initial ∉ r.output)
     {A B : g.NT} (hreach : UnitReach g A B)
@@ -2544,7 +2557,7 @@ theorem unitReach_to_initial_eq (g : ContextFreeGrammar T)
         ContextFreeRule T g.NT) hstep
     simpa [hB]
 
-theorem removeUnit_no_noninitial_empty (g : ContextFreeGrammar T)
+@[grind] theorem removeUnit_no_noninitial_empty (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (hε : ∀ r ∈ g.rules, r.output = [] → r.input = g.initial)
     (hnot : ∀ r ∈ g.rules,
@@ -2564,7 +2577,7 @@ theorem removeUnit_no_noninitial_empty (g : ContextFreeGrammar T)
     hinput.symm.trans (hε oldRule hold hout)
   exact unitReach_to_initial_eq g hnot hreach hB
 
-theorem old_mem_isolateOutput
+@[grind] theorem old_mem_isolateOutput
     {A : N} {xs : List (Symbol T N)}
     (h : Symbol.nonterminal (IsolateNT.old A) ∈ isolateOutput xs) :
     Symbol.nonterminal A ∈ xs := by
@@ -2584,7 +2597,7 @@ theorem old_mem_isolateOutput
             exact List.mem_cons_self
           · exact List.mem_cons_of_mem _ (ih htail)
 
-theorem isolateOutput_allNonterminals
+@[grind] theorem isolateOutput_allNonterminals
     (xs : List (Symbol T N)) :
     allNonterminals (isolateOutput xs) := by
   intro x hx
@@ -2613,7 +2626,7 @@ theorem isolateOutput_allNonterminals
 終端分離で導入する新記号が初期記号と異なること、初期記号が右辺へ再導入されないこと、非初期の空規則が生じないことを証明する。最終合成に必要な側条件をこの段階で閉じる。
 
 ```lean
-theorem old_mem_map_isolateOld
+@[grind] theorem old_mem_map_isolateOld
     {A : N} {xs : List (Symbol T N)}
     (hmem : Symbol.nonterminal
         ((IsolateNT.old : N → IsolateNT T N) A) ∈
@@ -2627,7 +2640,7 @@ theorem old_mem_map_isolateOld
       cases heq
       exact hx
 
-theorem isolateTerminals_initial_not_output
+@[grind] theorem isolateTerminals_initial_not_output
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     (hnot : ∀ r ∈ g.rules,
       Symbol.nonterminal g.initial ∉ r.output) :
@@ -2645,7 +2658,7 @@ theorem isolateTerminals_initial_not_output
       exact hnot oldRule hold (old_mem_map_isolateOld hmem)
   · simp [terminalIsolationRule] at hmem
 
-theorem isolateTerminals_no_noninitial_empty
+@[grind] theorem isolateTerminals_no_noninitial_empty
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     (hε : ∀ r ∈ g.rules, r.output = [] → r.input = g.initial) :
     ∀ r ∈ (isolateTerminals g).rules,
@@ -2667,7 +2680,7 @@ theorem isolateTerminals_no_noninitial_empty
       exact congrArg IsolateNT.old (hε oldRule hold holdEmpty)
   · simp [terminalIsolationRule] at hout
 
-theorem isolateTerminals_no_unit
+@[grind] theorem isolateTerminals_no_unit
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     (hunit : ∀ r ∈ g.rules, ¬IsUnitRule r) :
     ∀ r ∈ (isolateTerminals g).rules, ¬IsUnitRule r := by
@@ -2706,7 +2719,7 @@ theorem isolateTerminals_no_unit
   · rcases hunitRule with ⟨B, houtput⟩
     cases B <;> simp [terminalIsolationRule] at houtput
 
-theorem isolateTerminals_long_rhs_all_nonterminals
+@[grind] theorem isolateTerminals_long_rhs_all_nonterminals
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     ∀ r ∈ (isolateTerminals g).rules,
       2 ≤ r.output.length → allNonterminals r.output := by
@@ -2724,7 +2737,7 @@ theorem isolateTerminals_long_rhs_all_nonterminals
       simpa [ContextFreeRule.mapNonterminal] using hlen
   · simp [terminalIsolationRule] at hlen
 
-theorem binarize_language (g : ContextFreeGrammar T)
+@[grind] theorem binarize_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (hall : ∀ r ∈ g.rules, 2 ≤ r.output.length →
       allNonterminals r.output) :
@@ -2733,7 +2746,6 @@ theorem binarize_language (g : ContextFreeGrammar T)
     (binarize_language_forward g hall)
 
 
-/-- Computably convert a context-free grammar to Chomsky normal form. -/
 ```
 
 ## Chomsky 標準形変換の合成
@@ -2741,6 +2753,7 @@ theorem binarize_language (g : ContextFreeGrammar T)
 各中間変換と不変条件を順に合成して `ChomskyNormalGrammar` を構成する。必要な線形順序の instance を公開し、最終文法の言語が入力文法と等しいことを API 定理としてまとめる。
 
 ```lean
+/-- Computably convert a context-free grammar to Chomsky normal form. -/
 def toChomskyNormalGrammar {T : Type} [DecidableEq T]
     (g : ContextFreeGrammar T) [DecidableEq g.NT] :
     ChomskyNormalGrammar T := by

@@ -109,7 +109,7 @@ lemma proveAux_complete {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : prove2 Γ A 
 `translatedProve1_iff_Prove2` から従う、shallow 側固有の議論を要しない事実である。
 
 ```lean
-lemma prove1_iff_prove2 {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ prove2 Γ A := by
+@[grind] lemma prove1_iff_prove2 {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ prove2 Γ A := by
   grind only [prove1, prove2, translatedProve1_iff_Prove2]
 ```
 

@@ -99,7 +99,7 @@ abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : B
 
 ## 具象構文の内部パーサー
 
-ここから先は、正規表現の具象構文(文字列表現)を解析するための内部実装であり、モジュール外には公開されない(`private`)。演算子の優先順位は和(`|`)・連接(暗黙)・星(`*`)・原子の順に低くなり、これを再帰下降法で below のように相互再帰(`mutual`)する一群の関数として実装する。各関数は残り燃料(`fuel : Nat`)を消費しながら再帰することで停止性を保証しており、燃料が尽きた場合は「式が複雑すぎる」というエラーを返す。
+ここから先は、正規表現の具象構文(文字列表現)を解析するための内部実装であり、`Internal` 名前空間に分離される。演算子の優先順位は和(`|`)・連接(暗黙)・星(`*`)・原子の順に低くなり、これを再帰下降法で以下のように相互再帰(`mutual`)する一群の関数として実装する。各関数は残り燃料(`fuel : Nat`)を消費しながら再帰することで停止性を保証しており、燃料が尽きた場合は「式が複雑すぎる」というエラーを返す。
 
 ```mermaid
 flowchart LR
@@ -110,14 +110,16 @@ flowchart LR
 ```
 
 ```lean
-private def isRegexReserved (c : Char) : Bool :=
+namespace Internal
+
+def isRegexReserved (c : Char) : Bool :=
   c == '(' || c == ')' || c == '|' || c == '*'
 
 /-- Intermediate parse result: a regex plus the unconsumed characters. -/
-private abbrev ParseState := Except String (RegularExpression Char × List Char)
+abbrev ParseState := Except String (RegularExpression Char × List Char)
 
 mutual
-  private def parseUnion (fuel : Nat) (cs : List Char) : ParseState :=
+  def parseUnion (fuel : Nat) (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
     | f + 1 =>
@@ -125,7 +127,7 @@ mutual
       | .ok (first, rest) => parseUnionTail f first rest
       | .error e => .error e
 
-  private def parseUnionTail (fuel : Nat) (acc : RegularExpression Char)
+  def parseUnionTail (fuel : Nat) (acc : RegularExpression Char)
       (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
@@ -137,7 +139,7 @@ mutual
         | .error e => .error e
       | cs' => .ok (acc, cs')
 
-  private def parseConcat (fuel : Nat) (cs : List Char) : ParseState :=
+  def parseConcat (fuel : Nat) (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
     | f + 1 =>
@@ -145,7 +147,7 @@ mutual
       | .ok (first, rest) => parseConcatTail f first rest
       | .error e => .error e
 
-  private def parseConcatTail (fuel : Nat) (acc : RegularExpression Char)
+  def parseConcatTail (fuel : Nat) (acc : RegularExpression Char)
       (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
@@ -154,7 +156,7 @@ mutual
       | .ok (nxt, rest) => parseConcatTail f (acc * nxt) rest
       | .error _ => .ok (acc, cs)
 
-  private def parseStar (fuel : Nat) (cs : List Char) : ParseState :=
+  def parseStar (fuel : Nat) (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
     | f + 1 =>
@@ -162,7 +164,7 @@ mutual
       | .ok (base, rest) => .ok (parseStarTail f base rest)
       | .error e => .error e
 
-  private def parseStarTail (fuel : Nat) (acc : RegularExpression Char)
+  def parseStarTail (fuel : Nat) (acc : RegularExpression Char)
       (cs : List Char) : RegularExpression Char × List Char :=
     match fuel with
     | 0 => (acc, cs)
@@ -171,7 +173,7 @@ mutual
       | '*' :: cs' => parseStarTail f (star acc) cs'
       | cs' => (acc, cs')
 
-  private def parseAtom (fuel : Nat) (cs : List Char) : ParseState :=
+  def parseAtom (fuel : Nat) (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
     | f + 1 =>
@@ -187,6 +189,9 @@ mutual
         if isRegexReserved c then .error "unexpected reserved character"
         else .ok (symbol c, cs')
       | [] => .error "unexpected end of input"
+end
+
+end Internal
 ```
 
 ## 公開パーサー API
@@ -194,15 +199,13 @@ mutual
 `end` で内部の `mutual` ブロックを閉じたのち、モジュールの公開エントリポイントである `parse` と `match` を定義する。`parse` は空文字列を `epsilon` として扱い、それ以外は上の相互再帰パーサーを十分な燃料(`4 * cs.length + 4`)付きで起動し、入力を消費し切れなかった場合は「末尾に余分な入力がある」エラーとする。`match` は `parse` の結果に応じて `matches` を呼び出す薄いラッパーであり、構文的に不正な正規表現は(エラーを伝播させず)単に何にもマッチしないものとして扱う。
 
 ```lean
-end
-
 /-- Parse a string as a regular expression over `Char`; `""` denotes epsilon. -/
 def parse (s : String) : Except String (RegularExpression Char) :=
   let cs := s.toList
   match cs with
   | [] => .ok epsilon
   | _ =>
-    match parseUnion (4 * cs.length + 4) cs with
+    match Internal.parseUnion (4 * cs.length + 4) cs with
     | .ok (r, rest) =>
       match rest with
       | [] => .ok r

@@ -28,10 +28,11 @@ namespace Mathling.Automata
 open Computability
 
 /-- Every regular language satisfies the pumping lemma. -/
-@[important] theorem Language.IsRegular.pumping_lemma {α : Type*} {L : Language α} (h : L.IsRegular) :
+@[grind, important] theorem Language.IsRegular.pumping_lemma {α : Type*} {L : Language α} (h : L.IsRegular) :
     ∃ p ≥ 1, ∀ x ∈ L, p ≤ x.length →
       ∃ a b c, x = a ++ b ++ c ∧ a.length + b.length ≤ p ∧ b ≠ [] ∧
-        ({a} : Language α) * ({b} : Language α)∗ * ({c} : Language α) ≤ L := by
+        (({a} : Language α) * KStar.kstar ({b} : Language α) *
+          ({c} : Language α)) ≤ L := by
   rcases h with ⟨σ, _, M, rfl⟩
   refine ⟨Fintype.card σ, Fintype.card_pos_iff.mpr ⟨M.start⟩, ?_⟩
   intro x hx hlen

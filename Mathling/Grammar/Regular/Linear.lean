@@ -39,7 +39,7 @@ variable {T : Type*}
 
 
 
-private theorem terminals_of_count_eq_zero {N : Type}
+@[grind] private theorem terminals_of_count_eq_zero {N : Type}
     (s : List (Symbol T N))
     (h : s.countP (symbolIsNonterminal (T := T)) = 0) :
     ∃ w : List T, s = terminalSymbols w := by
@@ -57,7 +57,7 @@ private theorem terminals_of_count_eq_zero {N : Type}
           simp only [List.countP_cons, symbolIsNonterminal, if_true] at h
           omega
 
-private theorem split_linear_output {N : Type}
+@[grind] private theorem split_linear_output {N : Type}
     (s : List (Symbol T N))
     (h : s.countP (symbolIsNonterminal (T := T)) ≤ 1) :
     (∃ word : List T, s = terminalSymbols word) ∨
@@ -94,7 +94,7 @@ private theorem split_linear_output {N : Type}
       (child : LinearGenerates g B middle) :
       LinearGenerates g r.input (pre ++ middle ++ suffix)
 
-private theorem generates_derives (g : LinearGrammar T)
+@[grind] private theorem generates_derives (g : LinearGrammar T)
     {A : g.cfg.NT} {w : List T} (h : LinearGenerates g A w) :
     g.cfg.Derives [Symbol.nonterminal A] (terminalSymbols w) := by
   induction h with
@@ -111,7 +111,7 @@ private theorem generates_derives (g : LinearGrammar T)
       simpa [hout, terminalSymbols, List.map_append, List.append_assoc] using hctx
 
 
-private theorem rewrites_terminal_context (r : ContextFreeRule T N)
+@[grind] private theorem rewrites_terminal_context (r : ContextFreeRule T N)
     (left right : List T) (A : N) {v : List (Symbol T N)}
     (h : r.Rewrites
       (terminalSymbols left ++ [Symbol.nonterminal A] ++ terminalSymbols right) v) :
@@ -132,7 +132,7 @@ private theorem rewrites_terminal_context (r : ContextFreeRule T N)
           exact ⟨hin, congrArg (Symbol.terminal a :: ·) hout⟩
 
 
-private theorem derives_linear_context (g : LinearGrammar T)
+@[grind] private theorem derives_linear_context (g : LinearGrammar T)
     {form : List (Symbol T g.cfg.NT)} {target : List T}
     (h : g.cfg.Derives form (terminalSymbols target)) :
     ∀ (left right : List T) (A : g.cfg.NT),
@@ -178,7 +178,6 @@ private theorem derives_linear_context (g : LinearGrammar T)
         · simpa [List.append_assoc] using heq
         · exact LinearGenerates.branch hr hout hmiddle
 
-/-- Production trees and context-free derivations agree for linear grammars. -/
 ```
 
 ## 木構造意味論と通常の導出の一致
@@ -186,7 +185,8 @@ private theorem derives_linear_context (g : LinearGrammar T)
 前節で定義した `LinearGenerates` は、生成規則の適用を明示的な木として表現した帰納的述語である。`generates_derives` と `derives_linear_context` はそれぞれ、この木構造意味論から Mathlib の `Derives` 関係への含意と、その逆方向の含意を与える。`linearGenerates_iff` はこの両者を組み合わせ、文法の初期記号から導出できる言語 `g.language` の要素と、`LinearGenerates` によって生成される終端列とが過不足なく一致することを確立する。以降では、この同値性を唯一の橋渡しとして、木構造上の議論とオートマトンの実行列に関する議論とを行き来する。
 
 ```lean
-theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
+/-- Production trees and context-free derivations agree for linear grammars. -/
+@[grind] theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
     LinearGenerates g g.cfg.initial w ↔ w ∈ g.language := by
   constructor
   · exact generates_derives g
@@ -246,8 +246,10 @@ stateDiagram-v2
   | matchStack
   | finished
 
+namespace Internal
+
 /-- Local micro-transitions for the linear-grammar PDA. -/
-@[grind cases] private inductive LinearRawStep (g : LinearGrammar T) :
+@[grind cases] inductive LinearRawStep (g : LinearGrammar T) :
     LinearPDAState g → Mathling.Automata.TurnPhase → Option T → List T →
       LinearPDAState g → Mathling.Automata.TurnPhase → List T → Prop
   | chooseLeaf {r word stack}
@@ -284,11 +286,15 @@ stateDiagram-v2
   | finish :
       LinearRawStep g .matchStack .pop none [] .finished .pop []
 
+end Internal
+
+open Internal
+
 /-- Convert a linear grammar to a local, production-driven one-turn NPDA. -/
 def toOneTurnNPDA (g : LinearGrammar T) :
     Mathling.Automata.OneTurnNPDA T (LinearPDAState g) T where
   step q phase sym stack :=
-    {next | LinearRawStep g q phase sym stack next.1 next.2.1 next.2.2}
+    {next | Internal.LinearRawStep g q phase sym stack next.1 next.2.1 next.2.2}
   start := {.derive g.cfg.initial}
   accept := {.finished}
   initialStack := []
@@ -314,84 +320,84 @@ def toOneTurnNPDA (g : LinearGrammar T) :
 - `matchStack_reaches`：`matchStack` 状態で入力の残りとスタックの中身を１文字ずつ突き合わせ、両者を使い切ったところで `finished` 状態へ折り返すまでの実行列。
 
 ```lean
-private theorem consumeLeaf_reaches (g : LinearGrammar T)
+@[grind] private theorem consumeLeaf_reaches (g : LinearGrammar T)
     {r : ContextFreeRule T g.cfg.NT} {hr : r ∈ g.cfg.rules}
     {word : List T} {hout : r.output = terminalSymbols word}
     (todo rest stack : List T) :
-    g.toOneTurnNPDA.toNPDA.Reaches
+    g.toOneTurnNPDA.toWholeStackNPDA.Reaches
       (todo ++ rest, (.prefixLeaf r hr word todo hout, .push), stack)
       (rest, (.prefixLeaf r hr word [] hout, .push), stack) := by
   induction todo with
   | nil => exact Relation.ReflTransGen.refl
   | cons a todo ih =>
-      have hstep : g.toOneTurnNPDA.toNPDA.Step
+      have hstep : g.toOneTurnNPDA.toWholeStackNPDA.Step
           (a :: todo ++ rest, (.prefixLeaf r hr word (a :: todo) hout, .push), stack)
           (todo ++ rest, (.prefixLeaf r hr word todo hout, .push), stack) := by
-        apply Mathling.Automata.NPDA.Step.consume
+        apply Mathling.Automata.WholeStackNPDA.Step.consume
         change LinearRawStep g _ _ _ _ _ _ _
         exact LinearRawStep.consumeLeaf
       exact ih.head hstep
 
-private theorem consumeBranch_reaches (g : LinearGrammar T)
+@[grind] private theorem consumeBranch_reaches (g : LinearGrammar T)
     {r : ContextFreeRule T g.cfg.NT} {hr : r ∈ g.cfg.rules}
     {pre : List T} {B : g.cfg.NT} {suffix : List T}
     {hout : r.output =
       terminalSymbols pre ++ [Symbol.nonterminal B] ++ terminalSymbols suffix}
     (todo rest stack : List T) :
-    g.toOneTurnNPDA.toNPDA.Reaches
+    g.toOneTurnNPDA.toWholeStackNPDA.Reaches
       (todo ++ rest, (.prefixBranch r hr pre todo B suffix hout, .push), stack)
       (rest, (.prefixBranch r hr pre [] B suffix hout, .push), stack) := by
   induction todo with
   | nil => exact Relation.ReflTransGen.refl
   | cons a todo ih =>
-      have hstep : g.toOneTurnNPDA.toNPDA.Step
+      have hstep : g.toOneTurnNPDA.toWholeStackNPDA.Step
           (a :: todo ++ rest,
             (.prefixBranch r hr pre (a :: todo) B suffix hout, .push), stack)
           (todo ++ rest, (.prefixBranch r hr pre todo B suffix hout, .push), stack) := by
-        apply Mathling.Automata.NPDA.Step.consume
+        apply Mathling.Automata.WholeStackNPDA.Step.consume
         change LinearRawStep g _ _ _ _ _ _ _
         exact LinearRawStep.consumeBranch
       exact ih.head hstep
 
-private theorem pushBranch_reaches (g : LinearGrammar T) (B : g.cfg.NT)
+@[grind] private theorem pushBranch_reaches (g : LinearGrammar T) (B : g.cfg.NT)
     (suffix todo input stack : List T) :
-    g.toOneTurnNPDA.toNPDA.Reaches
+    g.toOneTurnNPDA.toWholeStackNPDA.Reaches
       (input, (.pushBranch B suffix todo, .push), stack)
       (input, (.derive B, .push), todo.reverse ++ stack) := by
   induction todo generalizing stack with
   | nil =>
       apply Relation.ReflTransGen.single
-      apply Mathling.Automata.NPDA.Step.epsilon
+      apply Mathling.Automata.WholeStackNPDA.Step.epsilon
       change LinearRawStep g _ _ _ _ _ _ _
       exact LinearRawStep.continue
   | cons a todo ih =>
-      have hstep : g.toOneTurnNPDA.toNPDA.Step
+      have hstep : g.toOneTurnNPDA.toWholeStackNPDA.Step
           (input, (.pushBranch B suffix (a :: todo), .push), stack)
           (input, (.pushBranch B suffix todo, .push), a :: stack) := by
-        apply Mathling.Automata.NPDA.Step.epsilon
+        apply Mathling.Automata.WholeStackNPDA.Step.epsilon
         change LinearRawStep g _ _ _ _ _ _ _
         exact LinearRawStep.push
-      have hrest' : g.toOneTurnNPDA.toNPDA.Reaches
+      have hrest' : g.toOneTurnNPDA.toWholeStackNPDA.Reaches
           (input, (.pushBranch B suffix todo, .push), a :: stack)
           (input, (.derive B, .push), (a :: todo).reverse ++ stack) := by
         simpa [List.reverse_cons, List.append_assoc] using ih (a :: stack)
       exact hrest'.head hstep
 
-private theorem matchStack_reaches (g : LinearGrammar T) (stack : List T) :
-    g.toOneTurnNPDA.toNPDA.Reaches
+@[grind] private theorem matchStack_reaches (g : LinearGrammar T) (stack : List T) :
+    g.toOneTurnNPDA.toWholeStackNPDA.Reaches
       (stack, (.matchStack, .pop), stack)
       ([], (.finished, .pop), []) := by
   induction stack with
   | nil =>
       apply Relation.ReflTransGen.single
-      apply Mathling.Automata.NPDA.Step.epsilon
+      apply Mathling.Automata.WholeStackNPDA.Step.epsilon
       change LinearRawStep g _ _ _ _ _ _ _
       exact LinearRawStep.finish
   | cons a stack ih =>
-      have hstep : g.toOneTurnNPDA.toNPDA.Step
+      have hstep : g.toOneTurnNPDA.toWholeStackNPDA.Step
           (a :: stack, (.matchStack, .pop), a :: stack)
           (stack, (.matchStack, .pop), stack) := by
-        apply Mathling.Automata.NPDA.Step.consume
+        apply Mathling.Automata.WholeStackNPDA.Step.consume
         change LinearRawStep g _ _ _ _ _ _ _
         exact LinearRawStep.matchStack
       exact ih.head hstep
@@ -401,52 +407,52 @@ private theorem matchStack_reaches (g : LinearGrammar T) (stack : List T) :
 `generates_reaches` はこれらの部品を `LinearGenerates` の帰納法に沿って接続し、任意の生成木に対して、その終端列を先頭に積んだ入力から出発して `finished` 状態・空スタックへ到達する実行列を構成する。leaf ケースでは規則選択・終端列消費・pop フェーズへの折り返し・スタック照合をこの順に繋ぐだけでよい。branch ケースでは、前置終端列の消費・push フェーズの開始・後置終端列のスタックへの積み込みに続けて、帰納法の仮定 `ih` を子の非終端 `B` に適用することで、部分木の実行列を全体の実行列へ組み込んでいる。この定理が、文法が生成する語を PDA が受理するという含意（`toOneTurnNPDA_language` の一方向）の核心を担う。
 
 ```lean
-private theorem generates_reaches (g : LinearGrammar T)
+@[grind] private theorem generates_reaches (g : LinearGrammar T)
     {A : g.cfg.NT} {word : List T} (h : LinearGenerates g A word)
     (stack : List T) :
-    g.toOneTurnNPDA.toNPDA.Reaches
+    g.toOneTurnNPDA.toWholeStackNPDA.Reaches
       (word ++ stack, (.derive A, .push), stack)
       ([], (.finished, .pop), []) := by
   induction h generalizing stack with
   | @leaf r word hr hout =>
-      have hchoose : g.toOneTurnNPDA.toNPDA.Step
+      have hchoose : g.toOneTurnNPDA.toWholeStackNPDA.Step
           (word ++ stack, (.derive r.input, .push), stack)
           (word ++ stack, (.prefixLeaf r hr word word hout, .push), stack) := by
-        apply Mathling.Automata.NPDA.Step.epsilon
+        apply Mathling.Automata.WholeStackNPDA.Step.epsilon
         change LinearRawStep g _ _ _ _ _ _ _
         exact LinearRawStep.chooseLeaf hr hout
       have hconsume := consumeLeaf_reaches g (r := r) (hr := hr)
         (word := word) (hout := hout) word stack stack
-      have hpop : g.toOneTurnNPDA.toNPDA.Step
+      have hpop : g.toOneTurnNPDA.toWholeStackNPDA.Step
           (stack, (.prefixLeaf r hr word [] hout, .push), stack)
           (stack, (.matchStack, .pop), stack) := by
-        apply Mathling.Automata.NPDA.Step.epsilon
+        apply Mathling.Automata.WholeStackNPDA.Step.epsilon
         change LinearRawStep g _ _ _ _ _ _ _
         exact LinearRawStep.finishLeaf
       exact ((Relation.ReflTransGen.single hchoose).trans hconsume).tail hpop
         |>.trans (matchStack_reaches g stack)
   | @branch r pre suffix middle B hr hout child ih =>
-      have hchoose : g.toOneTurnNPDA.toNPDA.Step
+      have hchoose : g.toOneTurnNPDA.toWholeStackNPDA.Step
           ((pre ++ middle ++ suffix) ++ stack, (.derive r.input, .push), stack)
           ((pre ++ middle ++ suffix) ++ stack,
             (.prefixBranch r hr pre pre B suffix hout, .push), stack) := by
-        apply Mathling.Automata.NPDA.Step.epsilon
+        apply Mathling.Automata.WholeStackNPDA.Step.epsilon
         change LinearRawStep g _ _ _ _ _ _ _
         exact LinearRawStep.chooseBranch hr hout
       have hconsume := consumeBranch_reaches g (r := r) (hr := hr)
         (pre := pre) (B := B) (suffix := suffix) (hout := hout)
         pre (middle ++ suffix ++ stack) stack
-      have hbegin : g.toOneTurnNPDA.toNPDA.Step
+      have hbegin : g.toOneTurnNPDA.toWholeStackNPDA.Step
           (middle ++ suffix ++ stack,
             (.prefixBranch r hr pre [] B suffix hout, .push), stack)
           (middle ++ suffix ++ stack,
             (.pushBranch B suffix suffix.reverse, .push), stack) := by
-        apply Mathling.Automata.NPDA.Step.epsilon
+        apply Mathling.Automata.WholeStackNPDA.Step.epsilon
         change LinearRawStep g _ _ _ _ _ _ _
         exact LinearRawStep.beginPush
       have hpush := pushBranch_reaches g B suffix suffix.reverse
         (middle ++ suffix ++ stack) stack
-      have hpush' : g.toOneTurnNPDA.toNPDA.Reaches
+      have hpush' : g.toOneTurnNPDA.toWholeStackNPDA.Reaches
           (middle ++ suffix ++ stack,
             (.pushBranch B suffix suffix.reverse, .push), stack)
           (middle ++ suffix ++ stack, (.derive B, .push), suffix ++ stack) := by
@@ -485,7 +491,7 @@ private theorem generates_reaches (g : LinearGrammar T)
 
 ```lean
 private def LinearGood (g : LinearGrammar T) :
-    Mathling.Automata.NPDA.ID T
+    Mathling.Automata.WholeStackNPDA.ID T
       (LinearPDAState g × Mathling.Automata.TurnPhase) T → Prop
   | (input, (.derive A, .push), stack) =>
       ∃ word, input = word ++ stack ∧ LinearGenerates g A word
@@ -503,10 +509,10 @@ private def LinearGood (g : LinearGrammar T) :
 
 ```
 
-`raw_step_good` は `LinearRawStep` の各構成子について、遷移後の状態で `LinearGood` が成り立つならば遷移前の状態でも成り立つことを１ステップずつ確認する。これは各ミクロ遷移が `LinearGood` の場合分けとちょうど噛み合うように設計されていることの裏付けであり、たとえば `consumeLeaf` は `todo` の１文字消費に対応して入力の１文字消費が起こるだけなので `simp` で閉じ、`chooseBranch` は規則の出力を非終端記号の生成木へ組み替える証明の要となる。`step_good` はこれを `NPDA.Step`（`consume`／`epsilon` の２通り）に持ち上げ、`reaches_good` はさらに `Reaches`（反射推移閉包）全体へ、終点から始点への逆向き帰納法（`head_induction_on`）で持ち上げる。この結果、実行列の終点における不変条件（受理状態での `input = []`）さえ分かれば、始点における不変条件を機械的に導けるようになる。
+`raw_step_good` は `LinearRawStep` の各構成子について、遷移後の状態で `LinearGood` が成り立つならば遷移前の状態でも成り立つことを１ステップずつ確認する。これは各ミクロ遷移が `LinearGood` の場合分けとちょうど噛み合うように設計されていることの裏付けであり、たとえば `consumeLeaf` は `todo` の１文字消費に対応して入力の１文字消費が起こるだけなので `simp` で閉じ、`chooseBranch` は規則の出力を非終端記号の生成木へ組み替える証明の要となる。`step_good` はこれを `WholeStackNPDA.Step`（`consume`／`epsilon` の２通り）に持ち上げ、`reaches_good` はさらに `Reaches`（反射推移閉包）全体へ、終点から始点への逆向き帰納法（`head_induction_on`）で持ち上げる。この結果、実行列の終点における不変条件（受理状態での `input = []`）さえ分かれば、始点における不変条件を機械的に導けるようになる。
 
 ```lean
-private theorem raw_step_good (g : LinearGrammar T)
+@[grind] private theorem raw_step_good (g : LinearGrammar T)
     {q q' : LinearPDAState g} {p p' : Mathling.Automata.TurnPhase}
     {sym : Option T} {stack stack' : List T}
     (h : LinearRawStep g q p sym stack q' p' stack') (input : List T) :
@@ -539,10 +545,10 @@ private theorem raw_step_good (g : LinearGrammar T)
   | finish =>
       simp [LinearGood]
 
-private theorem step_good (g : LinearGrammar T)
-    {c c' : Mathling.Automata.NPDA.ID T
+@[grind] private theorem step_good (g : LinearGrammar T)
+    {c c' : Mathling.Automata.WholeStackNPDA.ID T
       (LinearPDAState g × Mathling.Automata.TurnPhase) T}
-    (h : g.toOneTurnNPDA.toNPDA.Step c c') :
+    (h : g.toOneTurnNPDA.toWholeStackNPDA.Step c c') :
     LinearGood g c' → LinearGood g c := by
   cases h with
   | consume hraw =>
@@ -552,10 +558,10 @@ private theorem step_good (g : LinearGrammar T)
       change LinearRawStep g _ _ _ _ _ _ _ at hraw
       exact raw_step_good g hraw _
 
-private theorem reaches_good (g : LinearGrammar T)
-    {c c' : Mathling.Automata.NPDA.ID T
+@[grind] private theorem reaches_good (g : LinearGrammar T)
+    {c c' : Mathling.Automata.WholeStackNPDA.ID T
       (LinearPDAState g × Mathling.Automata.TurnPhase) T}
-    (h : g.toOneTurnNPDA.toNPDA.Reaches c c') :
+    (h : g.toOneTurnNPDA.toWholeStackNPDA.Reaches c c') :
     LinearGood g c' → LinearGood g c := by
   induction h using Relation.ReflTransGen.head_induction_on with
   | refl => exact id
@@ -576,7 +582,7 @@ private theorem reaches_good (g : LinearGrammar T)
   ext input
   constructor
   · intro hinput
-    change g.toOneTurnNPDA.toNPDA.Accepts input at hinput
+    change g.toOneTurnNPDA.toWholeStackNPDA.Accepts input at hinput
     rcases hinput with ⟨⟨start, phase⟩, hstart,
       ⟨final, finalPhase⟩, hfinal, stack, hreach⟩
     change start ∈ g.toOneTurnNPDA.start ∧ phase = .push at hstart
@@ -597,12 +603,12 @@ private theorem reaches_good (g : LinearGrammar T)
     exact (linearGenerates_iff g word).mp hgenerates
   · intro hinput
     have hgenerates := (linearGenerates_iff g input).mpr hinput
-    change g.toOneTurnNPDA.toNPDA.Accepts input
+    change g.toOneTurnNPDA.toWholeStackNPDA.Accepts input
     refine ⟨(.derive g.cfg.initial, .push), ?_,
       (.finished, .pop), ?_, [], ?_⟩
     · exact ⟨by simp [toOneTurnNPDA], rfl⟩
-    · simp [Mathling.Automata.OneTurnNPDA.toNPDA, toOneTurnNPDA]
-    · simpa [Mathling.Automata.OneTurnNPDA.toNPDA, toOneTurnNPDA] using
+    · simp [Mathling.Automata.OneTurnNPDA.toWholeStackNPDA, toOneTurnNPDA]
+    · simpa [Mathling.Automata.OneTurnNPDA.toWholeStackNPDA, toOneTurnNPDA] using
         generates_reaches g hgenerates []
 
 ```

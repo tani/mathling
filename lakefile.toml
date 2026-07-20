@@ -2,6 +2,7 @@ name = "Mathling"
 version = "0.1.0"
 keywords = ["math"]
 defaultTargets = ["Mathling"]
+testDriver = "mathlingTests"
 
 [leanOptions]
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
@@ -26,3 +27,7 @@ rev = "v4.32.0"
 
 [[lean_lib]]
 name = "Mathling"
+
+[[lean_exe]]
+name = "mathlingTests"
+root = "Tests.Main"

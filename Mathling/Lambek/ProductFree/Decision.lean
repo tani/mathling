@@ -414,6 +414,7 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
 上記２つの補題から、`prove1` と `prove2` は同値であることがわかる。
 
 ```lean
+@[grind =]
 lemma prove1_iff_prove2 : prove1 Γ A ↔ prove2 Γ A := by grind
 ```
 

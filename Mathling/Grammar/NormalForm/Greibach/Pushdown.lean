@@ -50,11 +50,14 @@ grammar for the same language. -/
 finite local NPDA, both state and stack alphabets being existential witnesses.
 This composes `isContextFree_iff_exists_greibachNormalGrammar` with the general
 context-free/pushdown equivalence `isContextFree_iff_exists_npda`. -/
-@[important, grind =] theorem exists_greibachNormalGrammar_iff_exists_npda {T : Type} {L : Language T} :
+@[important] theorem exists_greibachNormalGrammar_iff_exists_npda {T : Type} {L : Language T} :
     (∃ g : GreibachNormalGrammar T, g.language = L) ↔
       ∃ State Stack : Type, ∃ M : NPDA T State Stack, M.language = L := by
   rw [← isContextFree_iff_exists_greibachNormalGrammar]
   exact isContextFree_iff_exists_npda
+
+grind_pattern exists_greibachNormalGrammar_iff_exists_npda =>
+  Language.IsContextFree L
 
 end Language
 

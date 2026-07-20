@@ -49,18 +49,18 @@ end LeftLinearGrammar
 
 ```lean
 /-- Reversing a rule with empty output leaves the output empty. -/
-private theorem ContextFreeRule.reverse_output_nil {T N : Type*}
+@[grind] private theorem ContextFreeRule.reverse_output_nil {T N : Type*}
     {r : ContextFreeRule T N} (h : r.output = []) : r.reverse.output = [] := by
   simp [ContextFreeRule.reverse, h]
 
 /-- Reversing a rule with singleton output leaves the output unchanged. -/
-private theorem ContextFreeRule.reverse_output_singleton {T N : Type*}
+@[grind] private theorem ContextFreeRule.reverse_output_singleton {T N : Type*}
     {r : ContextFreeRule T N} {a : T} (h : r.output = [Symbol.terminal a]) :
     r.reverse.output = [Symbol.terminal a] := by
   simp [ContextFreeRule.reverse, h]
 
 /-- Reversing a rule with two-symbol output swaps the two symbols. -/
-private theorem ContextFreeRule.reverse_output_pair {T N : Type*}
+@[grind] private theorem ContextFreeRule.reverse_output_pair {T N : Type*}
     {r : ContextFreeRule T N} {x y : Symbol T N} (h : r.output = [x, y]) :
     r.reverse.output = [y, x] := by
   simp [ContextFreeRule.reverse, h]
@@ -96,7 +96,7 @@ def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T where
   simp [reverseRightLinear, RightLinearGrammar.language, LeftLinearGrammar.language]
 
 /-- A left-linear grammar with finitely many nonterminals generates a regular language. -/
-theorem language_isRegular (g : LeftLinearGrammar T) [Fintype g.cfg.NT] :
+@[grind] theorem language_isRegular (g : LeftLinearGrammar T) [Fintype g.cfg.NT] :
     g.language.IsRegular := by
   letI : Fintype g.reverseRightLinear.cfg.NT := by
     change Fintype g.cfg.NT

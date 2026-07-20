@@ -25,7 +25,7 @@ namespace Mathling.Automata
 namespace NFA
 
 /-- Regard an NFA as an NPDA that never changes its empty stack. -/
-def toNPDA (M : NFA α σ) : NPDA α σ PUnit where
+def toWholeStackNPDA (M : NFA α σ) : WholeStackNPDA α σ PUnit where
   step q sym stack :=
     match sym with
     | some a => {next | next.1 ∈ M.step q a ∧ next.2 = stack}
@@ -34,17 +34,23 @@ def toNPDA (M : NFA α σ) : NPDA α σ PUnit where
   accept := M.accept
   initialStack := []
 
-private theorem path_toNPDA_reaches (M : NFA α σ) {q q' : σ} {w : List α}
-    (p : M.Path q q' w) (stack : List PUnit) :
-    M.toNPDA.Reaches (w, q, stack) ([], q', stack) := by
+private theorem path_toWholeStackNPDA_reaches (M : NFA α σ) {q q' : σ} {w : List α} :
+    Nonempty (M.Path q q' w) → ∀ stack : List PUnit,
+      M.toWholeStackNPDA.Reaches (w, q, stack) ([], q', stack) := by
+  rintro ⟨p⟩ stack
   induction p with
   | nil => exact Relation.ReflTransGen.refl
   | cons t s u a x hstep _ ih =>
       exact ih.head (.consume ⟨hstep, rfl⟩)
 
-private theorem toNPDA_reaches_path_aux (M : NFA α σ) {c : NPDA.ID α σ PUnit}
+grind_pattern path_toWholeStackNPDA_reaches =>
+  M.Path q q' w,
+  M.toWholeStackNPDA.Reaches (w, q, stack) ([], q', stack)
+
+@[grind] private theorem toWholeStackNPDA_reaches_path_aux (M : NFA α σ)
+    {c : WholeStackNPDA.ID α σ PUnit}
     {q' : σ} {stack' : List PUnit}
-    (h : M.toNPDA.Reaches c ([], q', stack')) :
+    (h : M.toWholeStackNPDA.Reaches c ([], q', stack')) :
     stack' = c.2.2 ∧ Nonempty (M.Path c.2.1 q' c.1) := by
   induction h using Relation.ReflTransGen.head_induction_on with
   | refl => exact ⟨rfl, ⟨.nil q'⟩⟩
@@ -54,24 +60,25 @@ private theorem toNPDA_reaches_path_aux (M : NFA α σ) {c : NPDA.ID α σ PUnit
           obtain ⟨hpathStack, ⟨path⟩⟩ := ih
           obtain ⟨edge, rfl⟩ := hmem
           exact ⟨hpathStack, ⟨.cons _ _ _ _ _ edge path⟩⟩
-      | epsilon hmem => simp [toNPDA] at hmem
+      | epsilon hmem => simp [toWholeStackNPDA] at hmem
 
-private theorem toNPDA_reaches_path (M : NFA α σ) {q q' : σ} {w : List α}
+@[grind] private theorem toWholeStackNPDA_reaches_path (M : NFA α σ)
+    {q q' : σ} {w : List α}
     {stack stack' : List PUnit}
-    (h : M.toNPDA.Reaches (w, q, stack) ([], q', stack')) :
+    (h : M.toWholeStackNPDA.Reaches (w, q, stack) ([], q', stack')) :
     stack' = stack ∧ Nonempty (M.Path q q' w) :=
-  M.toNPDA_reaches_path_aux h
+  M.toWholeStackNPDA_reaches_path_aux h
 
 /-- The stack-free NPDA conversion accepts exactly the NFA language. -/
-@[grind =, simp] theorem toNPDA_language (M : NFA α σ) :
-    M.toNPDA.language = M.accepts := by
+@[grind =, simp] theorem toWholeStackNPDA_language (M : NFA α σ) :
+    M.toWholeStackNPDA.language = M.accepts := by
   ext w
   rw [NFA.accepts_iff_exists_path]
   constructor
   · rintro ⟨q, hq, q', hq', stack, hreach⟩
-    exact ⟨q, hq, q', hq', (M.toNPDA_reaches_path hreach).2⟩
+    exact ⟨q, hq, q', hq', (M.toWholeStackNPDA_reaches_path hreach).2⟩
   · rintro ⟨q, hq, q', hq', ⟨path⟩⟩
-    exact ⟨q, hq, q', hq', [], M.path_toNPDA_reaches path []⟩
+    exact ⟨q, hq, q', hq', [], M.path_toWholeStackNPDA_reaches ⟨path⟩ []⟩
 
 end NFA
 
@@ -79,9 +86,9 @@ end NFA
 
 ## NFA から NPDA への埋め込み
 
-`NFA.toNPDA` は NFA をスタック型 `PUnit`（要素が1つしかない型）の NPDA とみなすことで、「スタックを一切使わない PDA」として埋め込む。`step` は入力記号ありの遷移のみを NFA の遷移関係からそのまま持ち上げ、スタックの中身 `stack` は変化させない（`next.2 = stack`）。epsilon 遷移は NFA 側に存在しないため空集合を返す。
+`NFA.toWholeStackNPDA` は NFA をスタック型 `PUnit`（要素が1つしかない型）の `WholeStackNPDA` とみなすことで、「スタックを一切使わない PDA」として埋め込む。`step` は入力記号ありの遷移のみを NFA の遷移関係からそのまま持ち上げ、スタックの中身 `stack` は変化させない（`next.2 = stack`）。epsilon 遷移は NFA 側に存在しないため空集合を返す。
 
-正しさの証明は「NFA の経路（`Path`）」と「NPDA の到達関係（`Reaches`）」を往復させる形を取る。`path_toNPDA_reaches` は NFA の経路から対応する NPDA の到達列を構成する向き、`toNPDA_reaches_path`（内部で `toNPDA_reaches_path_aux` に委譲）は逆向きであり、NPDA 側の到達列を分解すると epsilon 遷移が原理的に出現し得ないこと（`simp [toNPDA] at hmem` で矛盾）と、スタックが不変に保たれることを同時に示す。`toNPDA_language` はこの往復から `accepts_iff_exists_path` を経由して言語の一致を導く。
+正しさの証明は「NFA の経路（`Path`）」と「全スタック PDA の到達関係（`Reaches`）」を往復させる形を取る。`path_toWholeStackNPDA_reaches` は NFA の経路から対応する到達列を構成し、`toWholeStackNPDA_reaches_path`（内部で `toWholeStackNPDA_reaches_path_aux` に委譲）は逆向きに経路とスタック不変性を回復する。`toWholeStackNPDA_language` はこの往復から `accepts_iff_exists_path` を経由して言語の一致を導く。
 
 続いて、DFA を決定性版の DPDA へ同様に埋め込む。この場合は NFA の場合に帰着させることで証明を再利用する。
 
@@ -98,19 +105,22 @@ def toDPDA (M : DFA α σ) : DPDA α σ PUnit where
 /-- The stack-free DPDA conversion accepts exactly the DFA language. -/
 @[grind =, simp] theorem toDPDA_language (M : DFA α σ) :
     M.toDPDA.language = M.accepts := by
-  have hconversion : DPDA.toNPDA (DFA.toDPDA M) =
-      Mathling.Automata.NFA.toNPDA M.toNFA := by
-    apply NPDA.ext
+  have hconversion : DPDA.toWholeStackNPDA (DFA.toDPDA M) =
+      Mathling.Automata.NFA.toWholeStackNPDA M.toNFA := by
+    apply WholeStackNPDA.ext
     · funext q sym stack
       ext next
       rcases next with ⟨nextq, nextStack⟩
       cases sym <;>
-        simp [DFA.toDPDA, DPDA.toNPDA, Mathling.Automata.NFA.toNPDA]
+        simp [DFA.toDPDA, DPDA.toWholeStackNPDA,
+          Mathling.Automata.NFA.toWholeStackNPDA]
     · ext q
-      simp [DFA.toDPDA, DPDA.toNPDA, Mathling.Automata.NFA.toNPDA]
+      simp [DFA.toDPDA, DPDA.toWholeStackNPDA,
+        Mathling.Automata.NFA.toWholeStackNPDA]
     · rfl
     · rfl
-  rw [DPDA.language, hconversion, Mathling.Automata.NFA.toNPDA_language,
+  rw [DPDA.language, hconversion,
+    Mathling.Automata.NFA.toWholeStackNPDA_language,
     _root_.DFA.toNFA_correct]
 
 end DFA
