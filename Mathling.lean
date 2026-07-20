@@ -3,6 +3,8 @@
     public import LiterateLean
     open scoped LiterateLean
 
+    public import Mathling.Meta.Important
+
     public import Mathling.Lambek.ProductFree.All
 
     public import Mathling.Automata.All
