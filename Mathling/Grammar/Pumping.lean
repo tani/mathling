@@ -626,7 +626,7 @@ private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
 
 /-- Every context-free language satisfies the pumping lemma. -/
 theorem Language.IsContextFree.pumping_lemma
-    {T : Type*} {L : Language T} (h : L.IsContextFree) :
+    {T : Type} {L : Language T} (h : L.IsContextFree) :
     ∃ p ≥ 1, ∀ w ∈ L, p ≤ w.length →
       ∃ u v x y z, w = u ++ v ++ x ++ y ++ z ∧
         (v ++ x ++ y).length ≤ p ∧ v ++ y ≠ [] ∧

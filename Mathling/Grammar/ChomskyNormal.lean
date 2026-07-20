@@ -1306,11 +1306,11 @@ namespace ContextFreeGrammar
 /-! ## Isolation of terminals in long right-hand sides -/
 
 
-/-! Universe-safe terminal isolation.
+/-! Terminal isolation for small terminal types.
 
-Helper nonterminals identify terminal occurrences by the index of their source
-rule and their position in that rule.  They therefore remain in `Type`
-regardless of the universe containing the terminal alphabet. -/
+Helper nonterminals store terminal values directly. Since
+`ContextFreeGrammar.NT` lives in `Type`, the complete conversion using this
+construction is available when the terminal alphabet also lives in `Type`. -/
 
 inductive IsolateNT (T N : Type*) where
   | old (A : N)
@@ -2624,13 +2624,25 @@ theorem binarize_language (g : ContextFreeGrammar T)
 
 
 /-- Computably convert a context-free grammar to Chomsky normal form. -/
-def toChomskyNormalGrammar {T : Type*} [DecidableEq T]
+def toChomskyNormalGrammar {T : Type} [DecidableEq T]
     (g : ContextFreeGrammar T) [DecidableEq g.NT] :
     ChomskyNormalGrammar T := by
   let g₁ := freshStart g
+  letI : DecidableEq g₁.NT := by
+    change DecidableEq (FreshStartNT g.NT)
+    infer_instance
   let g₂ := removeEpsilon g₁
+  letI : DecidableEq g₂.NT := by
+    change DecidableEq g₁.NT
+    infer_instance
   let g₃ := removeUnit g₂
+  letI : DecidableEq g₃.NT := by
+    change DecidableEq g₂.NT
+    infer_instance
   let g₄ := isolateTerminals g₃
+  letI : DecidableEq g₄.NT := by
+    change DecidableEq (IsolateNT T g₃.NT)
+    infer_instance
   let g₅ := binarize g₄
   have hnot₁ := freshStart_initial_not_output g
   have hnot₂ := removeEpsilon_initial_not_output g₁ hnot₁
@@ -2650,7 +2662,7 @@ def toChomskyNormalGrammar {T : Type*} [DecidableEq T]
 
 /-- The generated nonterminal type of the computable Chomsky conversion
 inherits a computable linear order. -/
-@[reducible] def toChomskyNormalGrammarNTLinearOrder {T : Type*}
+@[reducible] def toChomskyNormalGrammarNTLinearOrder {T : Type}
     [LinearOrder T] (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     LinearOrder (toChomskyNormalGrammar g).cfg.NT := by
   let g₁ := freshStart g
@@ -2672,13 +2684,25 @@ inherits a computable linear order. -/
   change LinearOrder (BinaryNT g₄.NT)
   infer_instance
 
-@[simp] theorem toChomskyNormalGrammar_language {T : Type*}
+@[simp] theorem toChomskyNormalGrammar_language {T : Type}
     [DecidableEq T] (g : ContextFreeGrammar T) [DecidableEq g.NT] :
     (toChomskyNormalGrammar g).language = g.language := by
   let g₁ := freshStart g
+  letI : DecidableEq g₁.NT := by
+    change DecidableEq (FreshStartNT g.NT)
+    infer_instance
   let g₂ := removeEpsilon g₁
+  letI : DecidableEq g₂.NT := by
+    change DecidableEq g₁.NT
+    infer_instance
   let g₃ := removeUnit g₂
+  letI : DecidableEq g₃.NT := by
+    change DecidableEq g₂.NT
+    infer_instance
   let g₄ := isolateTerminals g₃
+  letI : DecidableEq g₄.NT := by
+    change DecidableEq (IsolateNT T g₃.NT)
+    infer_instance
   have hall₄ := isolateTerminals_long_rhs_all_nonterminals g₃
   calc
     (toChomskyNormalGrammar g).language =

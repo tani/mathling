@@ -8,17 +8,17 @@ namespace Mathling.Grammar
 namespace ContextFreeGrammar
 namespace Classical
 
-/-- Convert an arbitrary context-free grammar to Chomsky normal form, choosing
-classical orders.  Use `ContextFreeGrammar.toChomskyNormalGrammar` when executable
-code is required. -/
-noncomputable def toChomskyNormalGrammar {T : Type*}
+/-- Convert a context-free grammar over a small terminal type to Chomsky normal
+form, choosing classical orders. Use `ContextFreeGrammar.toChomskyNormalGrammar`
+when executable code is required. -/
+noncomputable def toChomskyNormalGrammar {T : Type}
     (g : ContextFreeGrammar T) : ChomskyNormalGrammar T := by
   classical
   letI : LinearOrder T := linearOrderOfSTO WellOrderingRel
   letI : LinearOrder g.NT := linearOrderOfSTO WellOrderingRel
   exact _root_.Mathling.Grammar.ContextFreeGrammar.toChomskyNormalGrammar g
 
-@[simp] theorem toChomskyNormalGrammar_language {T : Type*}
+@[simp] theorem toChomskyNormalGrammar_language {T : Type}
     (g : ContextFreeGrammar T) :
     (Classical.toChomskyNormalGrammar g).language = g.language := by
   classical
