@@ -380,4 +380,9 @@ theorem atom_generation
 end Mathling.Lambek.ProductFree.Shallow
 ```
 
-<!-- vim: set filetype=markdown : -->
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

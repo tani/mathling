@@ -1,7 +1,17 @@
-module
+    module
 
-public import Mathling.Automata.Conversion.Pushdown
+    public import Mathling.Automata.Conversion.Pushdown
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Automata / Conversion / Finite モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 @[expose] public section
 
 /-!
@@ -95,3 +105,12 @@ def toDPDA (M : DFA α σ) : DPDA α σ PUnit where
 end DFA
 
 end Mathling.Automata
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

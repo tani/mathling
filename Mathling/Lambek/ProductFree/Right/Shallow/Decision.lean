@@ -168,4 +168,9 @@ example : [Tp.rdiv "q" "p", Tp.atom "p"] = [Tp.rdiv "q" "p", Tp.atom "p"] := rfl
 end Mathling.Lambek.ProductFree.Right.Shallow
 ```
 
-<!-- vim: set filetype=markdown : -->
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

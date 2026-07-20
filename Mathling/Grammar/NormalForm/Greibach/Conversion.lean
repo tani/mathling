@@ -1,9 +1,19 @@
-module
+    module
 
-public import Mathling.Grammar.NormalForm.Chomsky.Conversion
-public import Mathlib.Data.Fintype.EquivFin
-public import Mathlib.Data.Finset.Union
+    public import Mathling.Grammar.NormalForm.Chomsky.Conversion
+    public import Mathlib.Data.Fintype.EquivFin
+    public import Mathlib.Data.Finset.Union
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Grammar / NormalForm / Greibach / Conversion モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 @[expose] public section
 
 /-!
@@ -138,6 +148,13 @@ theorem filterEmptyRules_derives
       have hstep := filterEmptyRules_step c hprefix.1 hyz
       exact ⟨hstep.1, hprefix.2.trans hstep.2.single⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem filterEmptyRules_language_nonempty
     (c : ChomskyNormalGrammar T) [DecidableEq c.cfg.NT]
     {w : List T} (hw : w ≠ []) :
@@ -263,6 +280,13 @@ abbrev compactSupport (g : ContextFreeGrammar T)
     initial := encodeSupport g g.initial
     rules := g.rules.image fun r =>
       ContextFreeRule.mapNonterminal (encodeSupport g) r }
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem decode_encode_rule_output
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {r : ContextFreeRule T g.NT}
@@ -393,6 +417,13 @@ theorem compactWork_forward_step
   · exact Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
       hrewrite (embedWork (g := g))
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem compactWork_language_forward
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactSupport g).language ≤ (compactWork g).toCFG.language := by
@@ -522,6 +553,13 @@ theorem compactWork_rule_source
   obtain ⟨middle, ⟨old, hold, rfl⟩, rfl⟩ := hr
   exact ⟨old, hold, rfl⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem compactWork_outputsValid
     (c : ChomskyNormalGrammar T) [LinearOrder c.cfg.NT]
     (hnoempty : ∀ r ∈ c.cfg.rules, r.output ≠ []) :
@@ -646,6 +684,13 @@ theorem formTree_split_append (g : ContextFreeGrammar T)
             FormTree.cons head hu, hv⟩
 termination_by xs
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem formTree_terminals (g : ContextFreeGrammar T)
     (w : List T) : FormTree g (terminalSymbols w) w := by
   induction w with
@@ -782,6 +827,13 @@ theorem substituted_rule_old_derives
     simpa [hsourceInput] using
       (ContextFreeRule.Rewrites.head (r := source) suffix)
   exact hfirst.single.trans hsecond.single
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem substituteEarlier_reverse_step
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {u v : List (Symbol T (GreibachWorkNT n))}
@@ -958,6 +1010,13 @@ theorem substituteEarlier_node
     exact @SymbolTree.nonterminal T
       ((substituteEarlier G i).toCFG) r hmem w children
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem substituteEarlier_language_reverse
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     (substituteEarlier G i).toCFG.language ≤ G.toCFG.language := by
@@ -1090,6 +1149,13 @@ def eliminateImmediateRule
                 [Symbol.nonterminal (.recursive i)] } }
   · exact {r}
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 abbrev eliminateImmediateLeftRecursion
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     GreibachWorkGrammar T n :=
@@ -1251,6 +1317,13 @@ theorem eliminateImmediate_companion_or_recursive_tail
     · exact (holdInput hbase).elim
     · exact (holdFresh.1 hrec).elim
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem formTree_nil_word
     (g : ContextFreeGrammar T) {w : List T}
     (h : FormTree g [] w) : w = [] := by
@@ -1397,6 +1470,13 @@ theorem canAppendImmediate
           simpa [List.append_assoc] using
             FormTree.cons head happended)
     h
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem eliminateImmediate_retained_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
@@ -1525,6 +1605,13 @@ theorem reverseImmediate_terminal
   · intro h
     cases h
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem reverseImmediate_nil
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     ReverseImmediateForm G i [] [] := by
@@ -1654,6 +1741,13 @@ theorem immediateGeneratedCase_of_mem
     subst new
     exact Or.inl rfl
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem reverseImmediate_nonterminal
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (r : ContextFreeRule T (GreibachWorkNT n))
@@ -1780,6 +1874,13 @@ theorem eliminateImmediateLeftRecursion_language
     (eliminateImmediate_language_reverse G i hfresh hinitial)
     (eliminateImmediate_language_forward G i hfresh)
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem substituteEarlier_preserves_recFresh
     (G : GreibachWorkGrammar T n) (i k : Fin n)
     (hfresh : RecFresh G k) :
@@ -1935,6 +2036,13 @@ theorem eliminateImmediate_outputsValid
       exact Or.inr ⟨k, rest ++ [.recursive i], by
         simp [List.map_append]⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem substituteEarlier_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
@@ -2059,6 +2167,13 @@ theorem substituteEarlier_leadingBound
         exact leadingBaseIndex_append_of_some hk,
         by omega⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem substituteEarlier_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i k : Fin n)
     (hik : k ≠ i) (hordered : BaseOrderedAt G k) :
@@ -2183,6 +2298,13 @@ def orderedForwardStep
     GreibachWorkGrammar T n :=
   eliminateImmediateLeftRecursion
     (repeatSubstituteEarlier G i (substitutionPasses i)) i
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem eliminateImmediateRule_not_retains_self
     (i : Fin n) (r : ContextFreeRule T (GreibachWorkNT n))
     (hinput : r.input = .base i)
@@ -2305,6 +2427,13 @@ theorem orderedForwardStep_preserves_baseOrdered
   · exact repeatSubstituteEarlier_preserves_baseOrdered
       G i j (substitutionPasses i) hji hordered
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem orderedForwardStep_freshFor
     (G : GreibachWorkGrammar T n) (i : Fin n) (is : List (Fin n))
     (hinodup : i ∉ is) (hfresh : FreshFor G (i :: is)) :
@@ -2425,6 +2554,13 @@ theorem orderedForwardFold_all_ordered
         (orderedForwardStep_outputsValid G i hvalid htail)
         (orderedForwardStep_baseRulesHaveTail G i hvalid htail)
         hstepOutside
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem finRange_pairwise_lt :
     (List.finRange n).Pairwise (· < ·) := by
   simp only [List.pairwise_iff_getElem]
@@ -2557,6 +2693,13 @@ theorem substituteLeading_reverse_step
       ⟨target, htarget,
         ContextFreeRule.rewrites_of_exists_parts target p q⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem substituteLeading_language_reverse
     (G : GreibachWorkGrammar T n) (j : Fin n) :
     (substituteLeadingBase G j).toCFG.language ≤ G.toCFG.language := by
@@ -2680,6 +2823,13 @@ theorem substituteLeading_mem_of_generated
   simp only [substituteLeadingBase, Finset.mem_biUnion]
   exact ⟨old, hold, hnew⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem substituteLeading_old_of_base_input
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j)
@@ -2805,6 +2955,13 @@ theorem substituteLeading_node
                 exact @SymbolTree.nonterminal T
                   (substituteLeadingBase G j).toCFG r hmem w children
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem substituteLeading_formTree
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j)
@@ -2926,6 +3083,13 @@ def orderedGreibachTransform
   let forward := orderedForwardFold G (List.finRange n)
   substituteLeadingFold forward (List.finRange n).reverse
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem orderedGreibachTransform_language
     (G : GreibachWorkGrammar T n)
     (hfresh : ∀ i : Fin n, RecFresh G i)
@@ -3048,6 +3212,13 @@ abbrev inlineGreibachStart
       ((G.rules.filter fun r => r.input = G.initial).image
         copyInitialRule) }
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 def eraseGreibachStart (S : N) : GreibachStartNT N → N
   | .start => S
   | .old A => A
@@ -3171,6 +3342,13 @@ theorem inlineGreibachStart_copy_step
       Finset.mem_filter.mpr ⟨hr, hinput.symm⟩, rfl⟩
   · exact ContextFreeRule.Rewrites.input_output
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem inlineGreibachStart_language
     (G : ContextFreeGrammar T) [DecidableEq G.NT] :
     (inlineGreibachStart G).language = G.language := by
@@ -3291,6 +3469,13 @@ theorem nonemptyGreibachCFG_language_nonempty
 
 set_option maxHeartbeats 0 in
 -- The generated finite index is definitionally tied to the computed grammar support.
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem nonemptyGreibachCFG_greibach
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (r : ContextFreeRule T (NonemptyGreibachNT g))
@@ -3421,6 +3606,13 @@ theorem restoreGreibachEpsilon_derives_without_initial
       exact ⟨nonemptyGreibachCFG_step_preserves_initial
         g hprefix.1 hstep,
         hprefix.2.trans hstep.single⟩
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem restoreGreibachEpsilon_language_nonempty
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {w : List T} (hw : w ≠ []) :
@@ -3549,6 +3741,13 @@ theorem restoreGreibachEpsilon_language
       rw [restoreGreibachEpsilon_language_nonempty g (by simp)]
       exact nonemptyGreibachCFG_language_nonempty g (by simp)
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem restoreGreibachEpsilon_greibach
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ∀ r ∈ (restoreGreibachEpsilon g).rules,
@@ -3607,3 +3806,12 @@ namespace ContextFreeGrammar
 end ContextFreeGrammar
 
 end Mathling.Grammar
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

@@ -1,9 +1,19 @@
-module
+    module
 
-public import Mathling.Grammar.Core
-public import Mathling.Automata.Core
-public import Mathlib.Data.Fintype.Option
+    public import Mathling.Grammar.Core
+    public import Mathling.Automata.Core
+    public import Mathlib.Data.Fintype.Option
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Grammar / Regular / RightLinear モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 public section
 
 /-!
@@ -230,6 +240,13 @@ private theorem path_accept_generatesFrom (g : RightLinearGrammar T)
     exact ⟨some g.cfg.initial, rfl, q, hq, ⟨path⟩⟩
 
 /-- A right-linear grammar with finitely many nonterminals generates a regular language. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem language_isRegular (g : RightLinearGrammar T) [Fintype g.cfg.NT] :
     g.language.IsRegular := by
   apply Language.isRegular_iff_nfa.mpr
@@ -371,6 +388,13 @@ private theorem generatesFrom_toRightLinearGrammar_iff
   exact ⟨RightLinearGrammar.derives_generatesFrom (toRightLinearGrammar M),
     RightLinearGrammar.generatesFrom_derives (toRightLinearGrammar M)⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 end Mathling.Automata.DFA
 
 namespace Mathling.Grammar
@@ -397,3 +421,12 @@ theorem Language.isRegular_iff_exists_rightLinearGrammar
     exact g.language_isRegular
 
 end Mathling.Grammar
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

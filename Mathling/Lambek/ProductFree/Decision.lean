@@ -650,4 +650,9 @@ theorem translatedProve2_iff_Sequent
 end Mathling.Lambek.ProductFree
 ```
 
-<!-- vim: set filetype=markdown : -->
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

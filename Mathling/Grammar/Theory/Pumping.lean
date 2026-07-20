@@ -1,7 +1,17 @@
-module
+    module
 
-public import Mathling.Grammar.NormalForm.Chomsky.Classical
+    public import Mathling.Grammar.NormalForm.Chomsky.Classical
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Grammar / Theory / Pumping モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 @[expose] public section
 
 /-!
@@ -122,6 +132,13 @@ def plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
   | .right A B C X h l c, t => .node A B C h l (plug c t)
 
 /-- Terminals strictly to the left of a context's hole. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 def preYield {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
     ParseCtx g A X → List T
   | .hole _ => []
@@ -245,6 +262,13 @@ end ParseCtx
 
 
 /-- Every height between one and a tree's height occurs at some subtree. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem ParseTree.exists_subtree_height_eq
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {k : Nat}
     (t : ParseTree g A) (hk : 1 ≤ k) (hk' : k ≤ t.height) :
@@ -384,6 +408,13 @@ theorem exists_context_of_mem
         exact ⟨.right A B C X h l c, s, by simp [ParseCtx.plug, hs]⟩
 
 /-- A repeated variable on a branch gives a nontrivial self-context. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem exists_repeat_of_not_nodup
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {t : ParseTree g A}
     (b : Spine g t) (hdup : ¬ (vars b).Nodup) :
@@ -534,6 +565,13 @@ private theorem cnfNonterminalResult
                 apply g.initial_not_output r hr
                 simp [hout, hB]
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem cnfSymbolResult_of_derivationTree
     {g : ChomskyNormalGrammar T} {x : Symbol T g.cfg.NT} {w : List T}
     (h : ContextFreeGrammar.DerivationSymbolTree g.cfg x w) :
@@ -698,4 +736,20 @@ theorem Language.IsContextFree.pumping_lemma
       apply (ContextFreeGrammar.mem_language_iff g.cfg _).mpr
       simpa [hyield] using hd
     simpa [g] using hmemg
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 end Mathling.Grammar
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

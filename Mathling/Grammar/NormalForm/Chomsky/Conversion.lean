@@ -1,18 +1,28 @@
-module
+    module
 
-public import Mathling.Grammar.ContextFree
-public import Mathlib.Data.Finset.Basic
-public import Mathlib.Data.Finset.Union
-public import Mathlib.Data.Finset.Prod
-public import Mathlib.Data.Finset.Lattice.Basic
-public import Mathlib.Data.List.Sublists
-public import Mathlib.Data.Finset.Powerset
-public import Mathlib.Data.Sum.Order
-public import Mathlib.Data.List.Lex
-public import Mathlib.Data.Prod.Lex
-public import Mathlib.Data.Finset.Sort
-public import Mathlib.SetTheory.Cardinal.Order
+    public import Mathling.Grammar.ContextFree
+    public import Mathlib.Data.Finset.Basic
+    public import Mathlib.Data.Finset.Union
+    public import Mathlib.Data.Finset.Prod
+    public import Mathlib.Data.Finset.Lattice.Basic
+    public import Mathlib.Data.List.Sublists
+    public import Mathlib.Data.Finset.Powerset
+    public import Mathlib.Data.Sum.Order
+    public import Mathlib.Data.List.Lex
+    public import Mathlib.Data.Prod.Lex
+    public import Mathlib.Data.Finset.Sort
+    public import Mathlib.SetTheory.Cardinal.Order
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Grammar / NormalForm / Chomsky / Conversion モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 @[expose] public section
 
 /-!
@@ -134,6 +144,13 @@ theorem freshStart_initial_not_output (g : ContextFreeGrammar T)
   · simpa [ContextFreeRule.mapNonterminal] using
       oldSymbols_not_start oldRule.output
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 def eraseFreshStart (S : N) : FreshStartNT N → N
   | .start => S
   | .old A => A
@@ -272,6 +289,13 @@ theorem freshStart_language (g : ContextFreeGrammar T)
 
 /-! ## Elimination of non-initial empty productions -/
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 def Nullable (g : ContextFreeGrammar T) (A : g.NT) : Prop :=
   g.Derives [Symbol.nonterminal A] []
 
@@ -423,6 +447,13 @@ theorem mem_nullableSet_iff (g : ContextFreeGrammar T)
 
 /-- Executably decide whether a finite context-free grammar generates the empty
 word. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 def hasEmptyWord (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] : Bool :=
   decide (g.initial ∈ nullableSet g)
@@ -557,6 +588,13 @@ theorem mem_nullableVariants_append (g : ContextFreeGrammar T)
               exact ⟨tail ++ ys',
                 ih.mpr ⟨tail, htail, ys', hys', rfl⟩, by simp⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem mem_of_mem_nullableVariants (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {xs ys : List (Symbol T g.NT)}
@@ -695,6 +733,13 @@ theorem removeEpsilon_reverse_step (g : ContextFreeGrammar T)
     obtain ⟨p, q, rfl, rfl⟩ := hrewrite.exists_parts
     simpa using (hnullable.append_left p).append_right q
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem removeEpsilon_language_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (removeEpsilon g).language ≤ g.language := by
@@ -836,6 +881,13 @@ theorem removeEpsilon_simulation (g : ContextFreeGrammar T)
           hproduces.single.trans (by
             simpa [List.append_assoc] using hvderives)⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem derives_from_empty_eq (g : ContextFreeGrammar T)
     {v : List (Symbol T g.NT)} (h : g.Derives [] v) : v = [] := by
   rcases h.eq_or_head with heq | ⟨w, hstep, _⟩
@@ -990,6 +1042,13 @@ theorem mem_unitReachSet_iff (g : ContextFreeGrammar T)
     rcases Finset.mem_filter.mp hS with ⟨_, hstart, hclosed⟩
     exact hmissing (unitReach_mem_of_closed g hclosed hstart hreach)
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 abbrev removeUnit
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     ContextFreeGrammar T :=
@@ -1116,6 +1175,13 @@ theorem unitLift_rule_output (g : ContextFreeGrammar T)
   unitLift_refl_of_active g r.output fun A hA =>
     rule_rhs_mem_activeNonterminals g hr hA
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem unitLift_parts (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {u' p q : List (Symbol T g.NT)} {x : Symbol T g.NT}
@@ -1242,6 +1308,13 @@ theorem removeUnit_language_forward (g : ContextFreeGrammar T)
   subst v'
   exact hderives
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem derives_unitReach (g : ContextFreeGrammar T) {A B : g.NT}
     (h : UnitReach g A B) :
     g.Derives [Symbol.nonterminal A] [Symbol.nonterminal B] := by
@@ -1366,6 +1439,13 @@ abbrev isolateTerminals
     initial := .old g.initial
     rules := isolationRules g }
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem mem_isolateTerminals_rules_iff
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
     (r : ContextFreeRule T (IsolateNT T g.NT)) :
@@ -1508,6 +1588,13 @@ theorem isolateTerminals_forward_step
         Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
           hrewrite IsolateNT.old⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem isolateTerminals_language_forward
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     g.language ≤ (isolateTerminals g).language := by
@@ -1633,6 +1720,13 @@ theorem expand_terminalSymbols (w : List T) :
         Symbol.terminal a :: terminalSymbols w
       rw [ih]
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem isolateTerminals_language_reverse
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     (isolateTerminals g).language ≤ g.language := by
@@ -1757,6 +1851,13 @@ theorem mem_binarize_rules_iff (g : ContextFreeGrammar T)
   exact Finset.mem_biUnion
 
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem symbolsAsNonterminals_eq_some
     {xs : List (Symbol T N)} {ns : List N}
     (h : symbolsAsNonterminals xs = some ns) :
@@ -1991,6 +2092,13 @@ theorem binarize_old_rule_derives (g : ContextFreeGrammar T)
                 simp at hlength
                 omega
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem binarize_forward_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (hall : ∀ r ∈ g.rules, 2 ≤ r.output.length →
@@ -2114,6 +2222,13 @@ theorem binarize_copied_rule_reverse (g : ContextFreeGrammar T)
   exact ContextFreeGrammar.Produces.single
     ⟨r, hr, ContextFreeRule.Rewrites.input_output⟩
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem binarize_rule_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     {rule : ContextFreeRule T (BinaryNT g.NT)}
@@ -2244,6 +2359,13 @@ theorem binarizeTailRules_binary [DecidableEq T] [DecidableEq N]
       · exact ⟨BinaryNT.old X, BinaryNT.tail A (Y :: Z :: rest), rfl⟩
       · exact ih Y Z rule hrule
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem binarizeLongRules_binary [DecidableEq T] [DecidableEq N]
     (A : N)
     {ns : List N} {rule : ContextFreeRule T (BinaryNT N)}
@@ -2364,6 +2486,13 @@ theorem old_mem_binarizeLong_output [DecidableEq T] [DecidableEq N]
               · exact List.mem_cons_of_mem X
                   (old_mem_binarizeTail_output A Y Z rest rule hrule hmem)
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem old_mem_map_binary_old
     {A : N} {xs : List (Symbol T N)}
     (hmem : Symbol.nonterminal (BinaryNT.old A) ∈
@@ -2503,6 +2632,13 @@ theorem isolateOutput_allNonterminals
   | nil => rfl
   | cons x xs ih => cases x <;> simp [isolateOutput, ih]
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem old_mem_map_isolateOld
     {A : N} {xs : List (Symbol T N)}
     (hmem : Symbol.nonterminal
@@ -2624,6 +2760,13 @@ theorem binarize_language (g : ContextFreeGrammar T)
 
 
 /-- Computably convert a context-free grammar to Chomsky normal form. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 def toChomskyNormalGrammar {T : Type} [DecidableEq T]
     (g : ContextFreeGrammar T) [DecidableEq g.NT] :
     ChomskyNormalGrammar T := by
@@ -2717,3 +2860,12 @@ inherits a computable linear order. -/
 end ContextFreeGrammar
 
 end Mathling.Grammar
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

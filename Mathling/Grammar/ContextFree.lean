@@ -1,9 +1,19 @@
-module
+    module
 
-public import Mathling.Grammar.Core
-public import Mathlib.Data.Finset.Union
-public import Mathlib.Data.List.Sublists
+    public import Mathling.Grammar.Core
+    public import Mathlib.Data.Finset.Union
+    public import Mathlib.Data.List.Sublists
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Grammar / ContextFree モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 @[expose] public section
 
 /-!
@@ -129,6 +139,13 @@ theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
       | cons _ htail => exact ih htail
 
 /-- A derivation between terminal-only forms does not change the word. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem derives_terminals_eq (g : ContextFreeGrammar T) {u v : List T} :
     g.Derives (terminalSymbols u) (terminalSymbols v) → u = v := by
   intro h
@@ -256,6 +273,13 @@ theorem derives_append_split (g : ContextFreeGrammar T)
     derives_of_derivationFormTree g hv⟩
 
 /-- Lift a simulation of source production steps to complete derivations. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem derives_lift_of_produces
     {g₁ : ContextFreeGrammar T} {g₂ : ContextFreeGrammar T}
     {mapSym : Symbol T g₁.NT → Symbol T g₂.NT}
@@ -270,3 +294,12 @@ theorem derives_lift_of_produces
 
 end ContextFreeGrammar
 end Mathling.Grammar
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

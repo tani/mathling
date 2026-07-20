@@ -1,8 +1,18 @@
-module
+    module
 
-public import Mathling.Grammar.ContextFree
-public import Mathling.Automata.Conversion.Pushdown
+    public import Mathling.Grammar.ContextFree
+    public import Mathling.Automata.Conversion.Pushdown
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Grammar / Regular / Linear モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 public section
 
 /-!
@@ -168,6 +178,13 @@ private theorem derives_linear_context (g : LinearGrammar T)
         · exact LinearGenerates.branch hr hout hmiddle
 
 /-- Production trees and context-free derivations agree for linear grammars. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
     LinearGenerates g g.cfg.initial w ↔ w ∈ g.language := by
   constructor
@@ -494,6 +511,22 @@ private theorem reaches_good (g : LinearGrammar T)
     · simpa [Mathling.Automata.OneTurnNPDA.toNPDA, toOneTurnNPDA] using
         generates_reaches g hgenerates []
 
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 end LinearGrammar
 
 end Mathling.Grammar
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

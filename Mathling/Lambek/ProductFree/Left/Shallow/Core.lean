@@ -245,4 +245,9 @@ theorem atom_generation {Γ : List Tp} {s : String}
 end Mathling.Lambek.ProductFree.Left.Shallow
 ```
 
-<!-- vim: set filetype=markdown : -->
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

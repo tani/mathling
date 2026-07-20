@@ -1,9 +1,19 @@
-module
+    module
 
-public import Mathlib.Computability.DFA
-public import Mathlib.Computability.NFA
-public import Mathlib.Computability.EpsilonNFA
+    public import Mathlib.Computability.DFA
+    public import Mathlib.Computability.NFA
+    public import Mathlib.Computability.EpsilonNFA
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Automata / Core モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 @[expose] public section
 
 /-!
@@ -47,3 +57,12 @@ theorem Language.isRegular_iff_nfa {α : Type*} {L : Language α} :
     exact ⟨Set σ, inferInstance, M.toDFA, _root_.NFA.toDFA_correct⟩
 
 end Mathling.Automata
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

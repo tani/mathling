@@ -1,7 +1,17 @@
-module
+    module
 
-public import Mathling.Automata.Core
+    public import Mathling.Automata.Core
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Automata / Conversion / Pushdown モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 @[expose] public section
 
 /-!
@@ -122,3 +132,12 @@ def language (M : OneTurnNPDA α State Stack) : Language α := M.toNPDA.language
 end OneTurnNPDA
 
 end Mathling.Automata
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

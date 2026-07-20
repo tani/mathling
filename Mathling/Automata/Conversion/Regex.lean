@@ -1,8 +1,18 @@
-module
+    module
 
-public import Mathling.Automata.Core
-public import Mathlib.Computability.RegularExpressions
+    public import Mathling.Automata.Core
+    public import Mathlib.Computability.RegularExpressions
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Automata / Conversion / Regex モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 public section
 
 /-!
@@ -158,6 +168,13 @@ mutual
         if isRegexReserved c then .error "unexpected reserved character"
         else .ok (symbol c, cs')
       | [] => .error "unexpected end of input"
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 end
 
 /-- Parse a string as a regular expression over `Char`; `""` denotes epsilon. -/
@@ -184,3 +201,11 @@ end RegularExpression
 
 end Mathling.Automata
 
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->

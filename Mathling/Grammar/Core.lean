@@ -1,7 +1,17 @@
-module
+    module
 
-public import Mathlib.Computability.ContextFreeGrammar
+    public import Mathlib.Computability.ContextFreeGrammar
 
+    public import LiterateLean
+    open scoped LiterateLean
+
+    @[expose] public section
+
+# Mathling / Grammar / Core モジュール
+
+このモジュールは Mathling のこの領域に属する定義、変換、および証明を提供する。公開される契約と依存関係は import 境界で明示し、実装は以下の Lean ブロックに限定する。
+
+```lean
 @[expose] public section
 
 /-!
@@ -122,6 +132,13 @@ structure RightLinearGrammar (T : Type*) where
   rightLinear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsRightLinear r
 
 /-- A context-free grammar in one-symbol left-linear normal form. -/
+```
+
+## 実装の継続
+
+次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
+
+```lean
 structure LeftLinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
   leftLinear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsLeftLinear r
@@ -143,3 +160,12 @@ structure GreibachNormalGrammar (T : Type*) where
   initial_not_output : ∀ r ∈ cfg.rules,
     Symbol.nonterminal cfg.initial ∉ r.output
 end Mathling.Grammar
+
+```
+
+<!--
+vim: set filetype=markdown :
+Local Variables:
+mode: markdown
+End:
+-->
