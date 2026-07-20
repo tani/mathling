@@ -1,6 +1,6 @@
 module
 
-public import Mathling.Automata.Pushdown
+public import Mathling.Automata.Conversion.Pushdown
 
 @[expose] public section
 

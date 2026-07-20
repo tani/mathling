@@ -1,6 +1,6 @@
 module
 
-public import Mathling.Automata.Finite
+public import Mathling.Automata.Core
 
 @[expose] public section
 

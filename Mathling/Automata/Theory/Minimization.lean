@@ -1,6 +1,6 @@
 module
 
-public import Mathling.Automata.Finite
+public import Mathling.Automata.Core
 public import Mathlib.Computability.MyhillNerode
 public import Mathlib.Data.Finite.Card
 

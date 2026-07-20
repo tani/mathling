@@ -1,7 +1,7 @@
 module
 
 public import Mathling.Grammar.Core
-public import Mathling.Automata.Finite
+public import Mathling.Automata.Core
 public import Mathlib.Data.Fintype.Option
 
 public section

@@ -1,7 +1,7 @@
 module
 
 public import Mathling.Grammar.ContextFree
-public import Mathling.Automata.Pushdown
+public import Mathling.Automata.Conversion.Pushdown
 
 public section
 
