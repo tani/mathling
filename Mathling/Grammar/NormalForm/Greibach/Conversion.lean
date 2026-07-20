@@ -260,20 +260,6 @@ theorem decode_encodeSupport (g : ContextFreeGrammar T)
   simp only [encodeSupport, dif_pos hlist, decodeSupport]
   exact List.getElem_idxOf (List.idxOf_lt_length_iff.mpr hlist)
 
-theorem encode_decodeSupport (g : ContextFreeGrammar T)
-    [LinearOrder g.NT]
-    (i : SupportNT g) :
-    encodeSupport g (decodeSupport g i) = i := by
-  classical
-  apply Fin.ext
-  have hi : i.val < (orderedSupport g).length := by
-    simpa [orderedSupport] using i.isLt
-  have hmem : decodeSupport g i ∈ orderedSupport g :=
-    List.getElem_mem hi
-  simp only [encodeSupport, dif_pos hmem]
-  exact List.Nodup.idxOf_getElem
-    (Finset.sort_nodup (activeNonterminals g) (· ≤ ·)) i.val hi
-
 abbrev compactSupport (g : ContextFreeGrammar T)
     [DecidableEq T] [LinearOrder g.NT] : ContextFreeGrammar T :=
   { NT := SupportNT g
@@ -736,24 +722,6 @@ theorem derives_cons_of
   simpa [terminalSymbols, List.map_append,
     List.append_assoc] using h₁.trans h₂
 
-
-theorem derives_of_symbolTree
-    (g : ContextFreeGrammar T) {x : Symbol T g.NT} {w : List T}
-    (h : SymbolTree g x w) :
-    g.Derives [x] (terminalSymbols w) := by
-  exact SymbolTree.rec
-    (motive_1 := fun x w _ =>
-      g.Derives [x] (terminalSymbols w))
-    (motive_2 := fun xs w _ =>
-      g.Derives xs (terminalSymbols w))
-    (fun a => ContextFreeGrammar.Derives.refl _)
-    (fun r hr _w children ih =>
-      (ContextFreeGrammar.Produces.single
-        ⟨r, hr, ContextFreeRule.Rewrites.input_output⟩).trans ih)
-    (ContextFreeGrammar.Derives.refl _)
-    (fun head tail ihHead ihTail =>
-      derives_cons_of g ihHead ihTail)
-    h
 
 theorem derives_of_formTree
     (g : ContextFreeGrammar T)
@@ -2452,15 +2420,6 @@ theorem orderedForwardStep_initial
   simp only [orderedForwardStep, eliminateImmediateLeftRecursion]
   exact repeatSubstituteEarlier_initial G i (substitutionPasses i)
 
-theorem orderedForwardFold_initial
-    (G : GreibachWorkGrammar T n) (is : List (Fin n)) :
-    (orderedForwardFold G is).initial = G.initial := by
-  induction is generalizing G with
-  | nil => rfl
-  | cons i is ih =>
-      rw [orderedForwardFold, ih (orderedForwardStep G i),
-        orderedForwardStep_initial]
-
 theorem orderedForwardFold_language
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hnodup : is.Nodup) (hfresh : FreshFor G is)
@@ -2500,18 +2459,6 @@ theorem orderedForwardFold_outputsValid
     WorkOutputsValid (orderedForwardFold G is) := by
   induction is generalizing G with
   | nil => exact hvalid
-  | cons i is ih =>
-      exact ih (orderedForwardStep G i)
-        (orderedForwardStep_outputsValid G i hvalid htail)
-        (orderedForwardStep_baseRulesHaveTail G i hvalid htail)
-
-theorem orderedForwardFold_baseRulesHaveTail
-    (G : GreibachWorkGrammar T n) (is : List (Fin n))
-    (hvalid : WorkOutputsValid G)
-    (htail : BaseRulesHaveTail G) :
-    BaseRulesHaveTail (orderedForwardFold G is) := by
-  induction is generalizing G with
-  | nil => exact htail
   | cons i is ih =>
       exact ih (orderedForwardStep G i)
         (orderedForwardStep_outputsValid G i hvalid htail)
@@ -3128,34 +3075,6 @@ theorem orderedGreibachTransform_language
         exact hfresh i
       · intro i hi
         exact hinitial i
-
-theorem orderedGreibachTransform_isGreibach
-    (G : GreibachWorkGrammar T n)
-    (hvalid : WorkOutputsValid G)
-    (htail : BaseRulesHaveTail G) :
-    ∀ r ∈ (orderedGreibachTransform G).rules,
-      ContextFreeRule.IsGreibachNormal
-        (orderedGreibachTransform G).initial r := by
-  let forward := orderedForwardFold G (List.finRange n)
-  have hforwardValid : WorkOutputsValid forward :=
-    orderedForwardFold_outputsValid G (List.finRange n) hvalid htail
-  have hforwardOrdered : ∀ j : Fin n, BaseOrderedAt forward j := by
-    apply orderedForwardFold_all_ordered G (List.finRange n)
-    · exact finRange_pairwise_lt
-    · exact hvalid
-    · exact htail
-    · intro j hj
-      exact (hj (by simp)).elim
-  have hallowed : LeadingAllowedBy forward (List.finRange n).reverse := by
-    apply leadingAllowedBy_of_valid
-    · intro j
-      simp
-    · exact hforwardValid
-  have hterminal := substituteLeadingFold_all_terminal forward
-    (List.finRange n).reverse finRange_pairwise_lt.reverse
-    hforwardValid hforwardOrdered hallowed
-  intro r hr
-  exact Or.inr (hterminal r hr)
 
 theorem orderedGreibachTransform_startsWithTerminal
     (G : GreibachWorkGrammar T n)

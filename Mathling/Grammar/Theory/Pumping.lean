@@ -573,19 +573,6 @@ private theorem cnfNonterminalResult
 次の定義群は前節で確立した型・不変条件・補題を利用して、このモジュールの契約を段階的に拡張する。
 
 ```lean
-theorem cnfSymbolResult_of_derivationTree
-    {g : ChomskyNormalGrammar T} {x : Symbol T g.cfg.NT} {w : List T}
-    (h : ContextFreeGrammar.DerivationSymbolTree g.cfg x w) :
-    CnfSymbolResult g x w := by
-  exact ContextFreeGrammar.DerivationSymbolTree.rec
-    (motive_1 := fun x w _ => CnfSymbolResult g x w)
-    (motive_2 := fun xs w _ => CnfFormResult g xs w)
-    (fun a => CnfSymbolResult.terminal a)
-    (fun r hr _ children ih => cnfNonterminalResult g r hr ih)
-    CnfFormResult.nil
-    (fun head tail ihHead ihTail => CnfFormResult.cons ihHead ihTail)
-    h
-
 theorem cnfFormResult_of_derivationTree
     {g : ChomskyNormalGrammar T}
     {xs : List (Symbol T g.cfg.NT)} {w : List T}

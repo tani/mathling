@@ -39,21 +39,6 @@ def nonterminals {T N : Type*} (r : ContextFreeRule T N) : List N :=
   r.input :: rhsNonterminals r.output
 
 
-/-- Renaming nonterminals preserves a one-rule rewrite. -/
-theorem Rewrites.mapNonterminal {T N M : Type*}
-    {r : ContextFreeRule T N} {u v : List (Symbol T N)}
-    (h : r.Rewrites u v) (f : N → M) :
-    (ContextFreeRule.mapNonterminal f r).Rewrites
-      (u.map (Symbol.mapNonterminal f))
-      (v.map (Symbol.mapNonterminal f)) := by
-  induction h with
-  | head s =>
-      simpa [ContextFreeRule.mapNonterminal, List.map_append] using
-        (ContextFreeRule.Rewrites.head
-          (r := ContextFreeRule.mapNonterminal f r)
-          (s.map (Symbol.mapNonterminal f)))
-  | cons x h ih =>
-      exact ContextFreeRule.Rewrites.cons (Symbol.mapNonterminal f x) ih
 end ContextFreeRule
 
 namespace ContextFreeGrammar
@@ -242,35 +227,6 @@ private theorem derives_cons_of
   have h₁ := hx.append_right xs
   have h₂ := ht.append_left (terminalSymbols u)
   simpa [terminalSymbols, List.map_append, List.append_assoc] using h₁.trans h₂
-
-private theorem derives_of_derivationFormTree
-    (g : ContextFreeGrammar T)
-    {xs : List (Symbol T g.NT)} {w : List T}
-    (h : DerivationFormTree g xs w) :
-    g.Derives xs (terminalSymbols w) := by
-  exact DerivationFormTree.rec
-    (motive_1 := fun x w _ => g.Derives [x] (terminalSymbols w))
-    (motive_2 := fun xs w _ => g.Derives xs (terminalSymbols w))
-    (fun _ => ContextFreeGrammar.Derives.refl _)
-    (fun r hr _ children ih =>
-      (ContextFreeGrammar.Produces.single
-        ⟨r, hr, ContextFreeRule.Rewrites.input_output⟩).trans ih)
-    (ContextFreeGrammar.Derives.refl _)
-    (fun _ _ ihHead ihTail => derives_cons_of g ihHead ihTail)
-    h
-
-/-- A terminal derivation from a concatenated sentential form splits into terminal
-derivations from its two parts. -/
-theorem derives_append_split (g : ContextFreeGrammar T)
-    {u v : List (Symbol T g.NT)} {w : List T}
-    (h : g.Derives (u ++ v) (terminalSymbols w)) :
-    ∃ w₁ w₂, w = w₁ ++ w₂ ∧
-      g.Derives u (terminalSymbols w₁) ∧
-      g.Derives v (terminalSymbols w₂) := by
-  obtain ⟨w₁, w₂, hw, hu, hv⟩ :=
-    derivationFormTree_split_append g (derivationFormTree_of_derives g h)
-  exact ⟨w₁, w₂, hw, derives_of_derivationFormTree g hu,
-    derives_of_derivationFormTree g hv⟩
 
 /-- Lift a simulation of source production steps to complete derivations. -/
 ```

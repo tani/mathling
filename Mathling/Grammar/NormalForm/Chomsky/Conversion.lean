@@ -323,19 +323,6 @@ def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
   let closed := support.powerset.filter fun S => nullableClosed g S = true
   support.filter fun A => closed.filter (fun S => A ∉ S) = ∅
 
-theorem rhsNullableIn_eq_true [DecidableEq N] {S : Finset N}
-    {xs : List (Symbol T N)} :
-    rhsNullableIn S xs = true ↔
-      ∀ x ∈ xs, match x with
-        | .terminal _ => False
-        | .nonterminal A => A ∈ S := by
-  induction xs with
-  | nil => simp [rhsNullableIn]
-  | cons x xs ih =>
-      cases x with
-      | terminal a => simp [rhsNullableIn]
-      | nonterminal A => simp [rhsNullableIn, ih]
-
 theorem nullableClosed_eq_true (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {S : Finset g.NT} :
     nullableClosed g S = true ↔
@@ -678,14 +665,6 @@ theorem mem_removeEpsilon_rules
       simpa [mem_nullableSet_iff g] using hnullable
     simp [hnullable, hnotmem, Finset.mem_image]
 
-theorem rule_mem_removeEpsilon_of_nonempty
-    (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
-    {r : ContextFreeRule T g.NT}
-    (hr : r ∈ g.rules) (hne : r.output ≠ []) :
-    r ∈ removeEpsilonRules g := by
-  rw [mem_removeEpsilon_rules]
-  exact Or.inl ⟨⟨r, hr, r.output, self_mem_nullableVariants g r.output, rfl⟩, hne⟩
-
 theorem removeEpsilon_no_noninitial_empty (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     ∀ r ∈ (removeEpsilon g).rules,
@@ -769,16 +748,6 @@ def ErasesNullable (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (u v : List (Symbol T g.NT)) : Prop :=
   v ∈ nullableVariants g u
-
-theorem erasesNullable_refl (g : ContextFreeGrammar T)
-    [DecidableEq T] [DecidableEq g.NT]
-    (u : List (Symbol T g.NT)) : ErasesNullable g u u :=
-  self_mem_nullableVariants g u
-
-theorem erasesNullable_derives (g : ContextFreeGrammar T)
-    [DecidableEq T] [DecidableEq g.NT] {u v}
-    (h : ErasesNullable g u v) : g.Derives u v :=
-  derives_of_mem_nullableVariants g h
 
 theorem removeEpsilon_produces_variant (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -1113,11 +1082,6 @@ theorem removeUnit_initial_not_output (g : ContextFreeGrammar T)
   obtain ⟨_, _, _, oldRule, hold, _, _, rfl⟩ :=
     (mem_removeUnit_rules_iff g r).mp hr
   exact h oldRule hold
-
-theorem unitReach_refl_active (g : ContextFreeGrammar T)
-    [DecidableEq g.NT] {A : g.NT}
-    (_hA : A ∈ activeNonterminals g) : UnitReach g A A :=
-  Relation.ReflTransGen.refl
 
 theorem removeUnit_rule_mem (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -1473,18 +1437,6 @@ theorem mem_isolateTerminals_rules_iff
       refine ⟨oldRule, hold, ?_⟩
       simp only [hlong, if_pos, Finset.mem_image]
       exact ⟨a, ha, rfl⟩
-
-theorem terminal_mem_filterMap {a : T} {xs : List (Symbol T N)} :
-    a ∈ xs.filterMap symbolTerminal ↔ Symbol.terminal a ∈ xs := by
-  constructor
-  · intro h
-    obtain ⟨s, hs, hsa⟩ := List.mem_filterMap.mp h
-    cases s <;> simp [symbolTerminal] at hsa
-    subst hsa
-    exact hs
-  · intro h
-    apply List.mem_filterMap.mpr
-    exact ⟨Symbol.terminal a, h, by simp [symbolTerminal]⟩
 
 theorem isolate_old_rule_mem (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]

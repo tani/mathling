@@ -80,18 +80,6 @@ abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : B
     «matches» r w ↔ w ∈ language r :=
   _root_.RegularExpression.rmatch_iff_matches' r w
 
-/-- The empty word belongs to the epsilon language. -/
-theorem nil_mem_epsilon : ([] : List α) ∈ language (epsilon : RegularExpression α) := by
-  simp
-
-/-- A symbol belongs to its singleton-symbol language. -/
-theorem symbol_mem_symbol (a : α) : [a] ∈ language (symbol a) := by
-  exact Set.mem_singleton _
-
-/-- The empty word belongs to every Kleene-star language. -/
-theorem nil_mem_star (r : RegularExpression α) : ([] : List α) ∈ language (star r) := by
-  exact Language.nil_mem_kstar _
-
 private def isRegexReserved (c : Char) : Bool :=
   c == '(' || c == ')' || c == '|' || c == '*'
 
