@@ -38,7 +38,9 @@ public noncomputable def localPushdownRules [Fintype α] [Fintype σ]
         pop := PUnit.unit
         target := qa.2.2
         push := [PUnit.unit] }
+```
 
+```lean
 /-- Regard a finite NFA as a finite-local NPDA whose sole stack marker is
 preserved by every transition. -/
 public noncomputable def toNPDA [Fintype α] [Fintype σ]
@@ -49,7 +51,9 @@ public noncomputable def toNPDA [Fintype α] [Fintype σ]
       start := (Finset.univ.filter fun q => q ∈ M.start).toList
       accept := (Finset.univ.filter fun q => q ∈ M.accept).toList
       initialStack := [PUnit.unit] }
+```
 
+```lean
 private theorem path_toNPDA_reaches [Fintype α] [Fintype σ]
     (M : NFA α σ) {q q' : σ} {w : List α} (p : M.Path q q' w) :
     M.toNPDA.Reaches (w, q, [PUnit.unit]) ([], q', [PUnit.unit]) := by
@@ -63,7 +67,9 @@ private theorem path_toNPDA_reaches [Fintype α] [Fintype σ]
       · classical
         simp [toNPDA, localPushdownRules, hedge]
       · rfl
+```
 
+```lean
 private theorem toNPDA_reaches_path [Fintype α] [Fintype σ]
     (M : NFA α σ) {c : NPDA.ID α σ PUnit} {q' : σ} {stack' : List PUnit}
     (h : M.toNPDA.Reaches c ([], q', stack'))
@@ -90,7 +96,9 @@ private theorem toNPDA_reaches_path [Fintype α] [Fintype σ]
             Finset.mem_toList, Finset.mem_filter] at mem
           rcases mem with ⟨qa, hqa, rfl⟩
           exact (Option.some_ne_none _ input_eq).elim
+```
 
+```lean
 /-- The finite-local NPDA embedding accepts exactly the NFA language. -/
 @[important, grind =, simp] public theorem toNPDA_language [Fintype α] [Fintype σ]
     (M : NFA α σ) : M.toNPDA.language = M.accepts := by
@@ -109,7 +117,6 @@ private theorem toNPDA_reaches_path [Fintype α] [Fintype σ]
       [PUnit.unit], M.path_toNPDA_reaches path⟩
 
 end NFA
-
 ```
 
 ## NFA から有限局所 NPDA への埋め込み
@@ -151,7 +158,9 @@ public noncomputable def toDPDA [Fintype α] [Fintype σ]
   subst q'
   subst p'
   rfl
+```
 
+```lean
 /-- The stack-free local DPDA accepts exactly the DFA language. -/
 @[important, grind =, simp] public theorem toDPDA_language
     [Fintype α] [Fintype σ] (M : DFA α σ) :
@@ -181,7 +190,6 @@ public noncomputable def toDPDA [Fintype α] [Fintype σ]
 end DFA
 
 end Mathling.Automata
-
 ```
 
 <!--

@@ -13,7 +13,6 @@
 Mathlib の DFA/NFA を Mathling の名前空間から利用するための型別名と、DFA を NFA として忘却する変換を提供する。変換後も受理言語が等しいことがこの層の中心契約であり、後続の正則言語変換はその等式だけに依存する。
 
 ```lean
-
 /-!
 # Finite automata
 
@@ -26,29 +25,40 @@ namespace Mathling.Automata
 
 /-- Mathlib's deterministic finite automata, re-exported in the Mathling namespace. -/
 public abbrev DFA (α σ : Type*) := _root_.DFA α σ
+```
 
+```lean
 /-- Mathlib's nondeterministic finite automata, re-exported in the Mathling namespace. -/
 public abbrev NFA (α σ : Type*) := _root_.NFA α σ
+```
 
+```lean
 /-- Mathlib's epsilon-NFAs, re-exported in the Mathling namespace. -/
 public abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
+```
 
+```lean
 /-- Converting a DFA to an NFA preserves its language. -/
 @[grind =, simp] public theorem DFA.toNFA_language {α σ : Type*} (M : DFA α σ) :
     M.toNFA.accepts = M.accepts := _root_.DFA.toNFA_correct M
+```
 
+```lean
 /-- Determinizing an NFA preserves its language. -/
 @[grind =, simp] public theorem NFA.toDFA_language {α σ : Type*} (M : NFA α σ) :
     M.toDFA.accepts = M.accepts := _root_.NFA.toDFA_correct
+```
 
+```lean
 /-- Removing epsilon transitions preserves an epsilon-NFA's language. -/
 @[grind =, simp] public theorem εNFA.toNFA_language {α σ : Type*} (M : εNFA α σ) :
     M.toNFA.accepts = M.accepts := _root_.εNFA.toNFA_correct M
+```
 
+```lean
 /-- Adding empty epsilon transitions to an NFA preserves its language. -/
 @[grind =, simp] public theorem NFA.toεNFA_language {α σ : Type*} (M : NFA α σ) :
     M.toεNFA.accepts = M.accepts := _root_.NFA.toεNFA_correct M
-
 ```
 
 ## 型の再輸出と変換の正しさ
@@ -68,7 +78,9 @@ public abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
   · rintro ⟨σ, _, M, rfl⟩
     apply Language.isRegular_iff.mpr
     exact ⟨Set σ, inferInstance, M.toDFA, _root_.NFA.toDFA_correct⟩
+```
 
+```lean
 /-- A language is regular exactly when some finite-state epsilon-NFA accepts it. -/
 @[important, grind =] public theorem Language.isRegular_iff_εnfa
     {α : Type*} {L : Language α} :
@@ -82,7 +94,6 @@ public abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
     exact ⟨σ, inst, M.toNFA, M.toNFA_language.trans hM⟩
 
 end Mathling.Automata
-
 ```
 
 <!--

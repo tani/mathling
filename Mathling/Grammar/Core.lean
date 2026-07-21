@@ -39,7 +39,9 @@ public abbrev terminalSymbols {T N : Type*} (w : List T) : List (Symbol T N) :=
 @[grind =, simp] public theorem terminalSymbols_cons {T N : Type*} (a : T) (w : List T) :
     terminalSymbols (N := N) (a :: w) =
       Symbol.terminal a :: terminalSymbols w := rfl
+```
 
+```lean
 /-- Rename the nonterminal carried by a symbol, preserving terminals.
 
 Its body is exposed because public rewrite-preservation theorems reduce this
@@ -50,7 +52,6 @@ mapping while transporting derivations across grammar conversions. -/
     Symbol T N → Symbol T M
   | .terminal a => .terminal a
   | .nonterminal A => .nonterminal (f A)
-
 ```
 
 ```lean
@@ -65,7 +66,9 @@ mapping while transporting derivations across grammar conversions. -/
     (f : N → M) (A : N) :
     Symbol.mapNonterminal f (.nonterminal A : Symbol T N) =
       (.nonterminal (f A) : Symbol T M) := rfl
+```
 
+```lean
 /-- Rename every nonterminal in a context-free rule.
 
 Its body is exposed because public conversion proofs simplify the mapped rule
@@ -75,7 +78,6 @@ to construct and analyse transported rewrites. -/
 @[expose] public def ContextFreeRule.mapNonterminal {T N M : Type*} (f : N → M)
     (r : ContextFreeRule T N) : ContextFreeRule T M :=
   { input := f r.input, output := r.output.map (Symbol.mapNonterminal f) }
-
 ```
 
 ```lean
@@ -90,7 +92,9 @@ to construct and analyse transported rewrites. -/
     (f : N → M) (r : ContextFreeRule T N) :
     (ContextFreeRule.mapNonterminal f r).output =
       r.output.map (Symbol.mapNonterminal f) := rfl
+```
 
+```lean
 /-- Whether a symbol is structurally a nonterminal.
 
 Its body is exposed because the public constructor equations reduce it. -/
@@ -99,7 +103,6 @@ Its body is exposed because the public constructor equations reduce it. -/
 @[expose] public def Symbol.IsNonterminal {T N : Type*} : Symbol T N → Prop
   | .terminal _ => False
   | .nonterminal _ => True
-
 ```
 
 ```lean
@@ -111,7 +114,9 @@ Its body is exposed because the public constructor equations reduce it. -/
 ```lean
 @[grind =, simp] public theorem Symbol.isNonterminal_nonterminal {T N : Type*} (A : N) :
     Symbol.IsNonterminal (.nonterminal A : Symbol T N) = True := rfl
+```
 
+```lean
 /-- Every symbol in the sentential form is a nonterminal.
 
 Its body is exposed because public normal-form conversions eliminate this
@@ -120,7 +125,9 @@ pointwise invariant when constructing replacement rules. -/
 
 @[expose] public def allNonterminals {T N : Type*} (xs : List (Symbol T N)) : Prop :=
   ∀ x ∈ xs, Symbol.IsNonterminal x
+```
 
+```lean
 /-- Test the symbol shape for public linearity predicates and conversions.
 
 Its body is exposed because public right- and left-linear embeddings simplify
@@ -130,8 +137,6 @@ the induced nonterminal count. -/
 @[expose] public def symbolIsNonterminal {T N : Type*} : Symbol T N → Bool
   | .terminal _ => false
   | .nonterminal _ => true
-
-
 ```
 
 ```lean
@@ -149,7 +154,9 @@ Its body is exposed because public linearity proofs calculate this count. -/
 
 @[expose] public def nonterminalCount (r : ContextFreeRule T N) : Nat :=
   r.output.countP symbolIsNonterminal
+```
 
+```lean
 /-- A rule is linear when its output contains at most one nonterminal.
 
 Its body is exposed because public regular-grammar embeddings prove it by
@@ -158,7 +165,9 @@ normalizing the public count definition. -/
 
 @[expose] public def IsLinear (r : ContextFreeRule T N) : Prop :=
   Mathling.Grammar.ContextFreeRule.nonterminalCount r ≤ 1
+```
 
+```lean
 /-- The one-symbol right-linear normal form.
 
 Its body is exposed because public right-linear conversions eliminate this
@@ -169,7 +178,9 @@ three-way rule-shape predicate in their proof terms. -/
   r.output = [] ∨
   (∃ a, r.output = [Symbol.terminal a]) ∨
   (∃ a B, r.output = [Symbol.terminal a, Symbol.nonterminal B])
+```
 
+```lean
 /-- The one-symbol left-linear normal form.
 
 Its body is exposed because public reversal conversions eliminate this
@@ -180,8 +191,9 @@ three-way rule-shape predicate in their proof terms. -/
   r.output = [] ∨
   (∃ a, r.output = [Symbol.terminal a]) ∨
   (∃ A a, r.output = [Symbol.nonterminal A, Symbol.terminal a])
+```
 
-
+```lean
 /-- Chomsky rule shape, including the standard initial-symbol ε exception.
 
 Its body is exposed because public normal-form conversions construct each
@@ -192,7 +204,9 @@ admissible rule-shape case directly. -/
   (r.input = S ∧ r.output = []) ∨
   (∃ a : T, r.output = [Symbol.terminal a]) ∨
   (∃ B C : N, r.output = [Symbol.nonterminal B, Symbol.nonterminal C])
+```
 
+```lean
 /-- Greibach rule shape, including the standard initial-symbol ε exception.
 
 Its body is exposed because public Greibach conversions construct its cases
@@ -204,12 +218,13 @@ directly in their proof terms. -/
   ∃ a : T, ∃ tail : List N,
     r.output = Symbol.terminal a :: tail.map Symbol.nonterminal
 end ContextFreeRule
+```
 
+```lean
 /-- A context-free grammar all of whose rules are linear. -/
 public structure LinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
   linear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsLinear r
-
 ```
 
 ```lean
@@ -219,12 +234,13 @@ namespace LinearGrammar
 @[expose] public def language (g : LinearGrammar T) : Language T := g.cfg.language
 
 end LinearGrammar
+```
 
+```lean
 /-- A context-free grammar in one-symbol right-linear normal form. -/
 public structure RightLinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
   rightLinear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsRightLinear r
-
 ```
 
 ## 証拠付き文法構造
@@ -236,8 +252,9 @@ public structure RightLinearGrammar (T : Type*) where
 public structure LeftLinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
   leftLinear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsLeftLinear r
+```
 
-
+```lean
 /-- A context-free grammar in Chomsky normal form. -/
 public structure ChomskyNormalGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
@@ -245,7 +262,9 @@ public structure ChomskyNormalGrammar (T : Type*) where
     Mathling.Grammar.ContextFreeRule.IsChomskyNormal cfg.initial r
   initial_not_output : ∀ r ∈ cfg.rules,
     Symbol.nonterminal cfg.initial ∉ r.output
+```
 
+```lean
 /-- A context-free grammar in Greibach normal form. -/
 public structure GreibachNormalGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
@@ -254,7 +273,6 @@ public structure GreibachNormalGrammar (T : Type*) where
   initial_not_output : ∀ r ∈ cfg.rules,
     Symbol.nonterminal cfg.initial ∉ r.output
 end Mathling.Grammar
-
 ```
 
 <!--

@@ -67,7 +67,9 @@ variable {α σ : Type*}
   | cons edge rest internal ih =>
       rcases ih with ⟨path⟩
       exact ⟨.cons _ _ _ _ _ edge path⟩
+```
 
+```lean
 private theorem RestrictedPath.ofPath_univ
     {M : NFA α σ} {p q : σ} {word : List α}
     (h : M.Path p q word) : RestrictedPath M Set.univ p q word := by
@@ -75,7 +77,6 @@ private theorem RestrictedPath.ofPath_univ
   | nil p => exact .nil p
   | cons mid p q a word edge rest ih =>
       exact .cons edge ih (Or.inr (Set.mem_univ mid))
-
 ```
 
 ```lean
@@ -109,7 +110,9 @@ private theorem RestrictedPath.ofPath_univ
           rfl
         simpa [hnext] using hmid
       · exact internal.resolve_left hword |> Or.inr
+```
 
+```lean
 /-- The state-elimination decomposition at one newly allowed state. -/
 @[grind .] private theorem restrictedPath_insert_iff
     (M : NFA α σ) (S : Set σ) (k p q : σ) (word : List α) :
@@ -165,7 +168,6 @@ private theorem RestrictedPath.ofPath_univ
                 intro x hx
                 exact hloops x (by simp [hx])))
       exact (hp'.append hk hloops').append hk hs'
-
 ```
 
 ## 正規表現側の状態除去
@@ -196,12 +198,13 @@ private def unionAll : List (RegularExpression α) → RegularExpression α
       · rintro ⟨s, rfl | hs, hword⟩
         · exact Or.inl hword
         · exact Or.inr ⟨s, hs, hword⟩
+```
 
+```lean
 private noncomputable def edgeRegex [Fintype α]
     (M : NFA α σ) (p q : σ) : RegularExpression α := by
   classical
   exact unionAll ((Finset.univ.filter fun a => q ∈ M.step p a).toList.map symbol)
-
 ```
 
 ```lean
@@ -218,12 +221,13 @@ private noncomputable def edgeRegex [Fintype α]
     exact ⟨a, edge, Set.mem_singleton_iff.mp hword⟩
   · rintro ⟨a, edge, rfl⟩
     exact ⟨symbol a, ⟨a, edge, rfl⟩, Set.mem_singleton [a]⟩
+```
 
+```lean
 private noncomputable def baseRegex [Fintype α]
     (M : NFA α σ) (p q : σ) : RegularExpression α := by
   classical
   exact union (if p = q then epsilon else empty) (edgeRegex M p q)
-
 ```
 
 ```lean
@@ -259,7 +263,9 @@ private noncomputable def baseRegex [Fintype α]
         cases rest
         simp only [baseRegex, language_union, Language.mem_add]
         exact Or.inr ((mem_language_edgeRegex M p _ [a]).mpr ⟨a, edge, rfl⟩)
+```
 
+```lean
 private noncomputable def eliminate [Fintype α]
     (M : NFA α σ) : List σ → σ → σ → RegularExpression α
   | [], p, q => baseRegex M p q
@@ -268,7 +274,6 @@ private noncomputable def eliminate [Fintype α]
         (concat (concat (eliminate M states p k)
           (star (eliminate M states k k)))
           (eliminate M states k q))
-
 ```
 
 ```lean
@@ -315,7 +320,9 @@ public noncomputable def toRegex [Fintype α] [Fintype σ]
   let starts : List σ := (Finset.univ.filter fun p => p ∈ M.start).toList
   let accepts : List σ := (Finset.univ.filter fun q => q ∈ M.accept).toList
   exact unionAll (starts.flatMap fun p => accepts.map fun q => eliminate M states p q)
+```
 
+```lean
 /-- State elimination preserves the accepted language. -/
 @[important, grind =, simp] public theorem toRegex_language [Fintype α] [Fintype σ]
     (M : NFA α σ) : language M.toRegex = M.accepts := by

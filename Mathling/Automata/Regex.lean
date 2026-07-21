@@ -44,19 +44,29 @@ namespace RegularExpression
 
 /-- The regular expression that matches no words. -/
 public abbrev empty : RegularExpression α := (0 : _root_.RegularExpression α)
+```
 
+```lean
 /-- The regular expression that matches only the empty word. -/
 public abbrev epsilon : RegularExpression α := (1 : _root_.RegularExpression α)
+```
 
+```lean
 /-- The regular expression that matches a single symbol. -/
 public abbrev symbol (a : α) : RegularExpression α := _root_.RegularExpression.char a
+```
 
+```lean
 /-- Union of two regular expressions. -/
 public abbrev union (r s : RegularExpression α) : RegularExpression α := r + s
+```
 
+```lean
 /-- Concatenation of two regular expressions. -/
 public abbrev concat (r s : RegularExpression α) : RegularExpression α := r * s
+```
 
+```lean
 /-- Kleene star of a regular expression. -/
 public abbrev star (r : RegularExpression α) : RegularExpression α :=
   _root_.RegularExpression.star r
@@ -157,7 +167,9 @@ private def symbolDFA [DecidableEq α] (a : α) : DFA α (Option Bool) where
             by_cases h : b = a <;>
               simpa [symbolDFA, h] using symbolDFA_evalFrom_dead a tail
           simp [heval]
+```
 
+```lean
 /-- Every regular expression over a nonempty finite alphabet denotes a regular
 language.  The proof is the language-level form of Thompson construction. -/
 
@@ -175,14 +187,18 @@ language.  The proof is the language-level form of Thompson construction. -/
   | plus r s hr hs => exact Cslib.Language.IsRegular.add hr hs
   | comp r s hr hs => exact Cslib.Language.IsRegular.mul hr hs
   | star r hr => exact Cslib.Language.IsRegular.kstar hr
+```
 
+```lean
 /-- A finite-state NFA together with its recognized-language specification. -/
 public structure FiniteNFA (α : Type*) (L : Language α) where
   State : Type
   stateFintype : Fintype State
   machine : NFA α State
   language_eq : machine.accepts = L
+```
 
+```lean
 /-- Compile a regular expression to a finite NFA.  The concrete state type is
 hidden behind the presentation record so clients depend only on its language. -/
 public noncomputable def compileNFA [Nonempty α]
@@ -199,7 +215,9 @@ public noncomputable def compileNFA [Nonempty α]
       stateFintype := inst
       machine := machine
       language_eq := correct }
+```
 
+```lean
 /-- The compiled finite NFA recognizes exactly the denoted regex language. -/
 @[important, grind =, simp] public theorem compileNFA_language [Nonempty α]
     (r : RegularExpression α) : r.compileNFA.machine.accepts = language r :=
@@ -214,7 +232,9 @@ public noncomputable def compileNFA [Nonempty α]
 /-- Decides whether a word matches a regular expression. -/
 public abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : Bool :=
   _root_.RegularExpression.rmatch r w
+```
 
+```lean
 /-- The executable matcher recognizes exactly the denoted language. -/
 @[important, grind =, simp] public theorem matches_iff_mem_language [DecidableEq α]
     (r : RegularExpression α) (w : List α) :
@@ -242,7 +262,9 @@ namespace Internal
 ```lean
 def isRegexReserved (c : Char) : Bool :=
   c == '(' || c == ')' || c == '|' || c == '*'
+```
 
+```lean
 /-- Intermediate parse result: a regex plus the unconsumed characters. -/
 abbrev ParseState := Except String (RegularExpression Char × List Char)
 
@@ -346,7 +368,9 @@ public def parse (s : String) : Except String (RegularExpression Char) :=
       | [] => .ok r
       | _ => .error "unexpected trailing input"
     | .error e => .error e
+```
 
+```lean
 /-- Parses a regular expression and decides whether it matches the input string.
 Malformed regular expressions do not match any input. -/
 public def «match» (pattern input : String) : Bool :=
@@ -357,7 +381,6 @@ public def «match» (pattern input : String) : Bool :=
 end RegularExpression
 
 end Mathling.Automata
-
 ```
 
 <!--

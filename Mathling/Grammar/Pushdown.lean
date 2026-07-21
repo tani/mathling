@@ -32,13 +32,14 @@ open Mathling.Automata
   | run
   | done
   deriving Repr, DecidableEq
+```
 
+```lean
 /-- Grammar symbols plus a private bottom marker. -/
 @[grind cases] public inductive GrammarPDAStack (T N : Type*) where
   | bottom
   | symbol (value : Symbol T N)
   deriving Repr
-
 ```
 
 ```lean
@@ -56,11 +57,15 @@ public def rhsTerminals {N : Type*} : List (Symbol T N) → List T
   | [] => []
   | .terminal a :: xs => a :: rhsTerminals xs
   | .nonterminal _ :: xs => rhsTerminals xs
+```
 
+```lean
 /-- The finite list of terminals explicitly mentioned by grammar rules. -/
 public def terminalSupport (g : ContextFreeGrammar T) : List T :=
   g.rules.toList.flatMap fun r => rhsTerminals r.output
+```
 
+```lean
 public def expansionRule {g : ContextFreeGrammar T}
     (r : ContextFreeRule T g.NT) :
     PushdownRule T GrammarPDAState (GrammarPDAStack T g.NT) where
@@ -69,7 +74,9 @@ public def expansionRule {g : ContextFreeGrammar T}
   pop := .symbol (.nonterminal r.input)
   target := .run
   push := r.output.map GrammarPDAStack.symbol
+```
 
+```lean
 public def terminalRule (g : ContextFreeGrammar T) (a : T) :
     PushdownRule T GrammarPDAState (GrammarPDAStack T g.NT) where
   source := .run
@@ -77,7 +84,9 @@ public def terminalRule (g : ContextFreeGrammar T) (a : T) :
   pop := .symbol (.terminal a)
   target := .run
   push := []
+```
 
+```lean
 public def finishRule (g : ContextFreeGrammar T) :
     PushdownRule T GrammarPDAState (GrammarPDAStack T g.NT) where
   source := .run
@@ -85,7 +94,9 @@ public def finishRule (g : ContextFreeGrammar T) :
   pop := .bottom
   target := .done
   push := []
+```
 
+```lean
 /-- Directly convert a context-free grammar to a finite local NPDA. -/
 public def toNPDA (g : ContextFreeGrammar T) :
     NPDA T GrammarPDAState (GrammarPDAStack T g.NT) where
@@ -94,14 +105,17 @@ public def toNPDA (g : ContextFreeGrammar T) :
   start := [.run]
   accept := [.done]
   initialStack := [.symbol (.nonterminal g.initial), .bottom]
+```
 
+```lean
 public def encodeForm {N : Type*} (xs : List (Symbol T N)) :
     List (GrammarPDAStack T N) := xs.map GrammarPDAStack.symbol
+```
 
+```lean
 public def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
   | .terminal a => a ∈ terminalSupport g
   | .nonterminal _ => True
-
 ```
 
 ```lean
@@ -248,7 +262,9 @@ done 状態へ移れるのは文型が空になった場合だけである。
   · exact Or.inl ⟨gr, Finset.mem_toList.mp hgr, hEq.symm⟩
   · exact Or.inr (Or.inl ⟨a, ha, hEq.symm⟩)
   · exact Or.inr (Or.inr hEq)
+```
 
+```lean
 public def GrammarRunGood (g : ContextFreeGrammar T) (word : List T) :
     NPDA.ID T GrammarPDAState (GrammarPDAStack T g.NT) → Prop
   | (input, .run, stack) =>
@@ -261,7 +277,6 @@ public def GrammarRunGood (g : ContextFreeGrammar T) (word : List T) :
       ∃ consumed,
         word = consumed ++ input ∧ stack = [] ∧
         g.Derives [.nonterminal g.initial] (terminalSymbols consumed)
-
 ```
 
 ```lean
@@ -445,36 +460,48 @@ variable {T : Type u} {State Stack : Type}
   pop : Stack
   target : State
   deriving Repr, DecidableEq
+```
 
+```lean
 /-- Enumerate lists of a fixed length over a finite list of choices. -/
 public def listsOfLength (choices : List State) : Nat → List (List State)
   | 0 => [[]]
   | n + 1 => choices.flatMap fun q =>
       (listsOfLength choices n).map (q :: ·)
+```
 
+```lean
 /-- Control states explicitly occurring in a finite NPDA presentation. -/
 public def stateSupport (M : NPDA T State Stack) : List State :=
   M.start ++ M.accept ++ M.rules.flatMap fun r => [r.source, r.target]
+```
 
+```lean
 /-- Adjacent triples determined by a control-state path and a stack word. -/
 public def segmentForm : List State → List Stack →
     List (Symbol T (ContextFreeNT State Stack))
   | p :: q :: states, x :: stack =>
       .nonterminal ⟨p, x, q⟩ :: segmentForm (q :: states) stack
   | _, _ => []
+```
 
+```lean
 /-- A transition and a compatible state path determine one grammar production. -/
 public def contextFreeRule (r : PushdownRule T State Stack) (path : List State) :
     ContextFreeRule T (ContextFreeNT State Stack) where
   input := ⟨r.source, r.pop, path.getLastD r.target⟩
   output := r.input.toList.map Symbol.terminal ++ segmentForm path r.push
+```
 
+```lean
 /-- State paths compatible with the pushed stack word of a transition. -/
 public def compatiblePaths [DecidableEq State] (M : NPDA T State Stack)
     (r : PushdownRule T State Stack) : List (List State) :=
   (listsOfLength M.stateSupport (r.push.length + 1)).filter
     fun path => path.head? = some r.target
+```
 
+```lean
 /-- Triple-construction grammar for a machine whose accepting run removes one
 distinguished initial stack symbol. -/
 public def emptyToContextFreeGrammar [DecidableEq T] [DecidableEq State]
@@ -484,7 +511,6 @@ public def emptyToContextFreeGrammar [DecidableEq T] [DecidableEq State]
   initial := ⟨start, bottom, done⟩
   rules := (M.rules.flatMap fun r =>
     (M.compatiblePaths r).map (contextFreeRule r)).toFinset
-
 ```
 
 ContextFreeNT は「source 状態から pop 記号を1つ取り除いて target 状態へ至る」という
@@ -687,7 +713,9 @@ end
   induction xs generalizing x with
   | nil => simp
   | cons y ys ih => simpa [List.getLastD_cons] using ih y
+```
 
+```lean
 /-- A meaningful segment form is exactly a balanced computation of its stack
 word along the encoded control-state path. -/
 
@@ -733,7 +761,6 @@ word along the encoded control-state path. -/
                       have hlast := getLastD_cons_default mid rest p mid
                       rw [List.getLastD_cons, hlast]
                       exact StackBalanced.cons hrun hstack
-
 ```
 
 segmentForm_stackBalanced は、経路 path とスタック stack から作った segmentForm が実際に
@@ -770,7 +797,9 @@ input action and pushed-stack computation of its source transition. -/
       | cons hterminal htail =>
           cases hterminal
           exact ⟨_, rfl, segmentForm_stackBalanced M hlen hhead htail⟩
+```
 
+```lean
 /-- A derivation tree of the generated grammar denotes balanced NPDA runs. -/
 @[grind .] theorem derivationFormTree_meaning [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
@@ -792,7 +821,9 @@ input action and pushed-stack computation of its source transition. -/
     FormMeaning.nil
     (fun head tail ihHead ihTail => FormMeaning.cons ihHead ihTail)
     tree
+```
 
+```lean
 /-- Every terminal derivation from a triple nonterminal reconstructs a
 balanced run of the original NPDA. -/
 
@@ -811,7 +842,6 @@ balanced run of the original NPDA. -/
       cases htail
       cases hhead with
       | nonterminal run => simpa using run
-
 ```
 
 contextFreeRule_meaning は一つの生成規則の右辺の意味を、元になった遷移の入力動作と
@@ -834,7 +864,9 @@ the requested target state belongs to the finite state support. -/
   change (M.emptyToContextFreeGrammar start bottom done).Derives
       [.nonterminal ⟨start, bottom, done⟩] (terminalSymbols word) ↔ _
   exact ⟨M.balanced_of_derives, fun h => M.balanced_derives h hdone⟩
+```
 
+```lean
 /-- Acceptance of the normalized machine is precisely one balanced computation
 that removes its private bottom marker. -/
 
@@ -859,7 +891,6 @@ that removes its private bottom marker. -/
   · intro h
     refine ⟨.boot, by simp [finalToEmpty], .done, by simp [finalToEmpty], [], ?_⟩
     simpa [finalToEmpty] using h.reaches [] []
-
 ```
 
 mem_emptyToContextFreeGrammar_language_iff は balanced_derives と balanced_of_derives を
@@ -874,7 +905,9 @@ finalToEmpty_accepts_iff_balanced は、finalToEmpty 正規化を経た機械の
 public def toContextFreeGrammar [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack) : ContextFreeGrammar T :=
   M.finalToEmpty.emptyToContextFreeGrammar .boot .bottom .done
+```
 
+```lean
 /-- The NPDA-to-CFG construction preserves exactly the accepted language. -/
 @[important, grind =, simp] public theorem toContextFreeGrammar_language [DecidableEq T]
     [DecidableEq State] [DecidableEq Stack] (M : NPDA T State Stack) :
@@ -886,7 +919,6 @@ public def toContextFreeGrammar [DecidableEq T] [DecidableEq State]
   · rw [← M.finalToEmpty_language]
     exact (M.finalToEmpty_accepts_iff_balanced word).symm
   · simp [stateSupport, finalToEmpty]
-
 ```
 
 ```lean
@@ -946,19 +978,25 @@ accepts it. Both machine state and stack alphabets are existential witnesses. -/
   · rintro ⟨State, Stack, M, rfl⟩
     exact ⟨Mathling.Automata.NPDA.Classical.toContextFreeGrammar M,
       Mathling.Automata.NPDA.Classical.toContextFreeGrammar_language M⟩
+```
 
+```lean
 /-- A language is deterministic context-free when a finite local DPDA accepts it. -/
 @[expose] public def IsDeterministicContextFree {T : Type}
     (L : Language T) : Prop :=
   ∃ State Stack : Type, ∃ M : DPDA T State Stack, M.language = L
+```
 
+```lean
 /-- The operational DPDA presentation of deterministic context-freeness. -/
 @[important, grind =, simp] public theorem isDeterministicContextFree_iff_exists_dpda
     {T : Type} {L : Language T} :
     L.IsDeterministicContextFree ↔
       ∃ State Stack : Type, ∃ M : DPDA T State Stack, M.language = L := by
   rfl
+```
 
+```lean
 /-- Forgetting determinism proves the standard inclusion DCFL ⊆ CFL. -/
 @[important, grind .] public theorem IsDeterministicContextFree.isContextFree
     {T : Type} {L : Language T} (h : L.IsDeterministicContextFree) :
@@ -968,7 +1006,6 @@ accepts it. Both machine state and stack alphabets are existential witnesses. -/
     ⟨State, Stack, M.toNPDA, M.toNPDA_language⟩
 
 end Language
-
 ```
 
 ```lean

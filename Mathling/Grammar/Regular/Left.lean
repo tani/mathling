@@ -40,7 +40,9 @@ reversed language of the associated right-linear grammar. -/
 
 
 @[expose] public def language (g : LeftLinearGrammar T) : Language T := g.cfg.language
+```
 
+```lean
 /-- Every left-linear grammar is context-free after forgetting its rule-shape
 certificate. -/
 
@@ -48,7 +50,9 @@ certificate. -/
 @[important, grind .] public theorem language_isContextFree (g : LeftLinearGrammar T) :
     g.language.IsContextFree :=
   ⟨g.cfg, rfl⟩
+```
 
+```lean
 /-- Forget that a left-linear grammar is left-linear. -/
 public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
   cfg := g.cfg
@@ -56,7 +60,6 @@ public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
     rcases g.leftLinear r hr with h | ⟨a, h⟩ | ⟨A, a, h⟩ <;>
       simp [ContextFreeRule.IsLinear, ContextFreeRule.nonterminalCount,
         symbolIsNonterminal, h]
-
 ```
 
 ```lean
@@ -77,19 +80,22 @@ end LeftLinearGrammar
 @[grind .] private theorem ContextFreeRule.reverse_output_nil {T N : Type*}
     {r : ContextFreeRule T N} (h : r.output = []) : r.reverse.output = [] := by
   simp [ContextFreeRule.reverse, h]
+```
 
+```lean
 /-- Reversing a rule with singleton output leaves the output unchanged. -/
 @[grind .] private theorem ContextFreeRule.reverse_output_singleton {T N : Type*}
     {r : ContextFreeRule T N} {a : T} (h : r.output = [Symbol.terminal a]) :
     r.reverse.output = [Symbol.terminal a] := by
   simp [ContextFreeRule.reverse, h]
+```
 
+```lean
 /-- Reversing a rule with two-symbol output swaps the two symbols. -/
 @[grind .] private theorem ContextFreeRule.reverse_output_pair {T N : Type*}
     {r : ContextFreeRule T N} {x y : Symbol T N} (h : r.output = [x, y]) :
     r.reverse.output = [y, x] := by
   simp [ContextFreeRule.reverse, h]
-
 ```
 
 ## 左線形文法から右線形文法へ
@@ -117,12 +123,16 @@ public def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T w
     · exact Or.inl (ContextFreeRule.reverse_output_nil h)
     · exact Or.inr (Or.inl ⟨a, ContextFreeRule.reverse_output_singleton h⟩)
     · exact Or.inr (Or.inr ⟨a, A, ContextFreeRule.reverse_output_pair h⟩)
+```
 
+```lean
 /-- Reversing productions reverses the generated language. -/
 @[grind =, simp] theorem reverseRightLinear_language (g : LeftLinearGrammar T) :
     g.reverseRightLinear.language = g.language.reverse := by
   simp [reverseRightLinear, RightLinearGrammar.language, LeftLinearGrammar.language]
+```
 
+```lean
 /-- A left-linear grammar with finitely many nonterminals generates a regular language. -/
 @[grind .] theorem language_isRegular (g : LeftLinearGrammar T) [Finite g.cfg.NT] :
     g.language.IsRegular := by
@@ -135,7 +145,6 @@ public def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T w
   exact g.reverseRightLinear.language_isRegular
 
 end LeftLinearGrammar
-
 ```
 
 ## 右線形文法から左線形文法へ
@@ -163,14 +172,15 @@ public def reverseLeftLinear (g : RightLinearGrammar T) : LeftLinearGrammar T wh
     · exact Or.inl (ContextFreeRule.reverse_output_nil h)
     · exact Or.inr (Or.inl ⟨a, ContextFreeRule.reverse_output_singleton h⟩)
     · exact Or.inr (Or.inr ⟨B, a, ContextFreeRule.reverse_output_pair h⟩)
+```
 
+```lean
 /-- Reversing productions reverses the generated language. -/
 @[grind =, simp] theorem reverseLeftLinear_language (g : RightLinearGrammar T) :
     g.reverseLeftLinear.language = g.language.reverse := by
   simp [reverseLeftLinear, LeftLinearGrammar.language, RightLinearGrammar.language]
 
 end RightLinearGrammar
-
 ```
 
 ## 正則性の左線形文法による特徴付け

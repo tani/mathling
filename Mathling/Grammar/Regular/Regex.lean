@@ -41,14 +41,18 @@ of some expression. -/
 @[expose] public def HasRegularExpression {T : Type} (L : Language T) : Prop :=
   ∃ r : Mathling.Automata.RegularExpression T,
     Mathling.Automata.RegularExpression.language r = L
+```
 
+```lean
 /-- A regular-expression presentation yields a finite-state presentation. -/
 @[important, grind →] public theorem HasRegularExpression.isRegular
     {T : Type} [Nonempty T] {L : Language T}
     (h : L.HasRegularExpression) : L.IsRegular := by
   rcases h with ⟨r, rfl⟩
   exact Mathling.Automata.RegularExpression.language_isRegular r
+```
 
+```lean
 /-- Over a finite alphabet, state elimination gives every regular language a
 regular-expression presentation. -/
 
@@ -63,7 +67,9 @@ regular-expression presentation. -/
   obtain ⟨State, inst, M, hM⟩ := presentation
   exact ⟨@Mathling.Automata.NFA.toRegex T State inferInstance inst M,
     by rw [@Mathling.Automata.NFA.toRegex_language T State inferInstance inst M, hM]⟩
+```
 
+```lean
 /-- Kleene's theorem: over a finite nonempty alphabet, finite automata and
 regular expressions present exactly the same languages. -/
 
@@ -72,7 +78,9 @@ regular expressions present exactly the same languages. -/
     {T : Type} [Finite T] [Nonempty T] {L : Language T} :
     L.IsRegular ↔ L.HasRegularExpression :=
   ⟨IsRegular.hasRegularExpression, HasRegularExpression.isRegular⟩
+```
 
+```lean
 /-- Over a finite nonempty alphabet, every regex-presented language is
 context-free through the regular-language inclusion. -/
 
@@ -81,7 +89,9 @@ context-free through the regular-language inclusion. -/
     {T : Type} [Finite T] [Nonempty T] {L : Language T}
     (h : L.HasRegularExpression) : L.IsContextFree :=
   Mathling.Grammar.Language.isRegular_isContextFree h.isRegular
+```
 
+```lean
 /-- A regex presentation can be replaced by a finite-state NFA presentation. -/
 @[important, grind →] public theorem HasRegularExpression.exists_nfa
     {T : Type} [Nonempty T] {L : Language T}
@@ -89,7 +99,9 @@ context-free through the regular-language inclusion. -/
     ∃ State : Type, ∃ _ : Fintype State,
       ∃ M : Mathling.Automata.NFA T State, M.accepts = L :=
   Mathling.Automata.Language.isRegular_iff_nfa.mp h.isRegular
+```
 
+```lean
 /-- Over a finite alphabet, a regex presentation can be replaced by a
 right-linear grammar presentation. -/
 
@@ -100,7 +112,9 @@ right-linear grammar presentation. -/
     ∃ g : Mathling.Grammar.RightLinearGrammar T,
       Nonempty (Fintype g.cfg.NT) ∧ g.language = L :=
   Mathling.Grammar.Language.isRegular_iff_exists_rightLinearGrammar.mp h.isRegular
+```
 
+```lean
 /-- A regex presentation also has a finite-local NPDA presentation, obtained
 through its context-free grammar presentation. -/
 

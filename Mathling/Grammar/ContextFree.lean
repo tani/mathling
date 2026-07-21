@@ -40,7 +40,9 @@ namespace ContextFreeRule
 /-- The input and all right-hand-side nonterminals of a rule. -/
 public def nonterminals {T N : Type*} (r : ContextFreeRule T N) : List N :=
   r.input :: rhsNonterminals r.output
+```
 
+```lean
 /-- Renaming nonterminals preserves a one-rule rewrite. -/
 @[grind .] public theorem Rewrites.mapNonterminal {T N M : Type*}
     {r : ContextFreeRule T N} {u v : List (Symbol T N)}
@@ -58,7 +60,6 @@ public def nonterminals {T N : Type*} (r : ContextFreeRule T N) : List N :=
       exact ContextFreeRule.Rewrites.cons (Symbol.mapNonterminal f x) ih
 
 end ContextFreeRule
-
 ```
 
 ## 有限台の抽出
@@ -159,7 +160,9 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
           obtain ⟨hsym, htail⟩ := List.cons.inj h
           cases hsym
           exact congrArg (a :: ·) (ih htail)
+```
 
+```lean
 /-- A context-free rule cannot rewrite a terminal-only sentential form. -/
 @[grind .] public theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
     {v : List (Symbol T N)} :
@@ -170,7 +173,9 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
   | cons a w ih =>
       cases h with
       | cons _ htail => exact ih htail
+```
 
+```lean
 /-- A derivation between terminal-only forms does not change the word. -/
 @[grind .] public theorem derives_terminals_eq (g : ContextFreeGrammar T) {u v : List T} :
     g.Derives (terminalSymbols u) (terminalSymbols v) → u = v := by
@@ -178,7 +183,6 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
   rcases h.eq_or_head with heq | ⟨_, ⟨r, _, hr⟩, _⟩
   · exact terminalSymbols_injective heq
   · exact (no_rewrites_terminals r hr).elim
-
 ```
 
 ## 導出木による証拠の明示化
@@ -307,7 +311,9 @@ termination_by xs
   have h₁ := hx.append_right xs
   have h₂ := ht.append_left (terminalSymbols u)
   simpa [terminalSymbols, List.map_append, List.append_assoc] using h₁.trans h₂
+```
 
+```lean
 /-- Lift a simulation of source production steps to complete derivations. -/
 @[grind .] public theorem derives_lift_of_produces
     {g₁ : ContextFreeGrammar T} {g₂ : ContextFreeGrammar T}
@@ -323,7 +329,6 @@ termination_by xs
 
 end ContextFreeGrammar
 end Mathling.Grammar
-
 ```
 
 <!--

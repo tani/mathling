@@ -51,7 +51,9 @@ with the underlying context-free language. -/
 
 
 @[expose] public def language (g : ChomskyNormalGrammar T) : Language T := g.cfg.language
+```
 
+```lean
 /-- A Chomsky-normal grammar is a context-free grammar with an additional
 rule-shape certificate. -/
 
@@ -59,16 +61,19 @@ rule-shape certificate. -/
 @[important, grind .] public theorem language_isContextFree (g : ChomskyNormalGrammar T) :
     g.language.IsContextFree :=
   ⟨g.cfg, rfl⟩
+```
 
+```lean
 /-- Forget the Chomsky-normality evidence. -/
 public def toContextFreeGrammar (g : ChomskyNormalGrammar T) : ContextFreeGrammar T := g.cfg
-
 ```
 
 ```lean
 @[grind =, simp] theorem toContextFreeGrammar_language (g : ChomskyNormalGrammar T) :
     g.toContextFreeGrammar.language = g.language := rfl
+```
 
+```lean
 /-- Proof-only compatibility for consumers of an arbitrary CNF grammar.
 Executable conversions expose a concrete `LinearOrder`, which takes precedence. -/
 public noncomputable instance (priority := low) cnfNonterminalDecidableEq
@@ -76,7 +81,6 @@ public noncomputable instance (priority := low) cnfNonterminalDecidableEq
   Classical.decEq _
 
 end ChomskyNormalGrammar
-
 ```
 
 ```lean
@@ -89,23 +93,31 @@ namespace ContextFreeGrammar
   | start
   | old (A : N)
 deriving DecidableEq, Repr
+```
 
+```lean
 public def FreshStartNT.orderKey : FreshStartNT N → Unit ⊕ₗ N
   | .start => Sum.inlₗ ()
   | .old A => Sum.inrₗ A
+```
 
+```lean
 public instance [LinearOrder N] : LinearOrder (FreshStartNT N) :=
   LinearOrder.lift' FreshStartNT.orderKey (by
     intro x y h
     cases x <;> cases y <;> simp_all [FreshStartNT.orderKey])
+```
 
+```lean
 public instance [LinearOrder T] [LinearOrder N] : LinearOrder (Symbol T N) :=
   LinearOrder.lift'
     (fun x : Symbol T N => match x with
       | .terminal a => Sum.inlₗ a
       | .nonterminal A => Sum.inrₗ A)
     (by intro x y h; cases x <;> cases y <;> simp_all)
+```
 
+```lean
 public instance [LinearOrder T] [LinearOrder N] :
     LinearOrder (ContextFreeRule T N) :=
   LinearOrder.lift'
@@ -115,7 +127,6 @@ public instance [LinearOrder T] [LinearOrder N] :
     cases x
     cases y
     simp_all)
-
 ```
 
 ## 型 `FreshStartNT` の線形順序から fresh-start 規則の構成へ
@@ -126,13 +137,17 @@ public instance [LinearOrder T] [LinearOrder N] :
 public def freshStartRule {T N : Type*} (S : N) :
     ContextFreeRule T (FreshStartNT N) :=
   { input := .start, output := [Symbol.nonterminal (.old S)] }
+```
 
+```lean
 public def freshStartRules (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     Finset (ContextFreeRule T (FreshStartNT g.NT)) :=
   insert (freshStartRule g.initial)
     (g.rules.image fun r => ContextFreeRule.mapNonterminal FreshStartNT.old r)
+```
 
+```lean
 /-- Add a fresh start symbol before public Chomsky-normal-form conversion.
 
 Its body is exposed to keep the compiler's inferred public conversion type
@@ -144,7 +159,6 @@ stable across importing modules. -/
   { NT := FreshStartNT g.NT
     initial := .start
     rules := freshStartRules g }
-
 ```
 
 ```lean
@@ -383,7 +397,9 @@ public def eraseFreshStart (S : N) : FreshStartNT N → N
 ```lean
 public def Nullable (g : ContextFreeGrammar T) (A : g.NT) : Prop :=
   g.Derives [Symbol.nonterminal A] []
+```
 
+```lean
 /-- Whether every symbol in a right-hand side is a nonterminal already known
 to be nullable. -/
 public def rhsNullableIn [DecidableEq N] (S : Finset N) :
@@ -391,13 +407,17 @@ public def rhsNullableIn [DecidableEq N] (S : Finset N) :
   | [] => true
   | .terminal _ :: _ => false
   | .nonterminal A :: xs => decide (A ∈ S) && rhsNullableIn S xs
+```
 
+```lean
 /-- A finite set is closed under nullable productions. -/
 public def nullableClosed (g : ContextFreeGrammar T) [DecidableEq T]
     [DecidableEq g.NT] (S : Finset g.NT) : Bool :=
   decide (g.rules.filter (fun r =>
     rhsNullableIn S r.output = true ∧ r.input ∉ S) = ∅)
+```
 
+```lean
 /-- The least nullable-closed subset of the grammar's finite support.
 
 This finite powerset presentation is executable and characterizes the same
@@ -407,7 +427,6 @@ public def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
   let support := activeNonterminals g
   let closed := support.powerset.filter fun S => nullableClosed g S = true
   support.filter fun A => closed.filter (fun S => A ∉ S) = ∅
-
 ```
 
 ```lean
@@ -493,7 +512,9 @@ public def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
       simpa using hmem
     rw [← hinput]
     exact rule_input_mem_activeNonterminals g hr
+```
 
+```lean
 /-- The executable nullable-set computation agrees with semantic nullability. -/
 @[grind .] theorem mem_nullableSet_iff (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {A : g.NT} :
@@ -535,7 +556,6 @@ public def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
     intro S hS hmissing
     exact hmissing (nullable_mem_of_closed g
       (Finset.mem_filter.mp hS).2 hnullable)
-
 ```
 
 ## 空語判定と nullable variant
@@ -557,7 +577,9 @@ public def hasEmptyWord (g : ContextFreeGrammar T)
     hasEmptyWord g = true ↔ [] ∈ g.language := by
   rw [hasEmptyWord, decide_eq_true_eq, mem_nullableSet_iff]
   rfl
+```
 
+```lean
 public def nullableVariants (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     List (Symbol T g.NT) → Finset (List (Symbol T g.NT))
@@ -570,7 +592,6 @@ public def nullableVariants (g : ContextFreeGrammar T)
       if A ∈ nullableSet g then
         kept ∪ nullableVariants g xs
       else kept
-
 ```
 
 ```lean
@@ -732,7 +753,9 @@ variant の所属補題を確立した後、非初期の空右辺を除外した
             rcases List.mem_cons.mp hx with rfl | hx
             · simp
             · exact List.mem_cons_of_mem _ (ih htail hx)
+```
 
+```lean
 public def removeEpsilonRules
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     Finset (ContextFreeRule T g.NT) :=
@@ -744,7 +767,9 @@ public def removeEpsilonRules
   let emptyRule : ContextFreeRule T g.NT :=
     { input := g.initial, output := [] }
   nonempty ∪ if g.initial ∈ nullableSet g then {emptyRule} else ∅
+```
 
+```lean
 /-- Remove nullable symbols while preserving the public grammar interface.
 
 Its body is exposed because the public Chomsky conversion chains this stage
@@ -757,7 +782,6 @@ definitionally with the subsequent unit-rule and terminal-isolation stages. -/
   { NT := g.NT
     initial := g.initial
     rules := removeEpsilonRules g }
-
 ```
 
 ```lean
@@ -878,13 +902,13 @@ definitionally with the subsequent unit-rule and terminal-isolation stages. -/
     exact List.map_id _
   change g.Derives [Symbol.nonterminal g.initial] (List.map Symbol.terminal w)
   exact hroot ▸ hyield ▸ h
+```
 
-
+```lean
 public def ErasesNullable (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (u v : List (Symbol T g.NT)) : Prop :=
   v ∈ nullableVariants g u
-
 ```
 
 ```lean
@@ -1043,17 +1067,20 @@ public def ErasesNullable (g : ContextFreeGrammar T)
     (removeEpsilon g).language = g.language :=
   le_antisymm (removeEpsilon_language_reverse g)
     (removeEpsilon_language_forward g)
+```
 
+```lean
 /-! ## Elimination of unit productions -/
 
 public def IsUnitRule {T N : Type*} (r : ContextFreeRule T N) : Prop :=
   ∃ B, r.output = [Symbol.nonterminal B]
+```
 
+```lean
 public def isUnitRule (r : ContextFreeRule T N) : Bool :=
   match r.output with
   | [.nonterminal _] => true
   | _ => false
-
 ```
 
 ```lean
@@ -1067,25 +1094,34 @@ public def isUnitRule (r : ContextFreeRule T N) : Bool :=
       | nil =>
           cases x <;> simp [isUnitRule, IsUnitRule]
       | cons y ys => simp [isUnitRule, IsUnitRule]
+```
 
-
+```lean
 public def UnitStep (g : ContextFreeGrammar T) (A B : g.NT) : Prop :=
   ({ input := A, output := [Symbol.nonterminal B] } :
     ContextFreeRule T g.NT) ∈ g.rules
+```
 
+```lean
 public abbrev UnitReach (g : ContextFreeGrammar T) :=
   Relation.ReflTransGen (UnitStep g)
+```
 
+```lean
 public def unitRuleEscapes [DecidableEq N] (S : Finset N)
     (r : ContextFreeRule T N) : Bool :=
   match r.output with
   | [.nonterminal B] => decide (r.input ∈ S) && decide (B ∉ S)
   | _ => false
+```
 
+```lean
 public def unitClosed (g : ContextFreeGrammar T) [DecidableEq T]
     [DecidableEq g.NT] (S : Finset g.NT) : Bool :=
   decide (g.rules.filter (fun r => unitRuleEscapes S r = true) = ∅)
+```
 
+```lean
 /-- The executable reflexive-transitive unit reachability set from `A`. -/
 public def unitReachSet (g : ContextFreeGrammar T) [DecidableEq T]
     [DecidableEq g.NT] (A : g.NT) : Finset g.NT :=
@@ -1093,7 +1129,6 @@ public def unitReachSet (g : ContextFreeGrammar T) [DecidableEq T]
   let closed := support.powerset.filter fun S =>
     A ∈ S ∧ unitClosed g S = true
   support.filter fun B => closed.filter (fun S => B ∉ S) = ∅
-
 ```
 
 ```lean
@@ -1124,8 +1159,9 @@ public def unitReachSet (g : ContextFreeGrammar T) [DecidableEq T]
   | refl => exact hA
   | tail h hstep ih =>
       exact (unitClosed_eq_true g).mp hclosed ih hstep
+```
 
-
+```lean
 /-- Computed unit reachability agrees with reflexive-transitive closure on the
 finite grammar support. -/
 
@@ -1174,7 +1210,6 @@ finite grammar support. -/
     intro S hS hmissing
     rcases Finset.mem_filter.mp hS with ⟨_, hstart, hclosed⟩
     exact hmissing (unitReach_mem_of_closed g hclosed hstart hreach)
-
 ```
 
 ## unit 到達関係と unit 規則除去
@@ -1278,18 +1313,21 @@ public abbrev removeUnit
   · apply Finset.mem_image.mpr
     exact ⟨r, Finset.mem_filter.mpr
       ⟨hr, hinput, by simpa [← isUnitRule_eq_true] using hnonunit⟩, rfl⟩
+```
 
+```lean
 public def UnitSymbolLift (g : ContextFreeGrammar T) [DecidableEq g.NT] :
     Symbol T g.NT → Symbol T g.NT → Prop
   | .terminal a, .terminal b => a = b
   | .nonterminal A, .nonterminal B =>
       A ∈ activeNonterminals g ∧ UnitReach g A B
   | _, _ => False
+```
 
+```lean
 public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
     (u v : List (Symbol T g.NT)) : Prop :=
   List.Forall₂ (UnitSymbolLift g) u v
-
 ```
 
 ```lean
@@ -1561,17 +1599,23 @@ construction is available when the terminal alphabet also lives in `Type`. -/
   | old (A : N)
   | terminal (a : T)
 deriving DecidableEq, Repr
+```
 
+```lean
 public def IsolateNT.orderKey :
     IsolateNT T N → N ⊕ₗ T
   | .old A => Sum.inlₗ A
   | .terminal a => Sum.inrₗ a
+```
 
+```lean
 public instance [LinearOrder T] [LinearOrder N] : LinearOrder (IsolateNT T N) :=
   LinearOrder.lift' IsolateNT.orderKey (by
     intro x y h
     cases x <;> cases y <;> simp_all [IsolateNT.orderKey])
+```
 
+```lean
 public def isolateOutput {T N : Type*} :
     List (Symbol T N) → List (Symbol T (IsolateNT T N))
   | [] => []
@@ -1579,22 +1623,30 @@ public def isolateOutput {T N : Type*} :
       .nonterminal (.terminal a) :: isolateOutput xs
   | .nonterminal A :: xs =>
       .nonterminal (.old A) :: isolateOutput xs
+```
 
+```lean
 public def symbolTerminal {T N : Type*} : Symbol T N → Option T
   | .terminal a => some a
   | .nonterminal _ => none
+```
 
+```lean
 public def isolatedRule (r : ContextFreeRule T N) :
     ContextFreeRule T (IsolateNT T N) :=
   if 2 ≤ r.output.length then
     { input := .old r.input, output := isolateOutput r.output }
   else
     ContextFreeRule.mapNonterminal IsolateNT.old r
+```
 
+```lean
 public def terminalIsolationRule (a : T) :
     ContextFreeRule T (IsolateNT T N) :=
   { input := .terminal a, output := [.terminal a] }
+```
 
+```lean
 public def isolationRules
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     Finset (ContextFreeRule T (IsolateNT T g.NT)) :=
@@ -1603,14 +1655,15 @@ public def isolationRules
       if 2 ≤ r.output.length then
         (r.output.filterMap symbolTerminal).toFinset.image terminalIsolationRule
       else ∅
+```
 
+```lean
 public abbrev isolateTerminals
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
     ContextFreeGrammar T :=
   { NT := IsolateNT T g.NT
     initial := .old g.initial
     rules := isolationRules g }
-
 ```
 
 ## 終端記号分離規則の特徴付け
@@ -1800,16 +1853,19 @@ public abbrev isolateTerminals
     (List.map (Symbol.terminal :
       T → Symbol T (IsolateNT T g.NT)) w)
   simpa [Symbol.mapNonterminal, Function.comp_def] using h
+```
 
+```lean
 public def expandSymbol : Symbol T (IsolateNT T N) → List (Symbol T N)
   | .terminal a => [.terminal a]
   | .nonterminal (.old A) => [.nonterminal A]
   | .nonterminal (.terminal a) => [.terminal a]
+```
 
+```lean
 public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
     List (Symbol T N) :=
   xs.flatMap expandSymbol
-
 ```
 
 ```lean
@@ -1961,7 +2017,9 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
     (isolateTerminals g).language = g.language :=
   le_antisymm (isolateTerminals_language_reverse g)
     (isolateTerminals_language_forward g)
+```
 
+```lean
 /-! ## Binarization of long nonterminal right-hand sides -/
 
 
@@ -1970,34 +2028,49 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
   | old (A : N)
   | tail (head : N) (suffix : List N)
 deriving DecidableEq, Repr
+```
 
+```lean
 public def BinaryNT.orderKey : BinaryNT N → N ⊕ₗ (N ×ₗ List N)
   | .old A => Sum.inlₗ A
   | .tail A suffix => Sum.inrₗ (toLex (A, suffix))
+```
 
+```lean
 public instance [LinearOrder N] : LinearOrder (BinaryNT N) :=
   LinearOrder.lift' BinaryNT.orderKey (by
     intro x y h
     cases x <;> cases y <;> simp_all [BinaryNT.orderKey])
+```
 
+```lean
 public def symbolAsNonterminal : Symbol T N → Option N
   | .terminal _ => none
   | .nonterminal A => some A
+```
 
+```lean
 public def symbolsAsNonterminals : List (Symbol T N) → Option (List N)
   | [] => some []
   | x :: xs => do
       let A ← symbolAsNonterminal x
       let As ← symbolsAsNonterminals xs
       pure (A :: As)
+```
 
+```lean
 public def binarySymbols (ns : List N) :
     List (Symbol T (BinaryNT N)) :=
   ns.map (Symbol.nonterminal ∘ BinaryNT.old)
+```
 
+```lean
 public def tailSymbol (A : N) (suffix : List N) :
     Symbol T (BinaryNT N) :=
   Symbol.nonterminal (BinaryNT.tail A suffix)
+```
+
+```lean
 public def binarizeTailRules [DecidableEq T] [DecidableEq N] (A : N) :
     List N → Finset (ContextFreeRule T (BinaryNT N))
   | X :: Y :: [] =>
@@ -2010,6 +2083,9 @@ public def binarizeTailRules [DecidableEq T] [DecidableEq N] (A : N) :
             tailSymbol A (Y :: Z :: rest)] }
         (binarizeTailRules A (Y :: Z :: rest))
   | _ => ∅
+```
+
+```lean
 public def binarizeLongRules [DecidableEq T] [DecidableEq N] (A : N) :
     List N → Finset (ContextFreeRule T (BinaryNT N))
   | X :: Y :: Z :: rest =>
@@ -2019,7 +2095,9 @@ public def binarizeLongRules [DecidableEq T] [DecidableEq N] (A : N) :
             tailSymbol A (Y :: Z :: rest)] }
         (binarizeTailRules A (Y :: Z :: rest))
   | _ => ∅
+```
 
+```lean
 public abbrev binarize (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] : ContextFreeGrammar T :=
   { NT := BinaryNT g.NT
@@ -2362,17 +2440,20 @@ public abbrev binarize (g : ContextFreeGrammar T)
     [Symbol.nonterminal (BinaryNT.old g.initial)]
     (List.map (Symbol.terminal : T → Symbol T (BinaryNT g.NT)) w)
   convert h using 1 <;> simp [Symbol.mapNonterminal]
+```
 
+```lean
 public def expandBinarySymbol :
     Symbol T (BinaryNT N) → List (Symbol T N)
   | .terminal a => [Symbol.terminal a]
   | .nonterminal (.old A) => [Symbol.nonterminal A]
   | .nonterminal (.tail _ suffix) => suffix.map Symbol.nonterminal
+```
 
+```lean
 public def expandBinaryForm
     (xs : List (Symbol T (BinaryNT N))) : List (Symbol T N) :=
   xs.flatMap expandBinarySymbol
-
 ```
 
 ```lean
@@ -3119,7 +3200,9 @@ stable across importing modules. -/
       chomskyNormal := binarize_is_chomsky g₄ hε₄ hunit₄ hall₄
       initial_not_output :=
         binarize_initial_not_output g₄ hnot₄ }
+```
 
+```lean
 /-- The generated nonterminal type of the computable Chomsky conversion
 inherits a computable linear order. -/
 
@@ -3145,7 +3228,6 @@ inherits a computable linear order. -/
     infer_instance
   change LinearOrder (BinaryNT g₄.NT)
   infer_instance
-
 ```
 
 ```lean

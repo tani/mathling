@@ -14,7 +14,6 @@
 DFA の状態を将来の受理挙動で同値視し、その Myhill–Nerode 商を最小化 DFA として構成する。商への射影が遷移と受理を保存し、元の DFA と同じ言語を認識することまでを公開契約とする。
 
 ```lean
-
 /-!
 # DFA minimization
 
@@ -28,14 +27,14 @@ namespace Mathling.Automata
 /-- The canonical DFA whose states are the left quotients of a language. -/
 public abbrev Language.minimalDFA (L : Language α) :
     DFA α (Set.range L.leftQuotient) := L.toDFA
+```
 
+```lean
 /-- The canonical quotient DFA accepts its defining language. -/
 @[important, grind =, simp] public theorem Language.minimalDFA_accepts (L : Language α) :
     (Language.minimalDFA L).accepts = L := by
   change L.toDFA.accepts = L
   exact Language.accepts_toDFA L
-
-
 ```
 
 ## 正準商 DFA とその受理言語

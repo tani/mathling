@@ -42,7 +42,9 @@ underlying context-free language. -/
 
 
 @[expose] public def language (g : GreibachNormalGrammar T) : Language T := g.cfg.language
+```
 
+```lean
 /-- A Greibach-normal grammar is context-free after its normal-form evidence is
 forgotten. -/
 
@@ -50,7 +52,9 @@ forgotten. -/
 @[important, grind .] public theorem language_isContextFree (g : GreibachNormalGrammar T) :
     g.language.IsContextFree :=
   ⟨g.cfg, rfl⟩
+```
 
+```lean
 /-- Forget the Greibach-normality evidence.
 
 Its body is exposed because the public language projection theorem is proved
@@ -59,7 +63,6 @@ by definitional reduction. -/
 
 @[expose] public def toContextFreeGrammar (g : GreibachNormalGrammar T) :
     ContextFreeGrammar T := g.cfg
-
 ```
 
 ```lean
@@ -85,29 +88,40 @@ variable [LinearOrder T]
   | base (i : Fin n)
   | recursive (i : Fin n)
 deriving DecidableEq, Repr
+```
 
+```lean
 public structure GreibachWorkGrammar (T : Type*) (n : Nat) where
   initial : GreibachWorkNT n
   rules : Finset (ContextFreeRule T (GreibachWorkNT n))
+```
 
+```lean
 public abbrev GreibachWorkGrammar.toCFG
     (G : GreibachWorkGrammar T n) : ContextFreeGrammar T :=
   { NT := GreibachWorkNT n
     initial := G.initial
     rules := G.rules }
+```
 
+```lean
 public abbrev filterEmptyRules (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] : ContextFreeGrammar T :=
   { NT := g.NT
     initial := g.initial
     rules := g.rules.filter fun r => r.output ≠ [] }
+```
 
+```lean
 public structure NonemptyCNF (T : Type*) where
   source : ChomskyNormalGrammar T
   grammar : ChomskyNormalGrammar T
   hasEmpty : Bool
   hasEmpty_iff : hasEmpty = true ↔ [] ∈ source.language
   no_empty_rules : ∀ r ∈ grammar.cfg.rules, r.output ≠ []
+```
+
+```lean
 /-- Remove empty rules after Chomsky conversion for the public Greibach pipeline.
 
 Its body is exposed to keep the public dependent result and its order instance
@@ -140,14 +154,14 @@ definitionally stable across importing modules. -/
       hasEmpty := hasEmptyWord c.cfg
       hasEmpty_iff := hasEmptyWord_eq_true_iff c.cfg
       no_empty_rules := fun r hr => (Finset.mem_filter.mp hr).2 }
+```
 
+```lean
 public instance nonemptyCNFGrammarLinearOrder
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     LinearOrder (nonemptyCNF g).grammar.cfg.NT := by
   change LinearOrder (toChomskyNormalGrammar g).cfg.NT
   exact toChomskyNormalGrammarNTLinearOrder g
- 
-
 ```
 
 ```lean
@@ -284,11 +298,15 @@ public instance nonemptyCNFGrammarLinearOrder
   rw [(nonemptyCNF g).hasEmpty_iff]
   change [] ∈ (toChomskyNormalGrammar g).language ↔ _
   simp
+```
 
+```lean
 public def orderedSupport (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     List g.NT :=
   (activeNonterminals g).sort (· ≤ ·)
+```
 
+```lean
 public abbrev SupportNT (g : ContextFreeGrammar T) [LinearOrder g.NT] :=
   Fin (activeNonterminals g).card
 omit [LinearOrder T] in
@@ -299,14 +317,18 @@ omit [LinearOrder T] in
     [LinearOrder g.NT] :
     (activeNonterminals g).card > 0 := by
   exact Finset.card_pos.mpr ⟨g.initial, initial_mem_activeNonterminals g⟩
+```
 
+```lean
 public def encodeSupport (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (A : g.NT) : SupportNT g := by
   by_cases hA : A ∈ orderedSupport g
   · exact ⟨(orderedSupport g).idxOf A, by
       simpa [orderedSupport] using List.idxOf_lt_length_iff.mpr hA⟩
   · exact ⟨0, orderedSupport_nonempty g⟩
+```
 
+```lean
 public def decodeSupport (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (i : SupportNT g) : g.NT :=
   (orderedSupport g)[i.val]'(by simp [orderedSupport])
@@ -324,7 +346,9 @@ omit [LinearOrder T] in
     simpa [orderedSupport] using hA
   simp only [encodeSupport, dif_pos hlist, decodeSupport]
   exact List.getElem_idxOf (List.idxOf_lt_length_iff.mpr hlist)
+```
 
+```lean
 public abbrev compactSupport (g : ContextFreeGrammar T)
     [DecidableEq T] [LinearOrder g.NT] : ContextFreeGrammar T :=
   { NT := SupportNT g
@@ -454,15 +478,22 @@ omit [LinearOrder T] in
     (compactSupport g).language = g.language :=
   le_antisymm (compactSupport_language_reverse g)
     (compactSupport_language_forward g)
+```
+
+```lean
 public def embedWork {g : ContextFreeGrammar T} [LinearOrder g.NT] :
     SupportNT g → GreibachWorkNT (activeNonterminals g).card :=
   GreibachWorkNT.base
+```
 
+```lean
 public def projectWork (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     GreibachWorkNT (activeNonterminals g).card → SupportNT g
   | .base i => i
   | .recursive _ => encodeSupport g g.initial
+```
 
+```lean
 public abbrev compactWork
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     GreibachWorkGrammar T (activeNonterminals g).card :=
@@ -470,7 +501,6 @@ public abbrev compactWork
   { initial := .base compact.initial
     rules := compact.rules.image fun r =>
       ContextFreeRule.mapNonterminal (embedWork (g := g)) r }
-
 ```
 
 ```lean
@@ -568,53 +598,71 @@ public abbrev compactWork
   rw [le_antisymm (compactWork_language_reverse g)
     (compactWork_language_forward g)]
   exact compactSupport_language g
+```
 
-
-
+```lean
 public def startsWithTerminal
     (rhs : List (Symbol T (GreibachWorkNT n))) : Prop :=
   ∃ a, ∃ tail : List (GreibachWorkNT n),
     rhs = Symbol.terminal a :: tail.map Symbol.nonterminal
+```
 
-
+```lean
 public def leadingBaseIndex :
     List (Symbol T (GreibachWorkNT n)) → Option (Fin n)
   | Symbol.nonterminal (.base i) :: _ => some i
   | _ => none
+```
 
+```lean
 public abbrev isRuleForBase (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   r.input = .base i
+```
 
+```lean
 public instance (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) :
     Decidable (isRuleForBase i r) := by
   unfold isRuleForBase
   infer_instance
+```
 
+```lean
 public def isEarlierLeadingRule (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   r.input = .base i ∧
     ∃ j : Fin n, leadingBaseIndex r.output = some j ∧ j < i
+```
 
+```lean
 public def isImmediateLeftRecursive (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
   r.input = .base i ∧ leadingBaseIndex r.output = some i
+```
+
+```lean
 public abbrev rulesForBase
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     Finset (ContextFreeRule T (GreibachWorkNT n)) :=
   G.rules.filter (isRuleForBase i)
+```
 
+```lean
 public def validWorkOutput
     (rhs : List (Symbol T (GreibachWorkNT n))) : Prop :=
   startsWithTerminal rhs ∨
     ∃ j : Fin n, ∃ tail : List (GreibachWorkNT n),
       rhs = Symbol.nonterminal (.base j) ::
         tail.map Symbol.nonterminal
+```
 
+```lean
 public def WorkOutputsValid (G : GreibachWorkGrammar T n) : Prop :=
   ∀ r ∈ G.rules, validWorkOutput r.output
+```
 
+```lean
 public def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
   ∀ r ∈ G.rules, ∀ i j : Fin n,
     r.input = .base i →
@@ -678,14 +726,17 @@ public def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
     subst j
     exact ⟨encodeSupport c.cfg C, [], by
       simp [ContextFreeRule.mapNonterminal, embedWork, hBC]⟩
+```
 
-
+```lean
 public def BaseOrderedAt
     (G : GreibachWorkGrammar T n) (i : Fin n) : Prop :=
   ∀ r ∈ G.rules, r.input = .base i →
     startsWithTerminal r.output ∨
       ∃ j : Fin n, leadingBaseIndex r.output = some j ∧ i < j
+```
 
+```lean
 public def LeadingBoundAt
     (G : GreibachWorkGrammar T n) (i : Fin n) (p : Nat) : Prop :=
   ∀ r ∈ G.rules, r.input = .base i →
@@ -866,6 +917,9 @@ omit [LinearOrder T] in
     (fun head tail ihHead ihTail =>
       derives_cons_of g ihHead ihTail)
     h
+```
+
+```lean
 public def substitutedRulesFor
     (G : GreibachWorkGrammar T n) (i j : Fin n)
     (suffix : List (Symbol T (GreibachWorkNT n))) :
@@ -873,7 +927,9 @@ public def substitutedRulesFor
   (rulesForBase G j).image fun r =>
     { input := GreibachWorkNT.base i
       output := r.output ++ suffix }
+```
 
+```lean
 public def substituteEarlierRule
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) :
@@ -887,7 +943,9 @@ public def substituteEarlierRule
           exact {r}
     | _ => exact {r}
   · exact {r}
+```
 
+```lean
 public abbrev substituteEarlier
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     GreibachWorkGrammar T n :=
@@ -1188,7 +1246,9 @@ omit [LinearOrder T] in
     (substituteEarlier G i).toCFG.language = G.toCFG.language :=
   le_antisymm (substituteEarlier_language_reverse G i)
     (substituteEarlier_language_forward G i)
+```
 
+```lean
 public def SubstituteGeneratedCase
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
@@ -1199,7 +1259,6 @@ public def SubstituteGeneratedCase
       old.output = Symbol.nonterminal (.base j) :: suffix ∧
       j < i ∧ source ∈ G.rules ∧ source.input = .base j ∧
       new.input = .base i ∧ new.output = source.output ++ suffix
-
 ```
 
 ```lean
@@ -1245,7 +1304,9 @@ public def SubstituteGeneratedCase
     exact Or.inl ⟨Finset.mem_singleton.mp hnew, by
       intro h
       exact hinput h.1⟩
+```
 
+```lean
 public def eliminateImmediateRule
     (i : Fin n) (r : ContextFreeRule T (GreibachWorkNT n)) :
     Finset (ContextFreeRule T (GreibachWorkNT n)) := by
@@ -1270,7 +1331,6 @@ public def eliminateImmediateRule
               output := r.output ++
                 [Symbol.nonterminal (.recursive i)] } }
   · exact {r}
-
 ```
 
 ## 即時左再帰除去の構成
@@ -1283,7 +1343,9 @@ public abbrev eliminateImmediateLeftRecursion
     GreibachWorkGrammar T n :=
   { initial := G.initial
     rules := G.rules.biUnion (eliminateImmediateRule i) }
+```
 
+```lean
 public def RecFresh
     (G : GreibachWorkGrammar T n) (i : Fin n) : Prop :=
   ∀ r ∈ G.rules,
@@ -1476,7 +1538,9 @@ omit [LinearOrder T] in
     (h : FormTree g [] w) : w = [] := by
   cases h
   rfl
+```
 
+```lean
 public def CanAppendImmediateSymbol
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (x : Symbol T (GreibachWorkNT n)) (w : List T) : Prop :=
@@ -1490,7 +1554,9 @@ public def CanAppendImmediateSymbol
       ∀ {v : List T},
         FormTree (eliminateImmediateLeftRecursion G i).toCFG tail v →
         SymbolTree (eliminateImmediateLeftRecursion G i).toCFG x (w ++ v)
+```
 
+```lean
 public def CanAppendImmediateForm
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (xs : List (Symbol T (GreibachWorkNT n))) (w : List T) : Prop :=
@@ -1504,7 +1570,6 @@ public def CanAppendImmediateForm
         ∀ {v : List T},
           FormTree (eliminateImmediateLeftRecursion G i).toCFG tail v →
           FormTree (eliminateImmediateLeftRecursion G i).toCFG xs (w ++ v)
-
 ```
 
 ```lean
@@ -1732,7 +1797,9 @@ public def CanAppendImmediateForm
   change (eliminateImmediateLeftRecursion G i).toCFG.Derives
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   exact hderives
+```
 
+```lean
 public def ReverseImmediateSymbol
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (x : Symbol T (GreibachWorkNT n)) (w : List T) : Prop :=
@@ -1741,7 +1808,9 @@ public def ReverseImmediateSymbol
     ∀ {u : List T}, SymbolTree G.toCFG
       (.nonterminal (.base i)) u →
       SymbolTree G.toCFG (.nonterminal (.base i)) (u ++ w))
+```
 
+```lean
 public def ReverseImmediateForm
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (xs : List (Symbol T (GreibachWorkNT n))) (w : List T) : Prop :=
@@ -1834,7 +1903,9 @@ omit [LinearOrder T] in
         refine ⟨u ++ v₁, v₂, ?_, ?_, hcontinue⟩
         · simp [hv, List.append_assoc]
         · exact FormTree.cons (head.1 hpnot) hprefix
+```
 
+```lean
 public def ImmediateGeneratedCase
     (i : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
@@ -1850,7 +1921,6 @@ public def ImmediateGeneratedCase
     new.input = .recursive i ∧
     (new.output = tail ∨
       new.output = tail ++ [Symbol.nonterminal (.recursive i)])
-
 ```
 
 ```lean
@@ -2425,13 +2495,14 @@ omit [LinearOrder T] in
     exact (hik this).elim
   · rcases hleft with ⟨tail, holdInput, holdOutput, hinput, houtput⟩
     cases hnewInput.symm.trans hinput
+```
 
+```lean
 public def repeatSubstituteEarlier
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     Nat → GreibachWorkGrammar T n
   | 0 => G
   | k + 1 => substituteEarlier (repeatSubstituteEarlier G i k) i
-
 ```
 
 ```lean
@@ -2526,9 +2597,13 @@ public def repeatSubstituteEarlier
       · intro j hji
         exact repeatSubstituteEarlier_preserves_baseOrdered
           G i j k (ne_of_lt hji) (hearlier j hji)
+```
 
+```lean
 public def substitutionPasses (i : Fin n) : Nat := i.val
+```
 
+```lean
 public def orderedForwardStep
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     GreibachWorkGrammar T n :=
@@ -2625,13 +2700,14 @@ public def orderedForwardStep
           omega⟩
   · rcases hleft with ⟨tail, holdInput, holdOutput, hinput, houtput⟩
     cases hnewInput.symm.trans hinput
+```
 
+```lean
 public def orderedForwardFold :
     GreibachWorkGrammar T n → List (Fin n) →
       GreibachWorkGrammar T n
   | G, [] => G
   | G, i :: is => orderedForwardFold (orderedForwardStep G i) is
-
 ```
 
 ```lean
@@ -2645,12 +2721,13 @@ public def orderedForwardFold :
       G i (substitutionPasses i) hvalid
   · exact repeatSubstituteEarlier_baseRulesHaveTail
       G i (substitutionPasses i) hvalid htail
+```
 
+```lean
 public def FreshFor
     (G : GreibachWorkGrammar T n) (is : List (Fin n)) : Prop :=
 
   ∀ i ∈ is, RecFresh G i
-
 ```
 
 ```lean
@@ -2805,7 +2882,9 @@ public def FreshFor
   simp only [List.pairwise_iff_getElem]
   intro i j hi hj hij
   simpa using hij
+```
 
+```lean
 public def substituteLeadingRulesFor
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (input : GreibachWorkNT n)
@@ -2813,7 +2892,9 @@ public def substituteLeadingRulesFor
     Finset (ContextFreeRule T (GreibachWorkNT n)) :=
   (rulesForBase G j).image fun source =>
     { input := input, output := source.output ++ suffix }
+```
 
+```lean
 public def substituteLeadingRule
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) :
@@ -2825,13 +2906,17 @@ public def substituteLeadingRule
       else
         exact {r}
   | _ => exact {r}
+```
 
+```lean
 public def substituteLeadingBase
     (G : GreibachWorkGrammar T n) (j : Fin n) :
     GreibachWorkGrammar T n :=
   { initial := G.initial
     rules := G.rules.biUnion (substituteLeadingRule G j) }
+```
 
+```lean
 public def SubstituteLeadingCase
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n)) : Prop :=
@@ -2839,7 +2924,6 @@ public def SubstituteLeadingCase
     ∃ suffix, ∃ source ∈ rulesForBase G j,
       old.output = Symbol.nonterminal (.base j) :: suffix ∧
       new.input = old.input ∧ new.output = source.output ++ suffix
-
 ```
 
 ```lean
@@ -2961,10 +3045,15 @@ omit [LinearOrder T] in
   change G.toCFG.Derives
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   simpa only [substituteLeadingBase, List.map_id] using h
+```
+
+```lean
 public def BaseStartsWithTerminal
     (G : GreibachWorkGrammar T n) (j : Fin n) : Prop :=
   ∀ r ∈ G.rules, r.input = .base j → startsWithTerminal r.output
+```
 
+```lean
 public def LeadingAllowedBy
     (G : GreibachWorkGrammar T n) (is : List (Fin n)) : Prop :=
   ∀ r ∈ G.rules, startsWithTerminal r.output ∨
@@ -3277,7 +3366,9 @@ omit [LinearOrder T] in
     (substituteLeadingBase G j).toCFG.language = G.toCFG.language :=
   le_antisymm (substituteLeading_language_reverse G j)
     (substituteLeading_language_forward G j hterminal)
+```
 
+```lean
 public def substituteLeadingFold :
     GreibachWorkGrammar T n → List (Fin n) →
       GreibachWorkGrammar T n
@@ -3364,12 +3455,13 @@ omit [LinearOrder T] in
     (hallowed : LeadingAllowedBy G is) :
     (substituteLeadingFold G is).toCFG.language = G.toCFG.language :=
   (substituteLeadingFold_result G is hsorted hvalid hordered hallowed).2.2.2
+```
 
+```lean
 public def orderedGreibachTransform
     (G : GreibachWorkGrammar T n) : GreibachWorkGrammar T n :=
   let forward := orderedForwardFold G (List.finRange n)
   substituteLeadingFold forward (List.finRange n).reverse
-
 ```
 
 ## ordered Greibach 作業変換の完成
@@ -3464,14 +3556,18 @@ variable [LinearOrder T]
   | start
   | old (A : N)
 deriving DecidableEq, Repr
+```
 
+```lean
 public def copyInitialRule
     (r : ContextFreeRule T N) :
     ContextFreeRule T (GreibachStartNT N) :=
   { input := .start
     output := r.output.map
       (Symbol.mapNonterminal GreibachStartNT.old) }
+```
 
+```lean
 public abbrev inlineGreibachStart
     (G : ContextFreeGrammar T) [DecidableEq G.NT] :
     ContextFreeGrammar T :=
@@ -3482,7 +3578,6 @@ public abbrev inlineGreibachStart
         ContextFreeRule.mapNonterminal GreibachStartNT.old r) ∪
       ((G.rules.filter fun r => r.input = G.initial).image
         copyInitialRule) }
-
 ```
 
 ## Greibach 初期記号の展開
@@ -3700,33 +3795,38 @@ omit [LinearOrder T] in
         (inlineGreibachStart G).initial r := by
   intro r hr
   exact Or.inr (inlineGreibachStart_startsWithTerminal G hterminal r hr)
+```
 
-
-
+```lean
 public def nonemptyGreibachWork
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     GreibachWorkGrammar T
       (activeNonterminals (nonemptyCNF g).grammar.cfg).card :=
   compactWork (nonemptyCNF g).grammar.cfg
+```
 
+```lean
 public abbrev NonemptyGreibachNT
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :=
   GreibachStartNT
     (GreibachWorkNT (activeNonterminals (nonemptyCNF g).grammar.cfg).card)
+```
 
+```lean
 public def nonemptyGreibachRules
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     Finset (ContextFreeRule T (NonemptyGreibachNT g)) :=
   (inlineGreibachStart
     (orderedGreibachTransform (nonemptyGreibachWork g)).toCFG).rules
+```
 
+```lean
 public abbrev nonemptyGreibachCFG
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ContextFreeGrammar T :=
   { NT := NonemptyGreibachNT g
     initial := .start
     rules := nonemptyGreibachRules g }
-
 ```
 
 ```lean
@@ -3839,7 +3939,9 @@ section
 public def greibachEmptyRule (G : ContextFreeGrammar T) :
     ContextFreeRule T G.NT :=
   { input := G.initial, output := [] }
+```
 
+```lean
 public def restoreGreibachEpsilonRules
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     Finset (ContextFreeRule T (NonemptyGreibachNT g)) :=
@@ -3847,14 +3949,18 @@ public def restoreGreibachEpsilonRules
     then insert (greibachEmptyRule (nonemptyGreibachCFG g))
       (nonemptyGreibachRules g)
     else nonemptyGreibachRules g
+```
 
+```lean
 public abbrev restoreGreibachEpsilon
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ContextFreeGrammar T :=
   { NT := NonemptyGreibachNT g
     initial := .start
     rules := restoreGreibachEpsilonRules g }
+```
 
+```lean
 @[grind .] theorem restoreGreibachEpsilon_base_step
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (h : (nonemptyGreibachCFG g).Produces u v) :
@@ -3867,7 +3973,9 @@ public abbrev restoreGreibachEpsilon
   split
   · exact Finset.mem_insert_of_mem hr
   · exact hr
+```
 
+```lean
 @[grind .] theorem restoreGreibachEpsilon_step_without_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (hno : Symbol.nonterminal (nonemptyGreibachCFG g).initial ∉ u)
@@ -3885,6 +3993,9 @@ public abbrev restoreGreibachEpsilon
     · exact ⟨r, hr, hrewrite⟩
   next =>
     exact ⟨r, hr, hrewrite⟩
+```
+
+```lean
 @[grind .] theorem nonemptyGreibachCFG_step_preserves_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (hno : Symbol.nonterminal (nonemptyGreibachCFG g).initial ∉ u)
@@ -3895,8 +4006,9 @@ public abbrev restoreGreibachEpsilon
   simp only [List.mem_append, not_or] at hno ⊢
   exact ⟨⟨hno.1.1,
     nonemptyGreibachCFG_initial_not_output g r hr⟩, hno.2⟩
+```
 
-
+```lean
 @[grind .] theorem restoreGreibachEpsilon_derives_without_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ∀ {u v},
@@ -4105,7 +4217,9 @@ omit [LinearOrder T] in
     · exact nonemptyGreibachCFG_initial_not_output g r hr
   next =>
     exact nonemptyGreibachCFG_initial_not_output g r hr
+```
 
+```lean
 /-- Computably convert a context-free grammar with ordered symbols to an
 equivalent grammar in Greibach normal form. -/
 public def toGreibachNormalGrammar
@@ -4114,7 +4228,6 @@ public def toGreibachNormalGrammar
   { cfg := restoreGreibachEpsilon g
     greibachNormal := restoreGreibachEpsilon_greibach g
     initial_not_output := restoreGreibachEpsilon_initial_not_output g }
-
 ```
 
 ```lean

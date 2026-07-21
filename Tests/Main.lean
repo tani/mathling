@@ -165,7 +165,9 @@ def oneTurnRegressionMachine : OneTurnNPDA Unit OneTurnRegressionState Bool wher
     rcases hr with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
       simp_all [growRule, pushNeutralRule, switchRule, popNeutralRule,
         popFirstRule, popMiddleRule, popLastRule]
+```
 
+```lean
 private theorem regressionEpsilonStep
     (r : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool)
     (hr : r ∈ oneTurnRegressionMachine.rules) (hinput : r.input = none)
@@ -178,7 +180,6 @@ private theorem regressionEpsilonStep
   · change r ∈ oneTurnRegressionMachine.rules
     exact hr
   · exact hinput
-
 ```
 
 ```lean
@@ -338,7 +339,9 @@ def run : IO Unit :=
   IO.println "Mathling regression proofs compiled successfully."
 
 end Mathling.Tests
+```
 
+```lean
 public def main : IO Unit := Mathling.Tests.run
 ```
 
