@@ -15,7 +15,7 @@
 
 ## LiterateLean is mandatory
 
-Every project-owned Lean source module must be written as a LiterateLean document. This applies to root examples, tests, smoke modules, and every module under `QASM/`. It does not apply to `lakefile.lean`, generated files, or vendored fixtures.
+Every project-owned Lean source module must be written as a LiterateLean document. This applies to the root façade, tests, examples, smoke modules, and every module under `Mathling/`. It does not apply to `lakefile.toml`, generated files, or vendored fixtures.
 
 For every affected `.lean` file:
 
@@ -26,7 +26,7 @@ For every affected `.lean` file:
 5. Put explanatory Markdown prose outside Lean fences. Explain contracts, invariants, data flow, failure behavior, and architectural boundaries—not a line-by-line paraphrase of the code.
 6. Put executable declarations only inside explicit ```lean` fences. Namespace and section commands, including every matching `end`, must remain inside Lean fences.
 7. Split large modules into coherent sections with prose between fences. Do not hide an entire production module in one monolithic fence merely to satisfy the syntax.
-8. Keep prose synchronized with implementation changes. In particular, describe the canonical `QASM.IR.Program` pipeline and shared `QASM.Execution.run` interpreter accurately; do not revive obsolete native-control-flow or `CheckedProgramInfo` descriptions.
+8. Keep prose synchronized with implementation changes. In particular, describe the canonical `Mathling` API, conversion pipeline, and any shared execution or normalization story accurately; do not revive obsolete internal-control-flow descriptions.
 9. Use MathJax for type, shape, algebraic, and invariant relationships, and Mermaid for data flow, state transitions, dependency boundaries, and execution phases. Add a visual only when it makes the contract easier to scan; keep prose beside it so the document remains understandable when diagram rendering is unavailable.
 
 The documentation workflow is:
@@ -61,9 +61,10 @@ The footer is prose. Never place it inside a Lean fence, and never append a seco
 After changing LiterateLean structure or prose:
 
 - Check that every opening fence is paired, headings do not skip levels, no Lean command escaped a fence, and the canonical footer is the final non-whitespace content.
-- Run `lake build QASM lean_qasm_tests`.
+- Run `Scripts/check_literatelean.sh` and `Scripts/check_visibility_policy.sh`.
+- Run `lake build Mathling mathlingTests`.
 - Run `lake test` when executable behavior or test sources changed.
-- Compile changed files that are outside Lake targets with `lake env lean <file>`. Current standalone modules are `Examples/Bell.lean` and `Tests/Lowering.lean`; any future smoke or scratch module not imported by `QASM.lean` must also be checked directly.
+- Compile changed files that are outside Lake targets with `lake env lean <file>`. If the repository gains standalone smoke or scratch modules that are not imported by `Mathling.lean` or exercised by `mathlingTests`, list them here explicitly and check them directly.
 
 A successful build does not excuse malformed Markdown, stale prose, missing standalone checks, or a footer inside executable code.
 

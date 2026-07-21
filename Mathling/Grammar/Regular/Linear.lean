@@ -22,7 +22,11 @@ Production-tree semantics and the one-turn NPDA construction for linear grammars
 
 namespace Mathling.Grammar
 
+end Mathling.Grammar
+
 namespace Language
+
+open Mathling.Grammar
 
 variable {T : Type*}
 
@@ -42,6 +46,8 @@ variable {T : Type*}
   exact ⟨g.cfg, rfl⟩
 
 end Language
+
+namespace Mathling.Grammar
 
 namespace LinearGrammar
 
@@ -205,13 +211,6 @@ variable {T : Type*}
         · simpa [List.append_assoc] using heq
         · exact LinearGenerates.branch hr hout hmiddle
 
-```
-
-## 木構造意味論と通常の導出の一致
-
-前節で定義した `LinearGenerates` は、生成規則の適用を明示的な木として表現した帰納的述語である。`generates_derives` と `derives_linear_context` はそれぞれ、この木構造意味論から Mathlib の `Derives` 関係への含意と、その逆方向の含意を与える。`linearGenerates_iff` はこの両者を組み合わせ、文法の初期記号から導出できる言語 `g.language` の要素と、`LinearGenerates` によって生成される終端列とが過不足なく一致することを確立する。以降では、この同値性を唯一の橋渡しとして、木構造上の議論とオートマトンの実行列に関する議論とを行き来する。
-
-```lean
 /-- Production trees and context-free derivations agree for linear grammars. -/
 @[grind .] theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
     LinearGenerates g g.cfg.initial w ↔ w ∈ g.language := by
@@ -226,365 +225,931 @@ variable {T : Type*}
 
 ```
 
-## 生成規則駆動の一回転 NPDA
+## 一回転プッシュダウン・オートマトンの構成
 
-`LinearGenerates` の各生成木を、実行時に１本のスタック操作列としてシミュレートするのが `toOneTurnNPDA` である。線形文法の規則は「終端列のみ」（leaf）か「前後を終端列で挟んだ単一の非終端記号」（branch）のいずれかの形しか取り得ない（`g.linear` と `split_linear_output` が保証する）。したがって PDA は、規則を１つ選んだあと、その出力を左から右へなぞりながら push フェーズで入力を消費し、非終端記号に達したら子の導出へ、終端記号のみになったら pop フェーズへの折り返しへ進む、という単純な制御構造で足りる。
-
-制御状態 `LinearPDAState` は「選んだ規則のどこまで処理し終えたか」を型として直接表現する。
-
-- `derive A`：非終端記号 `A` をこれから導出しようとしている状態。
-- `prefixLeaf r hr word todo hout`：leaf 規則 `r` を選び、その出力全体 `word` のうち残り `todo` をまだ消費し終えていない状態。
-- `prefixBranch r hr pre todo B suffix hout`：branch 規則 `r` を選び、前置終端列の残り `todo` を消費している最中の状態（消費し終えれば非終端記号 `B` と後置終端列 `suffix` が控えている）。
-- `pushBranch B suffix todo`：`prefixBranch` の消費が終わり、後置終端列 `suffix` を１文字ずつスタックへ積んでいく途中の状態（`todo` は積み残し）。
-- `matchStack`：入力の残りとスタックの中身を pop フェーズで突き合わせる状態。
-- `finished`：受理状態。
-
-`LinearRawStep` はこれらの状態間の局所遷移を１個ずつ与える。
-
-```mermaid
-stateDiagram-v2
-    [*] --> derive
-    derive --> prefixLeaf: chooseLeaf（規則が leaf 形）
-    derive --> prefixBranch: chooseBranch（規則が branch 形）
-    prefixLeaf --> prefixLeaf: consumeLeaf（終端を1つ消費）
-    prefixLeaf --> matchStack: finishLeaf（push→pop へ折り返し）
-    prefixBranch --> prefixBranch: consumeBranch（前置終端を1つ消費）
-    prefixBranch --> pushBranch: beginPush
-    pushBranch --> pushBranch: push（後置終端を1つスタックへ）
-    pushBranch --> derive: continue（子の非終端へ再帰）
-    matchStack --> matchStack: matchStack（スタックと入力を1つずつ照合）
-    matchStack --> finished: finish
-    finished --> [*]
-```
-
-構成子をこのように細かく分けているのは、後段の `LinearGood` 不変条件がちょうど１ステップごとに保存されることを個別に確認できるようにするためであり、`toOneTurnNPDA` 自体はこれらの局所遷移を非決定的に合併しただけの定義になっている。`pop_stays_pop`／`push_phase_nonshrinking`／`pop_phase_nongrowing` は、この構成が push フェーズで積んだ分だけ pop フェーズで消費して終わるという `OneTurnNPDA`（一回転 PDA）の形状要件を満たすことを保証する。
+`LinearGenerates` の各生成木を、実行時にスタック操作列としてシミュレートするのが `toOneTurnNPDA` である。状態遷移はすべて有限個の局所規則のみで記述され、状態空間は文法規則ごとの進行度を記録する。
 
 ```lean
+open Mathling.Automata
+open Mathling.Automata.NPDA
+
+/-- The stack alphabet for the linear grammar PDA. -/
+@[grind cases] public inductive LinearStack (T : Type*) where
+  | bottom
+  | old (a : T)
+  deriving Repr, DecidableEq
+
+/-- The terminal symbols appearing in the rules of the grammar. -/
+public noncomputable def terminalSupport (g : LinearGrammar T) : List T :=
+  g.cfg.rules.toList.flatMap fun r => r.output.filterMap fun
+    | Symbol.terminal a => some a
+    | _ => none
+
+/-- All possible stack symbols in reachable runs of the PDA. -/
+public noncomputable def stackSymbols (g : LinearGrammar T) : List (LinearStack T) :=
+  LinearStack.bottom :: (terminalSupport g).map LinearStack.old
+
+/-- Extract the nonterminal of a linear rule if it exists. -/
+public def ruleNonterminal (r : ContextFreeRule T N) (default : N) : N :=
+  match r.output.filterMap (fun
+    | Symbol.nonterminal B => some B
+    | _ => none) with
+  | B :: _ => B
+  | [] => default
+
+private theorem drop_eq_cons_drop {A : Type*} (L : List A) (idx : Nat) (h : idx < L.length) :
+    L.drop idx = L[idx] :: L.drop (idx + 1) := by
+  induction idx generalizing L with
+  | zero =>
+      cases L with
+      | nil => contradiction
+      | cons x xs => rfl
+  | succ idx ih =>
+      cases L with
+      | nil => contradiction
+      | cons x xs =>
+          simp only [List.length_cons] at h
+          have hlt : idx < xs.length := by omega
+          have ih' := ih xs hlt
+          simp only [List.drop_succ_cons, List.getElem_cons_succ]
+          exact ih'
+
+private def ruleNonterminals (xs : List (Symbol T N)) : List N :=
+  xs.filterMap fun
+    | Symbol.nonterminal A => some A
+    | _ => none
+private theorem ruleNonterminals_eq_singleton {xs : List (Symbol T N)} {B : N}
+    (hc : xs.countP (symbolIsNonterminal (T := T)) ≤ 1)
+    (hm : Symbol.nonterminal B ∈ xs) : ruleNonterminals xs = [B] := by
+  induction xs with
+  | nil => simp at hm
+  | cons x xs ih =>
+      cases x with
+      | terminal a =>
+          simp only [List.countP_cons, symbolIsNonterminal, Bool.false_eq_true, if_false] at hc
+          simp only [List.mem_cons] at hm
+          rcases hm with h | h
+          · contradiction
+          · simpa [ruleNonterminals] using ih hc h
+      | nonterminal A =>
+          simp only [List.countP_cons, symbolIsNonterminal, if_true] at hc
+          have hz : xs.countP (symbolIsNonterminal (T := T)) = 0 := by omega
+          have hnil : ruleNonterminals xs = [] := by
+            apply List.filterMap_eq_nil_iff.mpr
+            intro y hy
+            cases y with
+            | terminal a => rfl
+            | nonterminal C =>
+                have hfalse := (List.countP_eq_zero.mp hz) (Symbol.nonterminal C) hy
+                simp [symbolIsNonterminal] at hfalse
+          simp only [List.mem_cons] at hm
+          rcases hm with h | h
+          · cases h
+            change B :: ruleNonterminals xs = [B]
+            rw [hnil]
+          · have hfalse := (List.countP_eq_zero.mp hz) (Symbol.nonterminal B) h
+            simp [symbolIsNonterminal] at hfalse
+
+private theorem ruleNonterminal_eq {T : Type*} (g : LinearGrammar T)
+    (r : ContextFreeRule T g.cfg.NT) (hr : r ∈ g.cfg.rules) (idx : Nat) (B : g.cfg.NT)
+    (hidx : idx < r.output.length) (hB : r.output[idx] = Symbol.nonterminal B) :
+    ruleNonterminal r g.cfg.initial = B := by
+  have hcount : r.output.countP (symbolIsNonterminal) ≤ 1 := g.linear r hr
+  have hm : Symbol.nonterminal B ∈ r.output := by
+    rw [← hB]
+    exact List.getElem_mem (l := r.output) (n := idx) (h := hidx)
+  have hone := ruleNonterminals_eq_singleton hcount hm
+  unfold ruleNonterminal
+  unfold ruleNonterminals at hone
+  rw [hone]
+
+private theorem nonterminal_position_unique {N : Type*} {xs : List (Symbol T N)}
+    {pre suffix : List T} {C B : N} {idx : Nat}
+    (hout : xs = terminalSymbols pre ++ [Symbol.nonterminal C] ++ terminalSymbols suffix)
+    (hidx : idx < xs.length) (heq : xs[idx] = Symbol.nonterminal B) :
+    idx = pre.length ∧ B = C := by
+  have hopt : xs[idx]? = some (Symbol.nonterminal B) := by
+    rw [List.getElem?_eq_getElem hidx, heq]
+  have hout' : xs = terminalSymbols pre ++
+      (Symbol.nonterminal C :: terminalSymbols suffix) := by
+    simpa [List.append_assoc] using hout
+  rw [hout', List.getElem?_append] at hopt
+  have hlen : (@terminalSymbols T N pre).length = pre.length := by
+    simp [terminalSymbols]
+  rw [hlen] at hopt
+  by_cases hi : idx < pre.length
+  · rw [if_pos hi, List.getElem?_map] at hopt
+    cases hpre : pre[idx]? <;> simp [hpre] at hopt
+  · rw [if_neg hi] at hopt
+    simp only [terminalSymbols] at hopt
+    have hle : pre.length ≤ idx := by omega
+    by_cases hz : idx - pre.length = 0
+    · have hpos : idx = pre.length := by omega
+      subst idx
+      simp at hopt
+      exact ⟨rfl, hopt.symm⟩
+    · obtain ⟨k, hk⟩ : ∃ k, idx - pre.length = k + 1 := by
+        use idx - pre.length - 1
+        omega
+      rw [hk] at hopt
+      simp only [List.getElem?_cons_succ, List.getElem?_map] at hopt
+      cases hsuffix : suffix[k]? <;> simp [hsuffix] at hopt
 /-- Control states for the production-driven linear-grammar PDA. -/
 @[grind cases] public inductive LinearPDAState (g : LinearGrammar T) where
   | derive (A : g.cfg.NT)
-  | prefixLeaf (r : ContextFreeRule T g.cfg.NT) (hr : r ∈ g.cfg.rules)
-      (word todo : List T) (hout : r.output = terminalSymbols word)
-  | prefixBranch (r : ContextFreeRule T g.cfg.NT) (hr : r ∈ g.cfg.rules)
-      (pre todo : List T) (B : g.cfg.NT) (suffix : List T)
-      (hout : r.output =
-        terminalSymbols pre ++ [Symbol.nonterminal B] ++ terminalSymbols suffix)
-  | pushBranch (B : g.cfg.NT) (suffix todo : List T)
+  | scan (r : ContextFreeRule T g.cfg.NT) (idx : Nat)
+  | pushBranch (r : ContextFreeRule T g.cfg.NT) (idx : Nat)
   | matchStack
   | finished
 
 namespace Internal
 
-/-- Local micro-transitions for the linear-grammar PDA. -/
-@[grind cases] inductive LinearRawStep (g : LinearGrammar T) :
-    LinearPDAState g → Mathling.Automata.TurnPhase → Option T → List T →
-      LinearPDAState g → Mathling.Automata.TurnPhase → List T → Prop
-  | chooseLeaf {r word stack}
-      (hr : r ∈ g.cfg.rules) (hout : r.output = terminalSymbols word) :
-      LinearRawStep g (.derive r.input) .push none stack
-        (.prefixLeaf r hr word word hout) .push stack
-  | chooseBranch {r pre B suffix stack}
-      (hr : r ∈ g.cfg.rules)
-      (hout : r.output =
-        terminalSymbols pre ++ [Symbol.nonterminal B] ++ terminalSymbols suffix) :
-      LinearRawStep g (.derive r.input) .push none stack
-        (.prefixBranch r hr pre pre B suffix hout) .push stack
-  | consumeLeaf {r hr word a todo hout stack} :
-      LinearRawStep g (.prefixLeaf r hr word (a :: todo) hout) .push
-        (some a) stack (.prefixLeaf r hr word todo hout) .push stack
-  | consumeBranch {r hr pre a todo B suffix hout stack} :
-      LinearRawStep g (.prefixBranch r hr pre (a :: todo) B suffix hout) .push
-        (some a) stack (.prefixBranch r hr pre todo B suffix hout) .push stack
-  | finishLeaf {r hr word hout stack} :
-      LinearRawStep g (.prefixLeaf r hr word [] hout) .push none stack
-        .matchStack .pop stack
-  | beginPush {r hr pre B suffix hout stack} :
-      LinearRawStep g (.prefixBranch r hr pre [] B suffix hout) .push none stack
-        (.pushBranch B suffix suffix.reverse) .push stack
-  | push {B suffix a todo stack} :
-      LinearRawStep g (.pushBranch B suffix (a :: todo)) .push none stack
-        (.pushBranch B suffix todo) .push (a :: stack)
-  | continue {B suffix stack} :
-      LinearRawStep g (.pushBranch B suffix []) .push none stack
-        (.derive B) .push stack
-  | matchStack {a stack} :
-      LinearRawStep g .matchStack .pop (some a) (a :: stack)
-        .matchStack .pop stack
-  | finish :
-      LinearRawStep g .matchStack .pop none [] .finished .pop []
+variable {T : Type*}
+
+public noncomputable def toOneTurnNPDARules (g : LinearGrammar T) :
+    List (PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) :=
+  (g.cfg.rules.toList.flatMap fun r =>
+    (stackSymbols g).map fun s =>
+      { source := (.derive r.input, .push), input := none, pop := s,
+        target := (.scan r 0, .push), push := [s] }) ++
+  (g.cfg.rules.toList.flatMap fun r =>
+    (List.range (r.output.length + 1)).flatMap fun idx =>
+      (stackSymbols g).flatMap fun s =>
+        if h : idx < r.output.length then
+          match r.output[idx] with
+          | Symbol.terminal a =>
+              [{ source := (.scan r idx, .push), input := some a, pop := s,
+                 target := (.scan r (idx + 1), .push), push := [s] }]
+          | Symbol.nonterminal B =>
+              [{ source := (.scan r idx, .push), input := none, pop := s,
+                 target := (.pushBranch r r.output.length, .push), push := [s] }]
+        else
+          [{ source := (.scan r idx, .push), input := none, pop := s,
+             target := (.matchStack, .pop), push := [s] }]) ++
+  (g.cfg.rules.toList.flatMap fun r =>
+    (List.range (r.output.length + 1)).flatMap fun idx =>
+      (stackSymbols g).flatMap fun s =>
+        if 0 < idx then
+          match r.output.drop (idx - 1) with
+          | Symbol.terminal a :: _ =>
+              [{ source := (.pushBranch r idx, .push), input := none, pop := s,
+                 target := (.pushBranch r (idx - 1), .push), push := [LinearStack.old a, s] }]
+          | Symbol.nonterminal B :: _ =>
+              [{ source := (.pushBranch r idx, .push), input := none, pop := s,
+                 target := (.derive B, .push), push := [s] }]
+          | [] => []
+        else []) ++
+  ((terminalSupport g).map fun a =>
+    { source := (.matchStack, .pop), input := some a, pop := .old a,
+      target := (.matchStack, .pop), push := [] }) ++
+  [{ source := (.matchStack, .pop), input := none, pop := .bottom,
+     target := (.finished, .pop), push := [] }]
 
 end Internal
 
 open Internal
 
 /-- Convert a linear grammar to a local, production-driven one-turn NPDA. -/
-public def toOneTurnNPDA (g : LinearGrammar T) :
-    Mathling.Automata.OneTurnNPDA T (LinearPDAState g) T where
-  step q phase sym stack :=
-    {next | Internal.LinearRawStep g q phase sym stack next.1 next.2.1 next.2.2}
-  start := {.derive g.cfg.initial}
-  accept := {.finished}
-  initialStack := []
+public noncomputable def toOneTurnNPDA (g : LinearGrammar T) :
+    OneTurnNPDA T (LinearPDAState g) (LinearStack T) where
+  rules := toOneTurnNPDARules g
+  start := [.derive g.cfg.initial]
+  accept := [.finished]
+  initialStack := [.bottom]
   pop_stays_pop := by
-    intro q p sym stack q' p' stack' h hp
-    cases h <;> simp_all
+    intro r hr hp
+    unfold toOneTurnNPDARules at hr
+    simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range,
+      List.mem_singleton] at hr
+    aesop
   push_phase_nonshrinking := by
-    intro q sym stack q' stack' h
-    cases h <;> simp
+    intro r hr hp
+    unfold toOneTurnNPDARules at hr
+    simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range,
+      List.mem_singleton] at hr
+    aesop
   pop_phase_nongrowing := by
-    intro q p sym stack q' stack' h
-    cases h <;> simp
+    intro r hr hp
+    unfold toOneTurnNPDARules at hr
+    simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range,
+      List.mem_singleton] at hr
+    aesop
 
+private theorem chooseRule_mem (g : LinearGrammar T)
+    {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
+    {s : LinearStack T} (hs : s ∈ stackSymbols g) :
+    ({ source := (.derive r.input, .push), input := none, pop := s,
+       target := (.scan r 0, .push), push := [s] } :
+      PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) ∈
+        toOneTurnNPDARules g := by
+  simp [toOneTurnNPDARules, hr, hs]
+
+private theorem scanTerminalRule_mem (g : LinearGrammar T)
+    {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
+    {idx : Nat} (hlt : idx < r.output.length) {a : T}
+    (heq : r.output[idx] = Symbol.terminal a)
+    {s : LinearStack T} (hs : s ∈ stackSymbols g) :
+    ({ source := (.scan r idx, .push), input := some a, pop := s,
+       target := (.scan r (idx + 1), .push), push := [s] } :
+      PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) ∈
+        toOneTurnNPDARules g := by
+  unfold toOneTurnNPDARules
+  simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range]
+  left; left; left; right
+  refine ⟨r, by simpa using hr, idx, by omega, s, hs, ?_⟩
+  rw [dif_pos hlt, heq]
+  simp
+
+private theorem scanNonterminalRule_mem (g : LinearGrammar T)
+    {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
+    {idx : Nat} (hlt : idx < r.output.length) {B : g.cfg.NT}
+    (heq : r.output[idx] = Symbol.nonterminal B)
+    {s : LinearStack T} (hs : s ∈ stackSymbols g) :
+    ({ source := (.scan r idx, .push), input := none, pop := s,
+       target := (.pushBranch r r.output.length, .push), push := [s] } :
+      PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) ∈
+        toOneTurnNPDARules g := by
+  unfold toOneTurnNPDARules
+  simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range]
+  left; left; left; right
+  refine ⟨r, by simpa using hr, idx, by omega, s, hs, ?_⟩
+  rw [dif_pos hlt, heq]
+  simp
+
+private theorem scanFinishRule_mem (g : LinearGrammar T)
+    {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
+    {idx : Nat} (hidx : idx ≤ r.output.length) (hle : r.output.length ≤ idx)
+    {s : LinearStack T} (hs : s ∈ stackSymbols g) :
+    ({ source := (.scan r idx, .push), input := none, pop := s,
+       target := (.matchStack, .pop), push := [s] } :
+      PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) ∈
+        toOneTurnNPDARules g := by
+  unfold toOneTurnNPDARules
+  simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range]
+  left; left; left; right
+  refine ⟨r, by simpa using hr, idx, by omega, s, hs, ?_⟩
+  rw [dif_neg (by omega)]
+  simp
+
+private theorem pushTerminalRule_mem (g : LinearGrammar T)
+    {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
+    {idx : Nat} (hidx : idx ≤ r.output.length) (hpos : 0 < idx) {a : T}
+    {tail : List (Symbol T g.cfg.NT)}
+    (heq : r.output.drop (idx - 1) = Symbol.terminal a :: tail)
+    {s : LinearStack T} (hs : s ∈ stackSymbols g) :
+    ({ source := (.pushBranch r idx, .push), input := none, pop := s,
+       target := (.pushBranch r (idx - 1), .push), push := [.old a, s] } :
+      PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) ∈
+        toOneTurnNPDARules g := by
+  unfold toOneTurnNPDARules
+  simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range]
+  left; left; right
+  refine ⟨r, by simpa using hr, idx, by omega, s, hs, ?_⟩
+  rw [if_pos hpos, heq]
+  simp
+
+private theorem pushNonterminalRule_mem (g : LinearGrammar T)
+    {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
+    {idx : Nat} (hidx : idx ≤ r.output.length) (hpos : 0 < idx) {B : g.cfg.NT}
+    {tail : List (Symbol T g.cfg.NT)}
+    (heq : r.output.drop (idx - 1) = Symbol.nonterminal B :: tail)
+    {s : LinearStack T} (hs : s ∈ stackSymbols g) :
+    ({ source := (.pushBranch r idx, .push), input := none, pop := s,
+       target := (.derive B, .push), push := [s] } :
+      PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) ∈
+        toOneTurnNPDARules g := by
+  unfold toOneTurnNPDARules
+  simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range]
+  left; left; right
+  refine ⟨r, by simpa using hr, idx, by omega, s, hs, ?_⟩
+  rw [if_pos hpos, heq]
+  simp
+
+private theorem matchRule_mem (g : LinearGrammar T) {a : T}
+    (ha : a ∈ terminalSupport g) :
+    ({ source := (.matchStack, .pop), input := some a, pop := .old a,
+       target := (.matchStack, .pop), push := [] } :
+      PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) ∈
+        toOneTurnNPDARules g := by
+  simp [toOneTurnNPDARules, ha]
+
+private theorem finishRule_mem (g : LinearGrammar T) :
+    ({ source := (.matchStack, .pop), input := none, pop := .bottom,
+       target := (.finished, .pop), push := [] } :
+      PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)) ∈
+        toOneTurnNPDARules g := by
+  simp [toOneTurnNPDARules]
 ```
 
 ## 順方向：生成木から実行列を構成する
 
-以降の `_reaches` 系の補題は、`LinearRawStep` の１ステップ遷移を繰り返し適用して、`toOneTurnNPDA` が意図した通りの複数ステップ実行列（`Reaches`）を持つことを示す部品である。それぞれが `LinearPDAState` の１つの構成子に対応するミクロな振る舞いを切り出しており、続く `generates_reaches` はこれらを規則の形（leaf／branch）に応じて組み合わせるだけで済む。
-
-- `consumeLeaf_reaches`：`prefixLeaf` 状態で残りの終端列 `todo` を１文字ずつ消費し尽くすまでの実行列。
-- `consumeBranch_reaches`：同様に `prefixBranch` 状態で前置終端列の残りを消費し尽くすまでの実行列。
-- `pushBranch_reaches`：`pushBranch` 状態で後置終端列 `todo` を先頭から１文字ずつスタックへ積み、`todo.reverse` がスタックの上に乗った状態で `derive B` へ遷移するまでの実行列。push は入力側の消費と逆向きの操作であるため、積み終えた結果が `todo.reverse ++ stack` という反転した順序になる点に注意されたい。
-- `matchStack_reaches`：`matchStack` 状態で入力の残りとスタックの中身を１文字ずつ突き合わせ、両者を使い切ったところで `finished` 状態へ折り返すまでの実行列。
+以降の `_reaches` 系の補題は、`toOneTurnNPDA` が意図した通りの複数ステップ実行列を持つことを示す部品である。
 
 ```lean
-@[grind .] private theorem consumeLeaf_reaches (g : LinearGrammar T)
-    {r : ContextFreeRule T g.cfg.NT} {hr : r ∈ g.cfg.rules}
-    {word : List T} {hout : r.output = terminalSymbols word}
-    (todo rest stack : List T) :
+@[grind .] private theorem scan_terminals_reaches (g : LinearGrammar T)
+    {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
+    (idx : Nat) (word : List T)
+    (hsub : (r.output.drop idx).take word.length = word.map Symbol.terminal)
+    {s : LinearStack T} (hs : s ∈ stackSymbols g)
+    (input : List T) (stack : List (LinearStack T)) :
     g.toOneTurnNPDA.Reaches
-      (todo ++ rest, (.prefixLeaf r hr word todo hout, .push), stack)
-      (rest, (.prefixLeaf r hr word [] hout, .push), stack) := by
-  induction todo with
+      (word ++ input, (.scan r idx, .push), s :: stack)
+      (input, (.scan r (idx + word.length), .push), s :: stack) := by
+  induction word generalizing idx with
   | nil => exact Relation.ReflTransGen.refl
   | cons a todo ih =>
+      have hlt : idx < r.output.length := by
+        by_contra hc
+        have hle : r.output.length ≤ idx := by omega
+        rw [List.drop_eq_nil_of_le hle] at hsub
+        simp at hsub
+      have hshape := hsub
+      rw [drop_eq_cons_drop r.output idx hlt] at hshape
+      simp only [List.length_cons, List.take_succ_cons, List.map_cons, List.cons.injEq] at hshape
+      have heq : r.output[idx] = Symbol.terminal a := hshape.1
+      have hL : r.output.drop idx = Symbol.terminal a :: r.output.drop (idx + 1) := by
+        rw [drop_eq_cons_drop r.output idx hlt, heq]
+      have hsub' : (r.output.drop (idx + 1)).take todo.length = todo.map Symbol.terminal := by
+        exact hshape.2
       have hstep : g.toOneTurnNPDA.Step
-          (a :: todo ++ rest, (.prefixLeaf r hr word (a :: todo) hout, .push), stack)
-          (todo ++ rest, (.prefixLeaf r hr word todo hout, .push), stack) := by
-        apply Mathling.Automata.OneTurnNPDA.Step.consume
-        change LinearRawStep g _ _ _ _ _ _ _
-        exact LinearRawStep.consumeLeaf
-      exact ih.head hstep
+          (a :: todo ++ input, (.scan r idx, .push), s :: stack)
+          (todo ++ input, (.scan r (idx + 1), .push), s :: stack) := by
+        refine Step.consume (M := g.toOneTurnNPDA.toNPDA)
+          { source := (.scan r idx, .push), input := some a, pop := s,
+            target := (.scan r (idx + 1), .push), push := [s] }
+          ?_ rfl
+        change _ ∈ toOneTurnNPDARules g
+        exact scanTerminalRule_mem g hr hlt heq hs
+      have hrest := ih (idx + 1) hsub'
+      apply Relation.ReflTransGen.head hstep
+      simpa only [List.length_cons, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hrest
 
-@[grind .] private theorem consumeBranch_reaches (g : LinearGrammar T)
-    {r : ContextFreeRule T g.cfg.NT} {hr : r ∈ g.cfg.rules}
-    {pre : List T} {B : g.cfg.NT} {suffix : List T}
-    {hout : r.output =
-      terminalSymbols pre ++ [Symbol.nonterminal B] ++ terminalSymbols suffix}
-    (todo rest stack : List T) :
+@[grind .] private theorem pushBranch_reaches (g : LinearGrammar T)
+    {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
+    (pre : List T) (B : g.cfg.NT) (todo trail : List T)
+    (hout : r.output = terminalSymbols pre ++ [Symbol.nonterminal B] ++
+      terminalSymbols todo ++ terminalSymbols trail)
+    {s : LinearStack T} (hs : s ∈ stackSymbols g)
+    (input : List T) (stack : List (LinearStack T)) :
     g.toOneTurnNPDA.Reaches
-      (todo ++ rest, (.prefixBranch r hr pre todo B suffix hout, .push), stack)
-      (rest, (.prefixBranch r hr pre [] B suffix hout, .push), stack) := by
-  induction todo with
+      (input, (.pushBranch r (pre.length + 1 + todo.length), .push), s :: stack)
+      (input, (.derive B, .push), (todo.map LinearStack.old) ++ s :: stack) := by
+  induction todo using List.reverseRecOn generalizing trail s stack with
+  | nil =>
+      have hidx : pre.length + 1 ≤ r.output.length := by
+        rw [hout]
+        simp only [terminalSymbols, List.length_append, List.length_map, List.length_cons,
+          List.length_nil]
+        omega
+      have hhead : r.output.drop (pre.length + 1 - 1) =
+          Symbol.nonterminal B :: terminalSymbols trail := by
+        have hout' : r.output = terminalSymbols pre ++
+            (Symbol.nonterminal B :: terminalSymbols trail) := by
+          simpa [List.append_assoc] using hout
+        rw [hout']
+        have hlen : pre.length + 1 - 1 =
+            (@terminalSymbols T g.cfg.NT pre).length := by
+          simp [terminalSymbols]
+        rw [hlen]
+        exact List.drop_left
+      apply Relation.ReflTransGen.single
+      refine Step.epsilon (M := g.toOneTurnNPDA.toNPDA)
+        { source := (.pushBranch r (pre.length + 1), .push), input := none, pop := s,
+          target := (.derive B, .push), push := [s] } ?_ rfl
+      change _ ∈ toOneTurnNPDARules g
+      exact pushNonterminalRule_mem g hr hidx (by omega) hhead hs
+  | append_singleton todo a ih =>
+      have hidx : pre.length + 1 + (todo ++ [a]).length ≤ r.output.length := by
+        rw [hout]
+        simp only [terminalSymbols, List.length_append, List.length_map, List.length_cons,
+          List.length_nil]
+        omega
+      have hhead : r.output.drop (pre.length + 1 + (todo ++ [a]).length - 1) =
+          Symbol.terminal a :: terminalSymbols trail := by
+        have hout' : r.output =
+            (terminalSymbols pre ++ [Symbol.nonterminal B] ++ terminalSymbols todo) ++
+              (Symbol.terminal a :: terminalSymbols trail) := by
+          simpa [terminalSymbols, List.map_append, List.append_assoc] using hout
+        rw [hout']
+        have hlen : pre.length + (todo.length + 1) =
+            (terminalSymbols pre ++ [Symbol.nonterminal B] ++ terminalSymbols todo).length := by
+          simp only [terminalSymbols, List.length_append, List.length_map, List.length_cons,
+            List.length_nil]
+          omega
+        have hindex : pre.length + 1 + (todo ++ [a]).length - 1 =
+            pre.length + (todo.length + 1) := by
+          simp
+          omega
+        rw [hindex, hlen]
+        exact List.drop_left
+      have ha_rule : Symbol.terminal a ∈ r.output := by
+        rw [hout]
+        simp [terminalSymbols]
+      have ha_mem : a ∈ terminalSupport g := by
+        unfold terminalSupport
+        simp only [List.mem_flatMap, List.mem_filterMap]
+        exact ⟨r, by simpa using hr, Symbol.terminal a, ha_rule, rfl⟩
+      have hsa : LinearStack.old a ∈ stackSymbols g := by
+        unfold stackSymbols
+        simp only [List.mem_cons, List.mem_map]
+        exact Or.inr ⟨a, ha_mem, rfl⟩
+      have hstep : g.toOneTurnNPDA.Step
+          (input, (.pushBranch r (pre.length + 1 + (todo ++ [a]).length), .push), s :: stack)
+          (input, (.pushBranch r (pre.length + 1 + todo.length), .push), .old a :: s :: stack) := by
+        refine Step.epsilon (M := g.toOneTurnNPDA.toNPDA)
+          { source := (.pushBranch r (pre.length + 1 + (todo ++ [a]).length), .push),
+            input := none, pop := s,
+            target := (.pushBranch r (pre.length + 1 + todo.length), .push),
+            push := [.old a, s] } ?_ rfl
+        change _ ∈ toOneTurnNPDARules g
+        simpa using pushTerminalRule_mem g hr hidx (by omega) hhead hs
+      have hout' : r.output = terminalSymbols pre ++ [Symbol.nonterminal B] ++
+          terminalSymbols todo ++ terminalSymbols (a :: trail) := by
+        simpa [terminalSymbols, List.map_append, List.append_assoc] using hout
+      have hrest := ih (trail := a :: trail) (s := LinearStack.old a)
+        (stack := s :: stack) hout' hsa
+      exact (Relation.ReflTransGen.single hstep).trans (by
+        simpa [terminalSymbols, List.map_append, List.append_assoc] using hrest)
+
+@[grind .] private theorem matchStack_reaches (g : LinearGrammar T) (word : List T)
+    (hmem : ∀ a ∈ word, a ∈ terminalSupport g) (input : List T)
+    (stack : List (LinearStack T)) :
+    g.toOneTurnNPDA.Reaches
+      (word ++ input, (.matchStack, .pop), (word.map LinearStack.old) ++ stack)
+      (input, (.matchStack, .pop), stack) := by
+  induction word generalizing input stack with
   | nil => exact Relation.ReflTransGen.refl
-  | cons a todo ih =>
+  | cons a word ih =>
+      have ha : a ∈ terminalSupport g := hmem a (List.mem_cons_self)
       have hstep : g.toOneTurnNPDA.Step
-          (a :: todo ++ rest,
-            (.prefixBranch r hr pre (a :: todo) B suffix hout, .push), stack)
-          (todo ++ rest, (.prefixBranch r hr pre todo B suffix hout, .push), stack) := by
-        apply Mathling.Automata.OneTurnNPDA.Step.consume
-        change LinearRawStep g _ _ _ _ _ _ _
-        exact LinearRawStep.consumeBranch
-      exact ih.head hstep
+          (a :: word ++ input, (.matchStack, .pop),
+            LinearStack.old a :: (word.map LinearStack.old) ++ stack)
+          (word ++ input, (.matchStack, .pop), (word.map LinearStack.old) ++ stack) := by
+        refine Step.consume (M := g.toOneTurnNPDA.toNPDA)
+          { source := (.matchStack, .pop), input := some a, pop := .old a,
+            target := (.matchStack, .pop), push := [] }
+          ?_ rfl
+        change _ ∈ toOneTurnNPDARules g
+        exact matchRule_mem g ha
+      exact (ih (fun x hx => hmem x (List.mem_cons_of_mem a hx)) input stack).head hstep
 
-@[grind .] private theorem pushBranch_reaches (g : LinearGrammar T) (B : g.cfg.NT)
-    (suffix todo input stack : List T) :
+@[grind .] private theorem finish_reaches (g : LinearGrammar T) (stack : List (LinearStack T)) :
     g.toOneTurnNPDA.Reaches
-      (input, (.pushBranch B suffix todo, .push), stack)
-      (input, (.derive B, .push), todo.reverse ++ stack) := by
-  induction todo generalizing stack with
-  | nil =>
-      apply Relation.ReflTransGen.single
-      apply Mathling.Automata.OneTurnNPDA.Step.epsilon
-      change LinearRawStep g _ _ _ _ _ _ _
-      exact LinearRawStep.continue
-  | cons a todo ih =>
-      have hstep : g.toOneTurnNPDA.Step
-          (input, (.pushBranch B suffix (a :: todo), .push), stack)
-          (input, (.pushBranch B suffix todo, .push), a :: stack) := by
-        apply Mathling.Automata.OneTurnNPDA.Step.epsilon
-        change LinearRawStep g _ _ _ _ _ _ _
-        exact LinearRawStep.push
-      have hrest' : g.toOneTurnNPDA.Reaches
-          (input, (.pushBranch B suffix todo, .push), a :: stack)
-          (input, (.derive B, .push), (a :: todo).reverse ++ stack) := by
-        simpa [List.reverse_cons, List.append_assoc] using ih (a :: stack)
-      exact hrest'.head hstep
+      ([], (.matchStack, .pop), .bottom :: stack)
+      ([], (.finished, .pop), stack) := by
+  apply Relation.ReflTransGen.single
+  refine Step.epsilon (M := g.toOneTurnNPDA.toNPDA)
+    { source := (.matchStack, .pop), input := none, pop := .bottom,
+      target := (.finished, .pop), push := [] }
+    ?_ rfl
+  change _ ∈ toOneTurnNPDARules g
+  exact finishRule_mem g
 
-@[grind .] private theorem matchStack_reaches (g : LinearGrammar T) (stack : List T) :
-    g.toOneTurnNPDA.Reaches
-      (stack, (.matchStack, .pop), stack)
-      ([], (.finished, .pop), []) := by
-  induction stack with
-  | nil =>
-      apply Relation.ReflTransGen.single
-      apply Mathling.Automata.OneTurnNPDA.Step.epsilon
-      change LinearRawStep g _ _ _ _ _ _ _
-      exact LinearRawStep.finish
-  | cons a stack ih =>
-      have hstep : g.toOneTurnNPDA.Step
-          (a :: stack, (.matchStack, .pop), a :: stack)
-          (stack, (.matchStack, .pop), stack) := by
-        apply Mathling.Automata.OneTurnNPDA.Step.consume
-        change LinearRawStep g _ _ _ _ _ _ _
-        exact LinearRawStep.matchStack
-      exact ih.head hstep
-
-```
-
-`generates_reaches` はこれらの部品を `LinearGenerates` の帰納法に沿って接続し、任意の生成木に対して、その終端列を先頭に積んだ入力から出発して `finished` 状態・空スタックへ到達する実行列を構成する。leaf ケースでは規則選択・終端列消費・pop フェーズへの折り返し・スタック照合をこの順に繋ぐだけでよい。branch ケースでは、前置終端列の消費・push フェーズの開始・後置終端列のスタックへの積み込みに続けて、帰納法の仮定 `ih` を子の非終端 `B` に適用することで、部分木の実行列を全体の実行列へ組み込んでいる。この定理が、文法が生成する語を PDA が受理するという含意（`toOneTurnNPDA_language` の一方向）の核心を担う。
-
-```lean
 @[grind .] private theorem generates_reaches (g : LinearGrammar T)
     {A : g.cfg.NT} {word : List T} (h : LinearGenerates g A word)
-    (stack : List T) :
+    {s : LinearStack T} (hs : s ∈ stackSymbols g)
+    (stack : List (LinearStack T)) (input : List T) :
     g.toOneTurnNPDA.Reaches
-      (word ++ stack, (.derive A, .push), stack)
-      ([], (.finished, .pop), []) := by
-  induction h generalizing stack with
-  | @leaf r word hr hout =>
+      (word ++ input, (.derive A, .push), s :: stack)
+      (input, (.matchStack, .pop), s :: stack) := by
+  induction h generalizing s stack input with
+  | @leaf r word hr html =>
       have hchoose : g.toOneTurnNPDA.Step
-          (word ++ stack, (.derive r.input, .push), stack)
-          (word ++ stack, (.prefixLeaf r hr word word hout, .push), stack) := by
-        apply Mathling.Automata.OneTurnNPDA.Step.epsilon
-        change LinearRawStep g _ _ _ _ _ _ _
-        exact LinearRawStep.chooseLeaf hr hout
-      have hconsume := consumeLeaf_reaches g (r := r) (hr := hr)
-        (word := word) (hout := hout) word stack stack
+          (word ++ input, (.derive r.input, .push), s :: stack)
+          (word ++ input, (.scan r 0, .push), s :: stack) := by
+        refine Step.epsilon (M := g.toOneTurnNPDA.toNPDA)
+          { source := (.derive r.input, .push), input := none, pop := s,
+            target := (.scan r 0, .push), push := [s] }
+          ?_ rfl
+        change _ ∈ toOneTurnNPDARules g
+        exact chooseRule_mem g hr hs
+      have hscan : g.toOneTurnNPDA.Reaches
+          (word ++ input, (.scan r 0, .push), s :: stack)
+          (input, (.scan r word.length, .push), s :: stack) := by
+        have hsub : (r.output.drop 0).take word.length = word.map Symbol.terminal := by
+          rw [List.drop_zero, html]
+          simp [terminalSymbols]
+        simpa using scan_terminals_reaches g hr 0 word hsub hs input stack
       have hpop : g.toOneTurnNPDA.Step
-          (stack, (.prefixLeaf r hr word [] hout, .push), stack)
-          (stack, (.matchStack, .pop), stack) := by
-        apply Mathling.Automata.OneTurnNPDA.Step.epsilon
-        change LinearRawStep g _ _ _ _ _ _ _
-        exact LinearRawStep.finishLeaf
-      exact ((Relation.ReflTransGen.single hchoose).trans hconsume).tail hpop
-        |>.trans (matchStack_reaches g stack)
-  | @branch r pre suffix middle B hr hout child ih =>
+          (input, (.scan r r.output.length, .push), s :: stack)
+          (input, (.matchStack, .pop), s :: stack) := by
+        refine Step.epsilon (M := g.toOneTurnNPDA.toNPDA)
+          { source := (.scan r r.output.length, .push), input := none, pop := s,
+            target := (.matchStack, .pop), push := [s] }
+          ?_ rfl
+        change _ ∈ toOneTurnNPDARules g
+        exact scanFinishRule_mem g hr (by omega) (by omega) hs
+      have hpop_r : g.toOneTurnNPDA.Reaches
+          (input, (.scan r r.output.length, .push), s :: stack)
+          (input, (.matchStack, .pop), s :: stack) :=
+        Relation.ReflTransGen.single hpop
+      rw [html] at hpop_r
+      simp only [terminalSymbols, List.length_map] at hpop_r
+      exact (Relation.ReflTransGen.single hchoose).trans hscan |>.trans hpop_r
+  | @branch r pre suffix middle B hr html child ih =>
       have hchoose : g.toOneTurnNPDA.Step
-          ((pre ++ middle ++ suffix) ++ stack, (.derive r.input, .push), stack)
-          ((pre ++ middle ++ suffix) ++ stack,
-            (.prefixBranch r hr pre pre B suffix hout, .push), stack) := by
-        apply Mathling.Automata.OneTurnNPDA.Step.epsilon
-        change LinearRawStep g _ _ _ _ _ _ _
-        exact LinearRawStep.chooseBranch hr hout
-      have hconsume := consumeBranch_reaches g (r := r) (hr := hr)
-        (pre := pre) (B := B) (suffix := suffix) (hout := hout)
-        pre (middle ++ suffix ++ stack) stack
-      have hbegin : g.toOneTurnNPDA.Step
-          (middle ++ suffix ++ stack,
-            (.prefixBranch r hr pre [] B suffix hout, .push), stack)
-          (middle ++ suffix ++ stack,
-            (.pushBranch B suffix suffix.reverse, .push), stack) := by
-        apply Mathling.Automata.OneTurnNPDA.Step.epsilon
-        change LinearRawStep g _ _ _ _ _ _ _
-        exact LinearRawStep.beginPush
-      have hpush := pushBranch_reaches g B suffix suffix.reverse
-        (middle ++ suffix ++ stack) stack
-      have hpush' : g.toOneTurnNPDA.Reaches
-          (middle ++ suffix ++ stack,
-            (.pushBranch B suffix suffix.reverse, .push), stack)
-          (middle ++ suffix ++ stack, (.derive B, .push), suffix ++ stack) := by
-        simpa using hpush
-      have hchild := ih (suffix ++ stack)
-      exact ((Relation.ReflTransGen.single hchoose).trans
-        (by simpa [List.append_assoc] using hconsume)).tail hbegin
-        |>.trans hpush' |>.trans (by simpa [List.append_assoc] using hchild)
-
+          (pre ++ middle ++ suffix ++ input, (.derive r.input, .push), s :: stack)
+          (pre ++ middle ++ suffix ++ input, (.scan r 0, .push), s :: stack) := by
+        refine Step.epsilon (M := g.toOneTurnNPDA.toNPDA)
+          { source := (.derive r.input, .push), input := none, pop := s,
+            target := (.scan r 0, .push), push := [s] }
+          ?_ rfl
+        change _ ∈ toOneTurnNPDARules g
+        exact chooseRule_mem g hr hs
+      have hscan : g.toOneTurnNPDA.Reaches
+          (pre ++ (middle ++ suffix ++ input), (.scan r 0, .push), s :: stack)
+          (middle ++ suffix ++ input, (.scan r pre.length, .push), s :: stack) := by
+        have hsub : (r.output.drop 0).take pre.length = pre.map Symbol.terminal := by
+          rw [List.drop_zero, html]
+          simp [terminalSymbols]
+        simpa using scan_terminals_reaches g hr 0 pre hsub hs (middle ++ suffix ++ input) stack
+      have hlt : pre.length < r.output.length := by
+        rw [html]
+        simp [terminalSymbols]
+      have heq : r.output[pre.length] = Symbol.nonterminal B := by
+        have hdrop := drop_eq_cons_drop r.output pre.length hlt
+        have hshape : r.output.drop pre.length =
+            Symbol.nonterminal B :: terminalSymbols suffix := by
+          rw [html]
+          simp [terminalSymbols]
+        rw [hshape] at hdrop
+        injection hdrop with hfirst
+        exact hfirst.symm
+      have hnonterm : g.toOneTurnNPDA.Step
+          (middle ++ suffix ++ input, (.scan r pre.length, .push), s :: stack)
+          (middle ++ suffix ++ input, (.pushBranch r r.output.length, .push), s :: stack) := by
+        refine Step.epsilon (M := g.toOneTurnNPDA.toNPDA)
+          { source := (.scan r pre.length, .push), input := none, pop := s,
+            target := (.pushBranch r r.output.length, .push), push := [s] }
+          ?_ rfl
+        change _ ∈ toOneTurnNPDARules g
+        exact scanNonterminalRule_mem g hr hlt heq hs
+      have hpush : g.toOneTurnNPDA.Reaches
+          (middle ++ suffix ++ input,
+            (.pushBranch r r.output.length, .push), s :: stack)
+          (middle ++ suffix ++ input, (.derive B, .push),
+            suffix.map LinearStack.old ++ s :: stack) := by
+        have hout : r.output = terminalSymbols pre ++ [Symbol.nonterminal B] ++
+            terminalSymbols suffix ++ terminalSymbols [] := by
+          simpa using html
+        have hrun := pushBranch_reaches g hr pre B suffix [] hout hs
+          (middle ++ suffix ++ input) stack
+        have hlen : pre.length + 1 + suffix.length = r.output.length := by
+          rw [html]
+          simp only [terminalSymbols, List.length_append, List.length_map, List.length_cons,
+            List.length_nil]
+        rw [hlen] at hrun
+        exact hrun
+      have hs'_mem : ∀ a ∈ suffix, a ∈ terminalSupport g := by
+        intro a ha
+        have ha_rule : Symbol.terminal a ∈ r.output := by
+          rw [html]
+          simp [terminalSymbols, ha]
+        unfold terminalSupport
+        simp only [List.mem_flatMap, List.mem_filterMap]
+        refine ⟨r, by simpa using hr, Symbol.terminal a, ha_rule, rfl⟩
+      have hchild := ih (s := s) (hs := hs) stack (suffix ++ input)
+      obtain ⟨s', hs'_in⟩ : ∃ s' : LinearStack T, s' ∈ stackSymbols g ∧
+          ∃ stack', suffix.map LinearStack.old ++ s :: stack = s' :: stack' := by
+        cases hstack : suffix with
+        | nil =>
+            refine ⟨s, hs, stack, rfl⟩
+        | cons a todo =>
+            have ha_in : a ∈ suffix := by
+              rw [hstack]
+              exact List.mem_cons_self
+            have ha_rule : Symbol.terminal a ∈ r.output := by
+              rw [html]
+              simp [terminalSymbols, ha_in]
+            have ha_mem : a ∈ terminalSupport g := by
+              unfold terminalSupport
+              simp only [List.mem_flatMap, List.mem_filterMap]
+              refine ⟨r, by simpa using hr, Symbol.terminal a, ha_rule, rfl⟩
+            have hsa : LinearStack.old a ∈ stackSymbols g := by
+              unfold stackSymbols
+              simp only [List.mem_cons, List.mem_map]
+              right
+              exact ⟨a, ha_mem, rfl⟩
+            refine ⟨.old a, hsa, todo.map LinearStack.old ++ s :: stack, rfl⟩
+      rcases hs'_in with ⟨hs', stack', heq_stack⟩
+      have hchild' : g.toOneTurnNPDA.Reaches
+          (middle ++ suffix ++ input, (.derive B, .push), suffix.map LinearStack.old ++ s :: stack)
+          (suffix ++ input, (.matchStack, .pop), suffix.map LinearStack.old ++ s :: stack) := by
+        rw [heq_stack]
+        simpa [List.append_assoc] using ih (s := s') (hs := hs') stack' (suffix ++ input)
+      have hmatch := matchStack_reaches g suffix hs'_mem input (s :: stack)
+      have hstep1 := Relation.ReflTransGen.single hchoose
+      have hstep2 := hscan
+      have hstep3 := Relation.ReflTransGen.single hnonterm
+      have hpush := hpush
+      have h1 := hstep1.trans (by simpa [List.append_assoc] using hstep2)
+      have h2 := h1.tail (by simpa [List.append_assoc] using hnonterm)
+      have h3 := h2.trans (by simpa [List.append_assoc] using hpush)
+      have h4 := h3.trans (by simpa [List.append_assoc] using hchild')
+      exact h4.trans (by simpa [List.append_assoc] using hmatch)
 ```
 
 ## 逆方向：受理から生成木を復元する不変条件
 
-逆向きの含意——PDA が入力を受理するならば、その入力は文法から生成される——を示すには、実行列を終点から始点へ向かって逆にたどりながら、各中間状態に「これまでの入力とスタックの内容が、ある生成木と整合している」という不変条件を保つ必要がある。`LinearGood` はこの不変条件を制御状態ごとに場合分けして定義する。
-
-```math
-\begin{aligned}
-\mathrm{LinearGood}(\texttt{derive}\ A,\ \texttt{push})(\text{input},\text{stack})
-  &\iff \exists\ \text{word},\ \text{input} = \text{word} \mathbin{+\!\!+} \text{stack} \land \mathrm{LinearGenerates}\ A\ \text{word} \\
-\mathrm{LinearGood}(\texttt{prefixLeaf}\ \cdots\ \text{todo}\ \cdots,\ \texttt{push})(\text{input},\text{stack})
-  &\iff \text{input} = \text{todo} \mathbin{+\!\!+} \text{stack} \\
-\mathrm{LinearGood}(\texttt{prefixBranch}\ \cdots\ \text{todo}\ B\ \text{suffix}\ \cdots,\ \texttt{push})(\text{input},\text{stack})
-  &\iff \exists\ \text{middle},\ \mathrm{LinearGenerates}\ B\ \text{middle} \land
-     \text{input} = \text{todo} \mathbin{+\!\!+} \text{middle} \mathbin{+\!\!+} \text{suffix} \mathbin{+\!\!+} \text{stack} \\
-\mathrm{LinearGood}(\texttt{pushBranch}\ B\ \_\ \text{todo},\ \texttt{push})(\text{input},\text{stack})
-  &\iff \exists\ \text{middle},\ \mathrm{LinearGenerates}\ B\ \text{middle} \land
-     \text{input} = \text{middle} \mathbin{+\!\!+} \text{todo.reverse} \mathbin{+\!\!+} \text{stack} \\
-\mathrm{LinearGood}(\texttt{matchStack},\ \texttt{pop})(\text{input},\text{stack})
-  &\iff \text{input} = \text{stack} \\
-\mathrm{LinearGood}(\texttt{finished}, \_)(\text{input}, \_)
-  &\iff \text{input} = []
-\end{aligned}
-```
-
-各節はちょうど、`generates_reaches` の対応する部品がその状態から出発するときに仮定していた事実を、逆向きに回収できる形になっている。たとえば `derive A` における `∃ word, ...` は `generates_reaches` の出発点そのものであり、`prefixBranch`／`pushBranch` に埋め込まれた `∃ middle, LinearGenerates g B middle` は、子の非終端の生成がまだ完了していないことと、完了した暁にはどの終端列に置き換わるかを同時に記録している。それ以外の状態と位相の組み合わせ（本来到達し得ない組）には `False` を割り当て、健全性をそもそも型で保証している。
+逆向きの含意を示すための不変条件 `LinearGood` を定義する。
 
 ```lean
+public def stackToTerminals (T : Type*) : List (LinearStack T) → List T
+  | [] => []
+  | .bottom :: _ => []
+  | .old a :: xs => a :: stackToTerminals T xs
+
+private inductive LinearRuleKind (g : LinearGrammar T) :
+    PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T) → Prop
+  | choose (rule : ContextFreeRule T g.cfg.NT) (hr : rule ∈ g.cfg.rules)
+      (s : LinearStack T) (hs : s ∈ stackSymbols g) :
+      LinearRuleKind g
+        { source := (.derive rule.input, .push), input := none, pop := s,
+          target := (.scan rule 0, .push), push := [s] }
+  | scanTerminal (rule : ContextFreeRule T g.cfg.NT) (hr : rule ∈ g.cfg.rules)
+      (idx : Nat) (hlt : idx < rule.output.length) (a : T)
+      (heq : rule.output[idx] = Symbol.terminal a)
+      (s : LinearStack T) (hs : s ∈ stackSymbols g) :
+      LinearRuleKind g
+        { source := (.scan rule idx, .push), input := some a, pop := s,
+          target := (.scan rule (idx + 1), .push), push := [s] }
+  | scanNonterminal (rule : ContextFreeRule T g.cfg.NT) (hr : rule ∈ g.cfg.rules)
+      (idx : Nat) (hlt : idx < rule.output.length) (B : g.cfg.NT)
+      (heq : rule.output[idx] = Symbol.nonterminal B)
+      (s : LinearStack T) (hs : s ∈ stackSymbols g) :
+      LinearRuleKind g
+        { source := (.scan rule idx, .push), input := none, pop := s,
+          target := (.pushBranch rule rule.output.length, .push), push := [s] }
+  | scanFinish (rule : ContextFreeRule T g.cfg.NT) (hr : rule ∈ g.cfg.rules)
+      (s : LinearStack T) (hs : s ∈ stackSymbols g) :
+      LinearRuleKind g
+        { source := (.scan rule rule.output.length, .push), input := none, pop := s,
+          target := (.matchStack, .pop), push := [s] }
+  | pushTerminal (rule : ContextFreeRule T g.cfg.NT) (hr : rule ∈ g.cfg.rules)
+      (idx : Nat) (hidx : idx ≤ rule.output.length) (hpos : 0 < idx)
+      (a : T) (tail : List (Symbol T g.cfg.NT))
+      (heq : rule.output.drop (idx - 1) = Symbol.terminal a :: tail)
+      (s : LinearStack T) (hs : s ∈ stackSymbols g) :
+      LinearRuleKind g
+        { source := (.pushBranch rule idx, .push), input := none, pop := s,
+          target := (.pushBranch rule (idx - 1), .push), push := [.old a, s] }
+  | pushNonterminal (rule : ContextFreeRule T g.cfg.NT) (hr : rule ∈ g.cfg.rules)
+      (idx : Nat) (hidx : idx ≤ rule.output.length) (hpos : 0 < idx)
+      (B : g.cfg.NT) (tail : List (Symbol T g.cfg.NT))
+      (heq : rule.output.drop (idx - 1) = Symbol.nonterminal B :: tail)
+      (s : LinearStack T) (hs : s ∈ stackSymbols g) :
+      LinearRuleKind g
+        { source := (.pushBranch rule idx, .push), input := none, pop := s,
+          target := (.derive B, .push), push := [s] }
+  | matchTerminal (a : T) (ha : a ∈ terminalSupport g) :
+      LinearRuleKind g
+        { source := (.matchStack, .pop), input := some a, pop := .old a,
+          target := (.matchStack, .pop), push := [] }
+  | finish : LinearRuleKind g
+      { source := (.matchStack, .pop), input := none, pop := .bottom,
+        target := (.finished, .pop), push := [] }
+
+private theorem linearRuleKind_of_mem (g : LinearGrammar T)
+    {r : PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T)}
+    (hr : r ∈ toOneTurnNPDARules g) : LinearRuleKind g r := by
+  unfold toOneTurnNPDARules at hr
+  simp only [List.mem_append, List.mem_flatMap, List.mem_map, List.mem_range,
+    List.mem_singleton] at hr
+  rcases hr with (((h | h) | h) | h) | h
+  · rcases h with ⟨rule, hrule, s, hs, rfl⟩
+    exact .choose rule (by simpa using hrule) s hs
+  · rcases h with ⟨rule, hrule, idx, hidx, s, hs, hmem⟩
+    split at hmem
+    · rename_i hlt
+      cases he : rule.output[idx] with
+      | terminal a =>
+          rw [he] at hmem
+          simp only [List.mem_singleton] at hmem
+          subst r
+          exact .scanTerminal rule (by simpa using hrule) idx hlt a he s hs
+      | nonterminal B =>
+          rw [he] at hmem
+          simp only [List.mem_singleton] at hmem
+          subst r
+          exact .scanNonterminal rule (by simpa using hrule) idx hlt B he s hs
+    · rename_i hnot
+      simp only [List.mem_singleton] at hmem
+      subst r
+      have hlen : idx = rule.output.length := by omega
+      subst idx
+      exact .scanFinish rule (by simpa using hrule) s hs
+  · rcases h with ⟨rule, hrule, idx, hidx, s, hs, hmem⟩
+    by_cases hpos : 0 < idx
+    · rw [if_pos hpos] at hmem
+      cases he : rule.output.drop (idx - 1) with
+      | nil => simp [he] at hmem
+      | cons symbol tail =>
+          cases symbol with
+          | terminal a =>
+              rw [he] at hmem
+              simp only [List.mem_singleton] at hmem
+              subst r
+              exact .pushTerminal rule (by simpa using hrule) idx (by omega) hpos a tail he s hs
+          | nonterminal B =>
+              rw [he] at hmem
+              simp only [List.mem_singleton] at hmem
+              subst r
+              exact .pushNonterminal rule (by simpa using hrule) idx (by omega) hpos B tail he s hs
+    · rw [if_neg hpos] at hmem
+      simp at hmem
+  · rcases h with ⟨a, ha, rfl⟩
+    exact .matchTerminal a ha
+  · subst r
+    exact .finish
+
+private theorem take_succ_of_drop_eq_cons {A : Type*} {xs : List A}
+    {idx : Nat} (_hidx : idx ≤ xs.length) (hpos : 0 < idx) {x : A} {tail : List A}
+    (hdrop : xs.drop (idx - 1) = x :: tail) :
+    xs.take idx = xs.take (idx - 1) ++ [x] := by
+  have hget : xs[idx - 1]? = some x := by
+    have h := congrArg (fun ys : List A => ys[0]?) hdrop
+    simpa [List.getElem?_drop] using h
+  calc
+    xs.take idx = xs.take ((idx - 1) + 1) := by congr 1; omega
+    _ = xs.take (idx - 1) ++ xs[idx - 1]?.toList := List.take_add_one
+    _ = xs.take (idx - 1) ++ [x] := by rw [hget]; rfl
+
 private def LinearGood (g : LinearGrammar T) :
-    Mathling.Automata.OneTurnNPDA.ID T (LinearPDAState g) T → Prop
+    ID T (LinearPDAState g × TurnPhase) (LinearStack T) → Prop
   | (input, (.derive A, .push), stack) =>
-      ∃ word, input = word ++ stack ∧ LinearGenerates g A word
-  | (input, (.prefixLeaf _ _ _ todo _, .push), stack) =>
-      input = todo ++ stack
-  | (input, (.prefixBranch _ _ _ todo B suffix _, .push), stack) =>
-      ∃ middle, LinearGenerates g B middle ∧
-        input = todo ++ middle ++ suffix ++ stack
-  | (input, (.pushBranch B _ todo, .push), stack) =>
-      ∃ middle, LinearGenerates g B middle ∧
-        input = middle ++ todo.reverse ++ stack
-  | (input, (.matchStack, .pop), stack) => input = stack
+      ∃ word, input = word ++ stackToTerminals T stack ∧ LinearGenerates g A word
+  | (input, (.scan r idx, .push), stack) =>
+      match r.output.drop idx with
+      | [] => input = stackToTerminals T stack
+      | syms =>
+          match syms.filterMap fun | Symbol.nonterminal B => some B | _ => none with
+          | [] =>
+              ∃ word, syms = terminalSymbols word ∧ input = word ++ stackToTerminals T stack
+          | B :: _ =>
+              ∃ pre suffix middle,
+                syms = terminalSymbols pre ++ [Symbol.nonterminal B] ++
+                  terminalSymbols suffix ∧
+                input = pre ++ middle ++ suffix ++ stackToTerminals T stack ∧
+                  LinearGenerates g B middle
+  | (input, (.pushBranch r idx, .push), stack) =>
+      ∃ pre suffix middle,
+        r.output.take idx = terminalSymbols pre ++
+          [Symbol.nonterminal (ruleNonterminal r g.cfg.initial)] ++ terminalSymbols suffix ∧
+        input = middle ++ suffix ++ stackToTerminals T stack ∧
+        LinearGenerates g (ruleNonterminal r g.cfg.initial) middle
+  | (input, (.matchStack, .pop), stack) => input = stackToTerminals T stack
   | (input, (.finished, _), _) => input = []
   | _ => False
 
-```
-
-`raw_step_good` は `LinearRawStep` の各構成子について、遷移後の状態で `LinearGood` が成り立つならば遷移前の状態でも成り立つことを１ステップずつ確認する。これは各ミクロ遷移が `LinearGood` の場合分けとちょうど噛み合うように設計されていることの裏付けであり、たとえば `consumeLeaf` は `todo` の１文字消費に対応して入力の１文字消費が起こるだけなので `simp` で閉じ、`chooseBranch` は規則の出力を非終端記号の生成木へ組み替える証明の要となる。`step_good` はこれを `OneTurnNPDA.Step`（`consume`／`epsilon` の２通り）に持ち上げ、`reaches_good` はさらに `Reaches`（反射推移閉包）全体へ、終点から始点への逆向き帰納法（`head_induction_on`）で持ち上げる。この結果、実行列の終点における不変条件（受理状態での `input = []`）さえ分かれば、始点における不変条件を機械的に導けるようになる。
-
-```lean
-@[grind .] private theorem raw_step_good (g : LinearGrammar T)
-    {q q' : LinearPDAState g} {p p' : Mathling.Automata.TurnPhase}
-    {sym : Option T} {stack stack' : List T}
-    (h : LinearRawStep g q p sym stack q' p' stack') (input : List T) :
-    LinearGood g (input, (q', p'), stack') →
-      LinearGood g
-        ((match sym with | none => input | some a => a :: input), (q, p), stack) := by
-  cases h with
-  | @chooseLeaf r word stack hr hout =>
-      intro hinput
-      exact ⟨word, hinput, LinearGenerates.leaf hr hout⟩
-  | @chooseBranch r pre B suffix stack hr hout =>
-      rintro ⟨middle, hmiddle, hinput⟩
-      refine ⟨pre ++ middle ++ suffix, ?_, LinearGenerates.branch hr hout hmiddle⟩
-      simpa [List.append_assoc] using hinput
-  | consumeLeaf =>
-      simp [LinearGood]
-  | consumeBranch =>
-      simp [LinearGood, List.append_assoc]
-  | finishLeaf =>
-      simp [LinearGood]
-  | beginPush =>
-      simp [LinearGood, List.append_assoc]
-  | push =>
-      simp [LinearGood, List.reverse_cons, List.append_assoc]
-  | «continue» =>
-      rintro ⟨middle, hinput, hmiddle⟩
-      exact ⟨middle, hmiddle, by simpa using hinput⟩
-  | matchStack =>
-      simp [LinearGood]
+private theorem rule_step_good (g : LinearGrammar T)
+    (r : PushdownRule T (LinearPDAState g × TurnPhase) (LinearStack T))
+    (hr : r ∈ toOneTurnNPDARules g) (input : List T) (stack : List (LinearStack T)) :
+    LinearGood g (input, r.target, r.push ++ stack) →
+      LinearGood g ((r.input.toList ++ input), r.source, r.pop :: stack) := by
+  have hkind := linearRuleKind_of_mem g hr
+  cases hkind with
+  | choose rule hrule s hs =>
+    intro hgood
+    simp only [LinearGood, List.drop_zero] at hgood ⊢
+    generalize hdrop : rule.output.drop 0 = syms at hgood
+    rw [List.drop_zero] at hdrop
+    subst syms
+    split at hgood
+    · rename_i heq
+      refine ⟨[], ?_, LinearGenerates.leaf hrule ?_⟩
+      · simpa [stackToTerminals] using hgood
+      · simpa [terminalSymbols] using heq
+    · rename_i syms
+      split at hgood
+      · rcases hgood with ⟨word, heq, hinput⟩
+        refine ⟨word, hinput, LinearGenerates.leaf hrule heq⟩
+      · rcases hgood with ⟨pre, suffix, middle, heq, hinput, hchild⟩
+        refine ⟨pre ++ middle ++ suffix, hinput,
+          LinearGenerates.branch hrule heq hchild⟩
+  | scanTerminal rule hrule idx hlt a heq s hs =>
+    intro hgood
+    simp only [LinearGood] at hgood ⊢
+    have hdrop : rule.output.drop idx =
+        Symbol.terminal a :: rule.output.drop (idx + 1) := by
+      rw [drop_eq_cons_drop rule.output idx hlt, heq]
+    rw [hdrop]
+    generalize hd : rule.output.drop (idx + 1) = L at hgood ⊢
+    simp only [List.filterMap_cons]
+    cases L with
+    | nil =>
+        simp only [List.filterMap_nil] at hgood ⊢
+        exact ⟨[a], by simp [terminalSymbols], by simpa using congrArg (a :: ·) hgood⟩
+    | cons x xs =>
+        simp only at hgood ⊢
+        cases hfilter : (x :: xs).filterMap (fun
+            | Symbol.nonterminal B => some B
+            | _ => none) with
+        | nil =>
+            rw [hfilter] at hgood
+            simp only at hgood ⊢
+            rcases hgood with ⟨word, hout, hinput⟩
+            refine ⟨a :: word, ?_, ?_⟩
+            · simpa [terminalSymbols] using congrArg (Symbol.terminal a :: ·) hout
+            · simpa using congrArg (a :: ·) hinput
+        | cons B tail =>
+            rw [hfilter] at hgood
+            simp only at hgood ⊢
+            rcases hgood with ⟨pre, suffix, middle, hout, hinput, hchild⟩
+            refine ⟨a :: pre, suffix, middle, ?_, ?_, hchild⟩
+            · simpa [terminalSymbols, List.cons_append] using
+                congrArg (Symbol.terminal a :: ·) hout
+            · simpa using congrArg (a :: ·) hinput
+  | scanNonterminal rule hrule idx hlt B heq s hs =>
+    intro hgood
+    simp only [LinearGood, List.take_length] at hgood
+    rcases hgood with ⟨pre, suffix, middle, hout, hinput, hchild⟩
+    have huniq := nonterminal_position_unique hout hlt heq
+    have hB := ruleNonterminal_eq g rule hrule idx B hlt heq
+    rw [hB] at hout hchild
+    have hdrop : rule.output.drop idx =
+        Symbol.nonterminal B :: terminalSymbols suffix := by
+      rw [hout, huniq.1]
+      simp [terminalSymbols]
+    simp only [LinearGood]
+    rw [hdrop]
+    simp only [List.filterMap_cons]
+    exact ⟨[], suffix, middle, by simp [terminalSymbols],
+      by simpa [List.append_assoc] using hinput, hchild⟩
+  | scanFinish rule hrule s hs =>
+    intro hgood
+    simp only [LinearGood] at hgood ⊢
+    rw [List.drop_eq_nil_of_le (by omega)]
+    exact hgood
+  | pushTerminal rule hrule idx hidx hpos a tail hdrop s hs =>
+    intro hgood
+    simp only [LinearGood] at hgood ⊢
+    rcases hgood with ⟨pre, suffix, middle, hout, hinput, hchild⟩
+    have htake := take_succ_of_drop_eq_cons hidx hpos hdrop
+    refine ⟨pre, suffix ++ [a], middle, ?_, ?_, hchild⟩
+    · rw [htake, hout]
+      simp [terminalSymbols, List.map_append, List.append_assoc]
+    · simpa [stackToTerminals, List.append_assoc] using hinput
+  | pushNonterminal rule hrule idx hidx hpos B tail hdrop s hs =>
+    intro hgood
+    simp only [LinearGood] at hgood ⊢
+    rcases hgood with ⟨middle, hinput, hchild⟩
+    have hlt : idx - 1 < rule.output.length := by omega
+    have hget : rule.output[idx - 1] = Symbol.nonterminal B := by
+      have hshape := drop_eq_cons_drop rule.output (idx - 1) hlt
+      rw [hdrop] at hshape
+      injection hshape with hfirst
+      exact hfirst.symm
+    rcases split_linear_output rule.output (g.linear rule hrule) with
+      ⟨word, hterminal⟩ | ⟨pre, C, suffix, hout⟩
+    · have hmem : Symbol.nonterminal B ∈ terminalSymbols word := by
+        rw [← hterminal, ← hget]
+        exact List.getElem_mem (l := rule.output) (n := idx - 1) (h := hlt)
+      simp [terminalSymbols] at hmem
+    · have huniq := nonterminal_position_unique hout hlt hget
+      have hB := ruleNonterminal_eq g rule hrule (idx - 1) B hlt hget
+      have hposition := huniq.1
+      cases huniq.2
+      have htake : rule.output.take idx =
+          terminalSymbols pre ++ [Symbol.nonterminal B] := by
+        have hidxeq : idx = pre.length + 1 := by omega
+        have hout' : rule.output =
+            (terminalSymbols pre ++ [Symbol.nonterminal B]) ++ terminalSymbols suffix := by
+          simpa [List.append_assoc] using hout
+        rw [hout', hidxeq]
+        have hlen : pre.length + 1 =
+            (terminalSymbols pre ++ [Symbol.nonterminal B]).length := by
+          simp [terminalSymbols]
+        rw [hlen]
+        exact List.take_left
+      refine ⟨pre, [], middle, ?_, ?_, ?_⟩
+      · simpa [hB, terminalSymbols] using htake
+      · simpa [stackToTerminals] using hinput
+      · simpa [hB] using hchild
+  | matchTerminal a ha =>
+    intro hgood
+    simp only [LinearGood] at hgood ⊢
+    rw [hgood]
+    rfl
   | finish =>
-      simp [LinearGood]
+    intro hgood
+    simp only [LinearGood] at hgood ⊢
+    subst input
+    rfl
 
 @[grind .] private theorem step_good (g : LinearGrammar T)
-    {c c' : Mathling.Automata.OneTurnNPDA.ID T (LinearPDAState g) T}
+    {c c' : Mathling.Automata.OneTurnNPDA.ID T (LinearPDAState g) (LinearStack T)}
     (h : g.toOneTurnNPDA.Step c c') :
     LinearGood g c' → LinearGood g c := by
   cases h with
-  | consume hraw =>
-      change LinearRawStep g _ _ _ _ _ _ _ at hraw
-      exact raw_step_good g hraw _
-  | epsilon hraw =>
-      change LinearRawStep g _ _ _ _ _ _ _ at hraw
-      exact raw_step_good g hraw _
+  | @consume a input stack rule mem heq =>
+      change rule ∈ toOneTurnNPDARules g at mem
+      simpa [heq] using rule_step_good g rule mem input stack
+  | @epsilon input stack rule mem heq =>
+      change rule ∈ toOneTurnNPDARules g at mem
+      simpa [heq] using rule_step_good g rule mem input stack
 
 @[grind .] private theorem reaches_good (g : LinearGrammar T)
-    {c c' : Mathling.Automata.OneTurnNPDA.ID T (LinearPDAState g) T}
+    {c c' : Mathling.Automata.OneTurnNPDA.ID T (LinearPDAState g) (LinearStack T)}
     (h : g.toOneTurnNPDA.Reaches c c') :
     LinearGood g c' → LinearGood g c := by
   induction h using Relation.ReflTransGen.head_induction_on with
@@ -592,12 +1157,9 @@ private def LinearGood (g : LinearGrammar T) :
   | head hstep _ ih =>
       intro hgood
       exact step_good g hstep (ih hgood)
-
 ```
 
 ## 主定理：構成した PDA の言語と文法の言語の一致
-
-`toOneTurnNPDA_language` は、これまでの２方向の議論をそれぞれ適用して主張を完成させる。`⊆` 方向では、受理実行列の始点 `(input, (.derive g.cfg.initial, .push), [])` に `reaches_good` を適用し、得られる `LinearGood` の中身（ある終端列 `word` について `input = word` かつ `LinearGenerates g g.cfg.initial word`）から `linearGenerates_iff` を経由して `input ∈ g.language` を得る。`⊇` 方向では `linearGenerates_iff` で得た生成木に `generates_reaches` を適用し、空スタックから空スタックへ戻る受理実行列を直接構成する。こうして、生成規則を１本ずつ制御状態として持つという非常に具体的な PDA 構成が、文法の言語をちょうど過不足なく受理することが示される。
 
 ```lean
 /-- The local one-turn PDA accepts exactly the language generated by the linear grammar. -/
@@ -607,39 +1169,1525 @@ private def LinearGood (g : LinearGrammar T) :
   constructor
   · intro hinput
     change g.toOneTurnNPDA.Accepts input at hinput
-    rcases hinput with ⟨start, hstart, final, hfinal, finalPhase, stack, hreach⟩
-    change start ∈ ({.derive g.cfg.initial} : Set (LinearPDAState g)) at hstart
-    simp only [Set.mem_singleton_iff] at hstart
+    rcases hinput with ⟨start, hstart, final, hfinal, stack, hreach⟩
+    change start ∈ [(.derive g.cfg.initial, .push)] at hstart
+    simp only [List.mem_singleton] at hstart
     subst start
-    change final ∈ g.toOneTurnNPDA.accept at hfinal
-    change final ∈ ({.finished} : Set (LinearPDAState g)) at hfinal
-    simp only [Set.mem_singleton_iff] at hfinal
-    subst final
+    change final ∈ [(.finished, .push), (.finished, .pop)] at hfinal
+    have hfinal' : final = (.finished, .push) ∨ final = (.finished, .pop) := by
+      simpa using hfinal
     have hgood : LinearGood g
-        (input, (.derive g.cfg.initial, .push), []) :=
-      reaches_good g hreach (by simp [LinearGood])
+        (input, (.derive g.cfg.initial, .push), [.bottom]) := by
+      refine reaches_good g hreach ?_
+      rcases hfinal' with rfl | rfl <;> simp [LinearGood]
     rcases hgood with ⟨word, hword, hgenerates⟩
-    simp only [List.append_nil] at hword
-    subst input
+    have hword' : input = word := by
+      simpa only [stackToTerminals, List.append_nil] using hword
+    rw [hword']
     exact (linearGenerates_iff g word).mp hgenerates
   · intro hinput
     have hgenerates := (linearGenerates_iff g input).mpr hinput
     change g.toOneTurnNPDA.Accepts input
-    refine ⟨.derive g.cfg.initial, ?_, .finished, ?_, .pop, [], ?_⟩
-    · simp [toOneTurnNPDA]
-    · simp [toOneTurnNPDA]
-    · simpa [toOneTurnNPDA] using
-        generates_reaches g hgenerates []
+    refine ⟨(.derive g.cfg.initial, .push), ?_, (.finished, .pop), ?_, [], ?_⟩
+    · change (LinearPDAState.derive g.cfg.initial, TurnPhase.push) ∈
+        [(LinearPDAState.derive g.cfg.initial, TurnPhase.push)]
+      simp
+    · change (LinearPDAState.finished, TurnPhase.pop) ∈
+        [(LinearPDAState.finished, TurnPhase.push),
+          (LinearPDAState.finished, TurnPhase.pop)]
+      simp
+    · have hreach := generates_reaches g hgenerates (s := .bottom)
+        (by unfold stackSymbols; simp) [] []
+      have hfinish := finish_reaches g []
+      change g.toOneTurnNPDA.Reaches
+        (input, (LinearPDAState.derive g.cfg.initial, TurnPhase.push), [.bottom])
+        ([], (LinearPDAState.finished, TurnPhase.pop), [])
+      simpa using hreach.trans hfinish
 
-```
-
-以上で線形文法に対する production-tree 意味論と一回転 NPDA 構成の証明が完結したため、開いていた `namespace` を閉じる。
-
-```lean
 end LinearGrammar
 
 end Mathling.Grammar
+```
 
+## 正規化一回転機械から線形文法への Bridge 構成
+
+逆変換では、非終端記号 `bridge p X q Z` を、任意の共通スタック接尾を保ちながら、
+push 局面の $`(p,X)`$ から pop 局面の $`(q,Z)`$ へ移る実行区間として解釈する。
+中立遷移は Bridge の左または右へ一つずつ付加でき、増加規則と減少規則は一つの内側
+Bridge を挟んで対応付けられる。このため、生成規則の右辺に現れる非終端記号は常に
+高々一つである。
+
+```mermaid
+flowchart LR
+    L["push: X → Y Z"] --> B["Bridge: Y ⇝ W"]
+    B --> R["pop: W → ε"]
+    R --> O["outer Bridge preserves Z"]
+```
+
+```lean
+namespace Mathling.Automata.OneTurnNPDA
+
+open Mathling.Grammar
+open Mathling.Automata.NPDA
+
+variable {T State Stack : Type}
+
+/-- Nonterminals of the bridge grammar. -/
+@[grind cases] public inductive BridgeNT (State Stack : Type*) where
+  | start
+  | bridge (pushState : State) (pushTop : Stack)
+      (popState : State) (popTop : Stack)
+  deriving Repr, DecidableEq
+
+namespace Internal
+
+def baseSupport (M : OneTurnNPDA T State Stack) : List State :=
+  M.start ++ M.accept ++ M.rules.flatMap fun r => [r.source.1, r.target.1]
+
+def bridgeStackSupport (M : OneTurnNPDA T State Stack) : List Stack :=
+  M.initialStack ++ M.rules.flatMap fun r => r.pop :: r.push
+
+def bridgeEndpoints (M : OneTurnNPDA T State Stack) : List (State × Stack) :=
+  (baseSupport M).flatMap fun q => (bridgeStackSupport M).map fun x => (q, x)
+
+end Internal
+
+/-- A balanced one-turn span that preserves an arbitrary stack suffix. -/
+@[grind cases] inductive Bridge (M : OneTurnNPDA T State Stack) :
+    State → Stack → State → Stack → List T → Prop
+  | turn {r : PushdownRule T (State × TurnPhase) Stack} {z : Stack}
+      (hr : r ∈ M.rules) (hsource : r.source.2 = .push)
+      (htarget : r.target.2 = .pop) (hpush : r.push = [z]) :
+      Bridge M r.source.1 r.pop r.target.1 z r.input.toList
+  | leftNeutral {r : PushdownRule T (State × TurnPhase) Stack}
+      {y z : Stack} {q : State} {middle : List T}
+      (hr : r ∈ M.rules) (hsource : r.source.2 = .push)
+      (htarget : r.target.2 = .push) (hpush : r.push = [y])
+      (inner : Bridge M r.target.1 y q z middle) :
+      Bridge M r.source.1 r.pop q z (r.input.toList ++ middle)
+  | rightNeutral {p : State} {x y : Stack}
+      {r : PushdownRule T (State × TurnPhase) Stack} {middle : List T}
+      (inner : Bridge M p x r.source.1 r.pop middle)
+      (hr : r ∈ M.rules) (hsource : r.source.2 = .pop)
+      (htarget : r.target.2 = .pop) (hpush : r.push = [y]) :
+      Bridge M p x r.target.1 y (middle ++ r.input.toList)
+  | pair {left right : PushdownRule T (State × TurnPhase) Stack}
+      {y z : Stack} {middle : List T}
+      (hleft : left ∈ M.rules) (hleftSource : left.source.2 = .push)
+      (hleftTarget : left.target.2 = .push) (hleftPush : left.push = [y, z])
+      (inner : Bridge M left.target.1 y right.source.1 right.pop middle)
+      (hright : right ∈ M.rules) (hrightSource : right.source.2 = .pop)
+      (hrightTarget : right.target.2 = .pop) (hrightPush : right.push = []) :
+      Bridge M left.source.1 left.pop right.target.1 z
+        (left.input.toList ++ middle ++ right.input.toList)
+
+/-- A run segment that stays entirely in the push phase. -/
+@[grind cases] inductive PushRun (M : OneTurnNPDA T State Stack) :
+    State → List Stack → State → List Stack → List T → Prop
+  | refl (q : State) (stack : List Stack) : PushRun M q stack q stack []
+  | head {r : PushdownRule T (State × TurnPhase) Stack} {tail : List Stack}
+      {q : State} {stack : List Stack} {word : List T}
+      (hr : r ∈ M.rules) (hsource : r.source.2 = .push)
+      (htarget : r.target.2 = .push)
+      (rest : PushRun M r.target.1 (r.push ++ tail) q stack word) :
+      PushRun M r.source.1 (r.pop :: tail) q stack
+        (r.input.toList ++ word)
+
+/-- A run segment that stays entirely in the pop phase, presented so its last
+step is available to structural recursion. -/
+@[grind cases] inductive PopRun (M : OneTurnNPDA T State Stack) :
+    State → List Stack → State → List Stack → List T → Prop
+  | refl (q : State) (stack : List Stack) : PopRun M q stack q stack []
+  | tail {p : State} {stack : List Stack} {word : List T}
+      {r : PushdownRule T (State × TurnPhase) Stack} {tail : List Stack}
+      (prior : PopRun M p stack r.source.1 (r.pop :: tail) word)
+      (hr : r ∈ M.rules) (hsource : r.source.2 = .pop)
+      (htarget : r.target.2 = .pop) :
+      PopRun M p stack r.target.1 (r.push ++ tail)
+        (word ++ r.input.toList)
+
+private theorem bridgeRule_step (M : OneTurnNPDA T State Stack)
+    (r : PushdownRule T (State × TurnPhase) Stack) (hr : r ∈ M.rules)
+    (input : List T) (tail : List Stack) :
+    M.Step (r.input.toList ++ input, r.source, r.pop :: tail)
+      (input, r.target, r.push ++ tail) := by
+  cases hinput : r.input with
+  | none =>
+      simpa [hinput, toNPDA] using
+        NPDA.Step.epsilon r hr hinput (input := input) (stack := tail)
+  | some a =>
+      simpa [hinput, toNPDA] using
+        NPDA.Step.consume r hr hinput (input := input) (stack := tail)
+
+theorem PushRun.reaches {M : OneTurnNPDA T State Stack}
+    {p q : State} {startStack endStack : List Stack} {word : List T}
+    (h : PushRun M p startStack q endStack word) (input : List T) :
+    M.Reaches (word ++ input, (p, .push), startStack)
+      (input, (q, .push), endStack) := by
+  induction h generalizing input with
+  | refl => exact Relation.ReflTransGen.refl
+  | @head r tail q stack word hr hsource htarget rest ih =>
+      have hs : r.source = (r.source.1, TurnPhase.push) :=
+        Prod.ext rfl hsource
+      have ht : r.target = (r.target.1, TurnPhase.push) :=
+        Prod.ext rfl htarget
+      have first := bridgeRule_step M r hr (word ++ input) tail
+      have firstRun : M.Reaches
+          (r.input.toList ++ (word ++ input),
+            (r.source.1, .push), r.pop :: tail)
+          (word ++ input, (r.target.1, .push), r.push ++ tail) := by
+        rw [← hs, ← ht]
+        exact Relation.ReflTransGen.single first
+      simpa only [List.append_assoc] using firstRun.trans (ih input)
+
+theorem PopRun.reaches {M : OneTurnNPDA T State Stack}
+    {p q : State} {startStack endStack : List Stack} {word : List T}
+    (h : PopRun M p startStack q endStack word) (input : List T) :
+    M.Reaches (word ++ input, (p, .pop), startStack)
+      (input, (q, .pop), endStack) := by
+  induction h generalizing input with
+  | refl => exact Relation.ReflTransGen.refl
+  | @tail word r tail prior hr hsource htarget ih =>
+      have hs : r.source = (r.source.1, TurnPhase.pop) :=
+        Prod.ext rfl hsource
+      have ht : r.target = (r.target.1, TurnPhase.pop) :=
+        Prod.ext rfl htarget
+      have last := bridgeRule_step M r hr input tail
+      have lastRun : M.Reaches
+          (r.input.toList ++ input, (r.source.1, .pop), r.pop :: tail)
+          (input, (r.target.1, .pop), r.push ++ tail) := by
+        rw [← hs, ← ht]
+        exact Relation.ReflTransGen.single last
+      simpa only [List.append_assoc] using
+        (ih (r.input.toList ++ input)).trans lastRun
+
+theorem PushRun.length_mono {M : OneTurnNPDA T State Stack}
+    {p q : State} {startStack endStack : List Stack} {word : List T}
+    (h : PushRun M p startStack q endStack word) :
+    startStack.length ≤ endStack.length := by
+  induction h with
+  | refl => simp
+  | @head r tail q stack word hr hsource htarget rest ih =>
+      have hpush := M.push_phase_nonshrinking r hr hsource
+      simp only [List.length_cons, List.length_append] at ih ⊢
+      omega
+
+theorem PopRun.length_mono {M : OneTurnNPDA T State Stack}
+    {p q : State} {startStack endStack : List Stack} {word : List T}
+    (h : PopRun M p startStack q endStack word) :
+    endStack.length ≤ startStack.length := by
+  induction h with
+  | refl => simp
+  | @tail word r tail prior hr hsource htarget ih =>
+      have hpush := M.pop_phase_nongrowing r hr htarget
+      simp only [List.length_cons, List.length_append] at ih ⊢
+      omega
+
+private theorem reaches_pop_mono {M : OneTurnNPDA T State Stack}
+    {c c' : ID T State Stack} (h : M.Reaches c c')
+    (hc : c.2.1.2 = .pop) : c'.2.1.2 = .pop := by
+  induction h with
+  | refl => exact hc
+  | tail h step ih =>
+      have hmid := ih
+      cases step with
+      | @consume a rest tail r hr hinput =>
+          exact M.pop_stays_pop r hr (by simpa using hmid)
+      | @epsilon rest tail r hr hinput =>
+          exact M.pop_stays_pop r hr (by simpa using hmid)
+
+theorem reaches_from_pop_phase {M : OneTurnNPDA T State Stack}
+    {input input' : List T} {p q : State} {phase : TurnPhase}
+    {stack stack' : List Stack}
+    (h : M.Reaches (input, (p, .pop), stack) (input', (q, phase), stack')) :
+    phase = .pop := reaches_pop_mono h rfl
+
+theorem PushRun.snoc {M : OneTurnNPDA T State Stack}
+    {r : PushdownRule T (State × TurnPhase) Stack} {tail : List Stack}
+    {p q : State} {startStack endStack : List Stack} {word : List T}
+    (h : PushRun M p startStack q endStack word)
+    (hstack : endStack = r.pop :: tail)
+    (hr : r ∈ M.rules) (hsource : r.source.2 = .push)
+    (htarget : r.target.2 = .push) (hstate : r.source.1 = q) :
+    PushRun M p startStack r.target.1 (r.push ++ tail)
+      (word ++ r.input.toList) := by
+  induction h generalizing r tail with
+  | refl =>
+      rw [hstack, ← hstate]
+      simpa using PushRun.head hr hsource htarget
+        (PushRun.refl r.target.1 (r.push ++ tail))
+  | @head first firstTail q stack firstWord hfirst hs ht rest ih =>
+      simpa [List.append_assoc] using
+        PushRun.head hfirst hs ht
+          (ih hstack hr hsource htarget hstate)
+
+theorem pushRun_of_reaches {M : OneTurnNPDA T State Stack}
+    {input input' : List T} {p q : State} {stack stack' : List Stack}
+    (h : M.Reaches (input, (p, .push), stack) (input', (q, .push), stack')) :
+    ∃ word, input = word ++ input' ∧ PushRun M p stack q stack' word := by
+  have aux : ∀ {c c' : ID T State Stack}, M.Reaches c c' →
+      c.2.1.2 = .push → c'.2.1.2 = .push →
+      ∃ word, c.1 = word ++ c'.1 ∧
+        PushRun M c.2.1.1 c.2.2 c'.2.1.1 c'.2.2 word := by
+    intro c c' h hc hc'
+    induction h with
+    | refl => exact ⟨[], by simp, PushRun.refl _ _⟩
+    | tail h step ih =>
+        cases step with
+        | @consume a rest tail r hr hinput =>
+            have htarget : r.target.2 = TurnPhase.push := by simpa using hc'
+            have hsource : r.source.2 = TurnPhase.push := by
+              cases hs : r.source.2
+              · rfl
+              · have hpop := M.pop_stays_pop r hr hs
+                rw [htarget] at hpop
+                cases hpop
+            rcases ih hsource with ⟨word, hword, hrun⟩
+            refine ⟨word ++ [a], ?_, ?_⟩
+            · simpa [List.append_assoc] using hword
+            · simpa [hinput] using
+                hrun.snoc rfl hr hsource htarget (by rfl)
+        | @epsilon rest tail r hr hinput =>
+            have htarget : r.target.2 = TurnPhase.push := by simpa using hc'
+            have hsource : r.source.2 = TurnPhase.push := by
+              cases hs : r.source.2
+              · rfl
+              · have hpop := M.pop_stays_pop r hr hs
+                rw [htarget] at hpop
+                cases hpop
+            rcases ih hsource with ⟨word, hword, hrun⟩
+            refine ⟨word, hword, ?_⟩
+            simpa [hinput] using hrun.snoc rfl hr hsource htarget (by rfl)
+  exact aux h rfl rfl
+
+theorem popRun_of_reaches {M : OneTurnNPDA T State Stack}
+    {input input' : List T} {p q : State} {stack stack' : List Stack}
+    (h : M.Reaches (input, (p, .pop), stack) (input', (q, .pop), stack')) :
+    ∃ word, input = word ++ input' ∧ PopRun M p stack q stack' word := by
+  have aux : ∀ {c c' : ID T State Stack}, M.Reaches c c' →
+      c.2.1.2 = .pop → c'.2.1.2 = .pop →
+      ∃ word, c.1 = word ++ c'.1 ∧
+        PopRun M c.2.1.1 c.2.2 c'.2.1.1 c'.2.2 word := by
+    intro c c' h hc hc'
+    induction h with
+    | refl => exact ⟨[], by simp, PopRun.refl _ _⟩
+    | tail h step ih =>
+        have hsource := reaches_pop_mono h hc
+        cases step with
+        | @consume a rest tail r hr hinput =>
+            have htarget : r.target.2 = TurnPhase.pop := by simpa using hc'
+            rcases ih hsource with ⟨word, hword, hrun⟩
+            refine ⟨word ++ [a], ?_, ?_⟩
+            · simpa [List.append_assoc] using hword
+            · simpa [hinput] using PopRun.tail hrun hr hsource htarget
+        | @epsilon rest tail r hr hinput =>
+            have htarget : r.target.2 = TurnPhase.pop := by simpa using hc'
+            rcases ih hsource with ⟨word, hword, hrun⟩
+            exact ⟨word, hword, by
+              simpa [hinput] using PopRun.tail hrun hr hsource htarget⟩
+  exact aux h rfl rfl
+
+inductive TurnSplit (M : OneTurnNPDA T State Stack)
+    (input input' : List T) (p : State) (stack : List Stack)
+    (q : State) (stack' : List Stack) : Prop where
+  | intro (leftWord rightWord : List T)
+      (turnRule : PushdownRule T (State × TurnPhase) Stack)
+      (turnTail : List Stack)
+      (input_eq : input =
+        (leftWord ++ turnRule.input.toList ++ rightWord) ++ input')
+      (left : PushRun M p stack turnRule.source.1
+        (turnRule.pop :: turnTail) leftWord)
+      (turn_mem : turnRule ∈ M.rules)
+      (turn_source : turnRule.source.2 = .push)
+      (turn_target : turnRule.target.2 = .pop)
+      (right : PopRun M turnRule.target.1 (turnRule.push ++ turnTail)
+        q stack' rightWord) :
+      TurnSplit M input input' p stack q stack'
+
+theorem split_reaches {M : OneTurnNPDA T State Stack}
+    {input input' : List T} {p q : State} {stack stack' : List Stack}
+    (h : M.Reaches (input, (p, .push), stack) (input', (q, .pop), stack')) :
+    TurnSplit M input input' p stack q stack' := by
+  have aux : ∀ {c c' : ID T State Stack}, M.Reaches c c' →
+      c.2.1.2 = .push → c'.2.1.2 = .pop →
+      TurnSplit M c.1 c'.1 c.2.1.1 c.2.2 c'.2.1.1 c'.2.2 := by
+    intro c c' h hc hc'
+    induction h with
+    | refl =>
+        rw [hc] at hc'
+        cases hc'
+    | tail h step ih =>
+        cases step with
+        | @consume a rest tail r hr hinput =>
+            have htarget : r.target.2 = TurnPhase.pop := by simpa using hc'
+            cases hs : r.source.2
+            · have hcState : c.2.1 = (c.2.1.1, TurnPhase.push) :=
+                Prod.ext rfl hc
+              have hsState : r.source = (r.source.1, TurnPhase.push) :=
+                Prod.ext rfl hs
+              have hpush : M.Reaches
+                  (c.1, (c.2.1.1, .push), c.2.2)
+                  (a :: rest, (r.source.1, .push), r.pop :: tail) := by
+                rw [← hcState, ← hsState]
+                exact h
+              obtain ⟨word, hword, hrun⟩ := pushRun_of_reaches hpush
+              refine ⟨word, [], r, tail, ?_, hrun, hr, hs, htarget, ?_⟩
+              · simpa [hinput, List.append_assoc] using hword
+              · exact PopRun.refl r.target.1 (r.push ++ tail)
+            · rcases ih hs with
+                ⟨leftWord, rightWord, turnRule, turnTail, hword,
+                  hleft, hturn, hturnSource, hturnTarget, hright⟩
+              refine ⟨leftWord, rightWord ++ [a], turnRule, turnTail, ?_,
+                hleft, hturn, hturnSource, hturnTarget, ?_⟩
+              · simpa [List.append_assoc] using hword
+              · simpa [hinput, List.append_assoc] using
+                  PopRun.tail hright hr hs htarget
+        | @epsilon rest tail r hr hinput =>
+            have htarget : r.target.2 = TurnPhase.pop := by simpa using hc'
+            cases hs : r.source.2
+            · have hcState : c.2.1 = (c.2.1.1, TurnPhase.push) :=
+                Prod.ext rfl hc
+              have hsState : r.source = (r.source.1, TurnPhase.push) :=
+                Prod.ext rfl hs
+              have hpush : M.Reaches
+                  (c.1, (c.2.1.1, .push), c.2.2)
+                  (rest, (r.source.1, .push), r.pop :: tail) := by
+                rw [← hcState, ← hsState]
+                exact h
+              obtain ⟨word, hword, hrun⟩ := pushRun_of_reaches hpush
+              refine ⟨word, [], r, tail, ?_, hrun, hr, hs, htarget, ?_⟩
+              · simpa [hinput] using hword
+              · simpa [hinput] using
+                  (PopRun.refl r.target.1 (r.push ++ tail))
+            · rcases ih hs with
+                ⟨leftWord, rightWord, turnRule, turnTail, hword,
+                  hleft, hturn, hturnSource, hturnTarget, hright⟩
+              refine ⟨leftWord, rightWord, turnRule, turnTail, hword,
+                hleft, hturn, hturnSource, hturnTarget, ?_⟩
+              simpa [hinput] using PopRun.tail hright hr hs htarget
+  exact aux h rfl rfl
+
+private theorem push_rule_cases (M : OneTurnNPDA T State Stack)
+    (hmax : ∀ r ∈ M.rules, r.push.length ≤ 2)
+    (r : PushdownRule T (State × TurnPhase) Stack) (hr : r ∈ M.rules)
+    (hsource : r.source.2 = .push) :
+    (∃ y, r.push = [y]) ∨ ∃ y z, r.push = [y, z] := by
+  have hmin := M.push_phase_nonshrinking r hr hsource
+  have hbound := hmax r hr
+  cases hp : r.push with
+  | nil =>
+      have hzero := congrArg List.length hp
+      simp only [List.length_nil] at hzero
+      omega
+  | cons y rest =>
+      cases hrst : rest with
+      | nil => exact Or.inl ⟨y, rfl⟩
+      | cons z more =>
+          cases hmore : more with
+          | nil => exact Or.inr ⟨y, z, rfl⟩
+          | cons w ws =>
+              have hlen := congrArg List.length hp
+              simp [hrst, hmore] at hlen
+              omega
+
+private theorem pop_rule_cases (M : OneTurnNPDA T State Stack)
+    (r : PushdownRule T (State × TurnPhase) Stack) (hr : r ∈ M.rules)
+    (htarget : r.target.2 = .pop) :
+    r.push = [] ∨ ∃ y, r.push = [y] := by
+  have hbound := M.pop_phase_nongrowing r hr htarget
+  cases hp : r.push with
+  | nil => exact Or.inl rfl
+  | cons y rest =>
+      cases hrst : rest with
+      | nil => exact Or.inr ⟨y, rfl⟩
+      | cons z more =>
+          have hlen := congrArg List.length hp
+          simp [hrst] at hlen
+          omega
+
+private theorem turn_rule_single (M : OneTurnNPDA T State Stack)
+    (r : PushdownRule T (State × TurnPhase) Stack) (hr : r ∈ M.rules)
+    (hsource : r.source.2 = .push) (htarget : r.target.2 = .pop) :
+    ∃ y, r.push = [y] := by
+  rcases pop_rule_cases M r hr htarget with hempty | ⟨y, hy⟩
+  · have hmin := M.push_phase_nonshrinking r hr hsource
+    simp [hempty] at hmin
+  · exact ⟨y, hy⟩
+
+private theorem bridge_of_phase_runs (M : OneTurnNPDA T State Stack)
+    (hmax : ∀ r ∈ M.rules, r.push.length ≤ 2)
+    {p q : State} {x z : Stack} {startSuffix endSuffix : List Stack}
+    {leftWord rightWord : List T}
+    {turnRule : PushdownRule T (State × TurnPhase) Stack}
+    {turnTail : List Stack}
+    (hleft : PushRun M p (x :: startSuffix) turnRule.source.1
+      (turnRule.pop :: turnTail) leftWord)
+    (hturn : turnRule ∈ M.rules)
+    (hturnSource : turnRule.source.2 = .push)
+    (hturnTarget : turnRule.target.2 = .pop)
+    (hright : PopRun M turnRule.target.1 (turnRule.push ++ turnTail)
+      q (z :: endSuffix) rightWord)
+    (hlen : startSuffix.length = endSuffix.length) :
+    startSuffix = endSuffix ∧
+      Bridge M p x q z
+        (leftWord ++ turnRule.input.toList ++ rightWord) := by
+  generalize hstart : x :: startSuffix = startStack at hleft
+  generalize hcontrol : turnRule.source.1 = middleState at hleft
+  generalize hmiddle : turnRule.pop :: turnTail = middleStack at hleft
+  induction hleft generalizing x startSuffix turnRule turnTail q z endSuffix
+    rightWord with
+  | refl =>
+      have hstack := hstart.trans hmiddle.symm
+      obtain ⟨rfl, rfl⟩ := List.cons.inj hstack
+      obtain ⟨y, hy⟩ := turn_rule_single M turnRule hturn
+        hturnSource hturnTarget
+      rw [hy] at hright
+      generalize hend : z :: endSuffix = finalStack at hright
+      revert hlen
+      induction hright generalizing z endSuffix with
+      | refl =>
+          intro hlen
+          have hstackEnd : y :: startSuffix = z :: endSuffix := by
+            simpa using hend.symm
+          obtain ⟨rfl, rfl⟩ := List.cons.inj hstackEnd
+          exact ⟨rfl, by simpa [hcontrol] using
+            (Bridge.turn hturn hturnSource hturnTarget hy)⟩
+      | @tail word right tail prior hrightMem hrightSource hrightTarget ih =>
+          intro hlen
+          have hend' : right.push ++ tail = z :: endSuffix := hend.symm
+          rcases pop_rule_cases M right hrightMem hrightTarget with
+            hzero | ⟨next, hneutral⟩
+          · have hmono := prior.length_mono
+            rw [hzero] at hend'
+            simp only [List.nil_append] at hend'
+            subst tail
+            simp only [List.singleton_append, List.length_cons] at hmono
+            omega
+          · rw [hneutral] at hend'
+            simp only [List.singleton_append] at hend'
+            obtain ⟨rfl, rfl⟩ := List.cons.inj hend'
+            obtain ⟨hsuffix, hbridge⟩ := ih rfl hlen
+            refine ⟨hsuffix, ?_⟩
+            simpa [List.append_assoc] using
+              Bridge.rightNeutral hbridge hrightMem hrightSource
+                hrightTarget hneutral
+  | @head left leftTail mid stack leftWord hleftMem hleftSource
+      hleftTarget rest ih =>
+      obtain ⟨rfl, rfl⟩ := List.cons.inj hstart
+      rcases push_rule_cases M hmax left hleftMem hleftSource with
+        ⟨y, hneutral⟩ | ⟨y, lower, hgrow⟩
+      · rw [hneutral] at rest
+        obtain ⟨hsuffix, hbridge⟩ := ih (x := y)
+          (startSuffix := startSuffix) hturn hturnSource hturnTarget
+          hright hlen (by simp [hneutral]) hcontrol hmiddle
+        refine ⟨hsuffix, ?_⟩
+        simpa [List.append_assoc] using
+          Bridge.leftNeutral hleftMem hleftSource hleftTarget hneutral hbridge
+      · rw [hgrow] at rest
+        generalize hend : z :: endSuffix = finalStack at hright
+        revert hlen
+        induction hright generalizing z endSuffix with
+        | refl =>
+            intro hlen
+            obtain ⟨turnTop, hturnPush⟩ := turn_rule_single M turnRule hturn
+              hturnSource hturnTarget
+            have hstackEnd : turnTop :: turnTail = z :: endSuffix := by
+              simpa [hturnPush] using hend.symm
+            have htailEnd := (List.cons.inj hstackEnd).2
+            have hmono := rest.length_mono
+            simp only [List.cons_append, List.nil_append,
+              List.length_cons] at hmono
+            rw [← hmiddle] at hmono
+            simp only [List.length_cons] at hmono
+            rw [htailEnd] at hmono
+            omega
+        | @tail word right tail prior hrightMem hrightSource hrightTarget ihRight =>
+            intro hlen
+            have hend' : right.push ++ tail = z :: endSuffix := hend.symm
+            rcases pop_rule_cases M right hrightMem hrightTarget with
+              hzero | ⟨next, hneutral⟩
+            · rw [hzero] at hend'
+              simp only [List.nil_append] at hend'
+              subst tail
+              have hlenInner : (lower :: startSuffix).length =
+                  (z :: endSuffix).length := by simp [hlen]
+              obtain ⟨hsuffix, hbridge⟩ :=
+                ih (x := y) (startSuffix := lower :: startSuffix)
+                  hturn hturnSource hturnTarget prior hlenInner
+                  (by simp [hgrow]) hcontrol hmiddle
+              have hlower := (List.cons.inj hsuffix).1
+              have hsuffix' := (List.cons.inj hsuffix).2
+              subst lower
+              refine ⟨hsuffix', ?_⟩
+              simpa [List.append_assoc] using
+                Bridge.pair hleftMem hleftSource hleftTarget hgrow hbridge
+                  hrightMem hrightSource hrightTarget hzero
+            · rw [hneutral] at hend'
+              simp only [List.singleton_append] at hend'
+              obtain ⟨rfl, rfl⟩ := List.cons.inj hend'
+              obtain ⟨hsuffix, hbridge⟩ := ihRight rfl hlen
+              refine ⟨hsuffix, ?_⟩
+              simpa [List.append_assoc] using
+                Bridge.rightNeutral hbridge hrightMem hrightSource
+                  hrightTarget hneutral
+
+private theorem bridge_of_reaches (M : OneTurnNPDA T State Stack)
+    (hmax : ∀ r ∈ M.rules, r.push.length ≤ 2)
+    {p q : State} {x z : Stack} {word input : List T}
+    {suffix : List Stack}
+    (h : M.Reaches (word ++ input, (p, .push), x :: suffix)
+      (input, (q, .pop), z :: suffix)) : Bridge M p x q z word := by
+  rcases split_reaches h with
+    ⟨leftWord, rightWord, turnRule, turnTail, hword, hleft,
+      hturn, hturnSource, hturnTarget, hright⟩
+  have hconsumed : word =
+      leftWord ++ turnRule.input.toList ++ rightWord := by
+    apply List.append_cancel_right (bs := input)
+    simpa [List.append_assoc] using hword
+  obtain ⟨_, hbridge⟩ := bridge_of_phase_runs M hmax hleft hturn
+    hturnSource hturnTarget hright rfl
+  simpa [hconsumed] using hbridge
+
+```
+
+### 有限な生成規則の列挙
+
+正規化規則は置換語の長さが 0、1、2 のいずれかなので、Bridge の構成子は有限個の
+規則スキーマとして列挙できる。`GrammarRuleMeaning` は各列挙要素に意味を同時に持たせ、
+`LinearRuleSpec` から規則だけを射影して有限集合を作る。これにより、規則が線形である
+証明と、後で規則から意味を復元する証明が同じ証拠を共有する。
+
+```lean
+namespace Internal
+
+@[simp] theorem countP_terminalSymbols {N : Type} (word : List T) :
+    (terminalSymbols (N := N) word).countP symbolIsNonterminal = 0 := by
+  induction word with
+  | nil => rfl
+  | cons a word ih =>
+      change List.countP symbolIsNonterminal
+        (Symbol.terminal a :: terminalSymbols word) = 0
+      simp [symbolIsNonterminal, ih]
+
+@[simp] theorem countP_terminal_comp {N : Type} (word : List T) :
+    word.countP
+      (symbolIsNonterminal (T := T) (N := N) ∘ Symbol.terminal) = 0 := by
+  induction word with
+  | nil => rfl
+  | cons a word ih =>
+      simp [Function.comp_def, symbolIsNonterminal]
+
+inductive GrammarRuleMeaning (M : OneTurnNPDA T State Stack) :
+    ContextFreeRule T
+      (BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack)) → Prop
+  | root (p : NormalState T State Stack) (input : Option T)
+      (x : NPDA.FinalStack Stack)
+      (hr : ({ source := (p, .pop)
+               input := input
+               pop := x
+               target := (.done, .pop)
+               push := [] } : PushdownRule T _ _) ∈
+          M.normalize.rules) :
+      GrammarRuleMeaning M
+        { input := .start,
+          output := [.nonterminal
+            (.bridge (.boot : NormalState T State Stack) .bottom
+              p x)] ++ terminalSymbols input.toList }
+  | turn (p q : NormalState T State Stack) (input : Option T)
+      (x z : NPDA.FinalStack Stack)
+      (hr : ({ source := (p, .push)
+               input := input
+               pop := x
+               target := (q, .pop)
+               push := [z] } : PushdownRule T _ _) ∈
+          M.normalize.rules) :
+      GrammarRuleMeaning M
+        { input := .bridge p x q z,
+          output := terminalSymbols input.toList }
+  | leftNeutral (p p' q : NormalState T State Stack) (input : Option T)
+      (x y z : NPDA.FinalStack Stack)
+      (hr : ({ source := (p, .push)
+               input := input
+               pop := x
+               target := (p', .push)
+               push := [y] } : PushdownRule T _ _) ∈
+          M.normalize.rules)
+      (hendpoint : (q, z) ∈ bridgeEndpoints M.normalize) :
+      GrammarRuleMeaning M
+        { input := .bridge p x q z,
+          output := terminalSymbols input.toList ++
+            [.nonterminal (.bridge p' y q z)] }
+  | rightNeutral (p q q' : NormalState T State Stack) (input : Option T)
+      (x y z : NPDA.FinalStack Stack)
+      (hr : ({ source := (q, .pop)
+               input := input
+               pop := y
+               target := (q', .pop)
+               push := [z] } : PushdownRule T _ _) ∈
+          M.normalize.rules)
+      (hendpoint : (p, x) ∈ bridgeEndpoints M.normalize) :
+      GrammarRuleMeaning M
+        { input := .bridge p x q' z,
+          output := [.nonterminal (.bridge p x q y)] ++
+            terminalSymbols input.toList }
+  | pair (p p' q q' : NormalState T State Stack)
+      (leftInput rightInput : Option T)
+      (x y z w : NPDA.FinalStack Stack)
+      (hleft : ({ source := (p, .push)
+                  input := leftInput
+                  pop := x
+                  target := (p', .push)
+                  push := [y, z] } : PushdownRule T _ _) ∈
+          M.normalize.rules)
+      (hright : ({ source := (q, .pop)
+                   input := rightInput
+                   pop := w
+                   target := (q', .pop)
+                   push := [] } : PushdownRule T _ _) ∈
+          M.normalize.rules) :
+      GrammarRuleMeaning M
+        { input := .bridge p x q' z,
+          output := terminalSymbols leftInput.toList ++
+            [.nonterminal (.bridge p' y q w)] ++
+            terminalSymbols rightInput.toList }
+
+theorem GrammarRuleMeaning.linear
+    {M : OneTurnNPDA T State Stack}
+    {r : ContextFreeRule T
+      (BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack))}
+    (h : GrammarRuleMeaning M r) : r.IsLinear := by
+  cases h <;>
+    simp [ContextFreeRule.IsLinear, ContextFreeRule.nonterminalCount,
+      symbolIsNonterminal]
+
+structure LinearRuleSpec (M : OneTurnNPDA T State Stack) where
+  rule : ContextFreeRule T
+    (BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack))
+  meaning : GrammarRuleMeaning M rule
+
+def turnGrammarRules (M : OneTurnNPDA T State Stack) :
+    List (LinearRuleSpec M) :=
+  M.normalize.rules.attach.flatMap fun ⟨r, hr⟩ =>
+    match r with
+    | { source := (p, .push)
+        input := input
+        pop := x
+        target := (q, .pop)
+        push := [z] } =>
+        [{ rule :=
+             { input := .bridge p x q z,
+               output := terminalSymbols input.toList }
+           meaning := .turn p q input x z hr }]
+    | _ => []
+
+def leftGrammarRules (M : OneTurnNPDA T State Stack) :
+    List (LinearRuleSpec M) :=
+  M.normalize.rules.attach.flatMap fun ⟨r, hr⟩ =>
+    match r with
+    | { source := (p, .push)
+        input := input
+        pop := x
+        target := (p', .push)
+        push := [y] } =>
+        (bridgeEndpoints M.normalize).attach.map fun ⟨⟨q, z⟩, hendpoint⟩ =>
+          { rule :=
+              { input := .bridge p x q z,
+                output := terminalSymbols input.toList ++
+                  [.nonterminal (.bridge p' y q z)] }
+            meaning := .leftNeutral p p' q input x y z hr hendpoint }
+    | _ => []
+
+def rightGrammarRules (M : OneTurnNPDA T State Stack) :
+    List (LinearRuleSpec M) :=
+  M.normalize.rules.attach.flatMap fun ⟨r, hr⟩ =>
+    match r with
+    | { source := (q, .pop)
+        input := input
+        pop := y
+        target := (q', .pop)
+        push := [z] } =>
+        (bridgeEndpoints M.normalize).attach.map fun ⟨⟨p, x⟩, hendpoint⟩ =>
+          { rule :=
+              { input := .bridge p x q' z,
+                output := [.nonterminal (.bridge p x q y)] ++
+                  terminalSymbols input.toList }
+            meaning := .rightNeutral p q q' input x y z hr hendpoint }
+    | _ => []
+
+def pairGrammarRules (M : OneTurnNPDA T State Stack) :
+    List (LinearRuleSpec M) :=
+  M.normalize.rules.attach.flatMap fun ⟨left, hleft⟩ =>
+    M.normalize.rules.attach.flatMap fun ⟨right, hright⟩ =>
+      match left, right with
+      | { source := (p, .push)
+          input := leftInput
+          pop := x
+          target := (p', .push)
+          push := [y, z] },
+        { source := (q, .pop)
+          input := rightInput
+          pop := w
+          target := (q', .pop)
+          push := [] } =>
+          [{ rule :=
+               { input := .bridge p x q' z,
+                 output := terminalSymbols leftInput.toList ++
+                   [.nonterminal (.bridge p' y q w)] ++
+                   terminalSymbols rightInput.toList }
+             meaning := .pair p p' q q' leftInput rightInput x y z w
+               hleft hright }]
+      | _, _ => []
+
+def bridgeGrammarRules (M : OneTurnNPDA T State Stack) :
+    List (LinearRuleSpec M) :=
+  turnGrammarRules M ++ leftGrammarRules M ++ rightGrammarRules M ++
+    pairGrammarRules M
+
+def rootGrammarRules (M : OneTurnNPDA T State Stack) :
+    List (LinearRuleSpec M) :=
+  M.normalize.rules.attach.flatMap fun ⟨r, hr⟩ =>
+    match r with
+    | { source := (p, .pop)
+        input := input
+        pop := x
+        target := (.done, .pop)
+        push := [] } =>
+        [{ rule :=
+             { input := .start,
+               output := [.nonterminal
+                 (.bridge (.boot : NormalState T State Stack) .bottom
+                   p x)] ++ terminalSymbols input.toList }
+           meaning := .root p input x hr }]
+    | _ => []
+
+def toLinearGrammarSpecs (M : OneTurnNPDA T State Stack) :
+    List (LinearRuleSpec M) :=
+  rootGrammarRules M ++ bridgeGrammarRules M
+
+def toLinearGrammarRules (M : OneTurnNPDA T State Stack) :
+    List (ContextFreeRule T
+      (BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack))) :=
+  (toLinearGrammarSpecs M).map LinearRuleSpec.rule
+
+end Internal
+
+/-- The finite bridge grammar generated from the normalized one-turn machine. -/
+public noncomputable def toLinearGrammar (M : OneTurnNPDA T State Stack) :
+    LinearGrammar T := by
+  classical
+  let specs := Internal.toLinearGrammarSpecs M
+  let rules := specs.map Internal.LinearRuleSpec.rule
+  refine
+    { cfg :=
+        { NT := BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack)
+          initial := .start
+          rules := rules.toFinset }
+      linear := ?_ }
+  intro r hr
+  change r ∈ rules.toFinset at hr
+  rw [List.mem_toFinset] at hr
+  change r ∈ specs.map Internal.LinearRuleSpec.rule at hr
+  obtain ⟨spec, _, rfl⟩ := List.mem_map.mp hr
+  exact spec.meaning.linear
+
+private theorem grammarRuleMeaning_of_mem (M : OneTurnNPDA T State Stack)
+    {r : ContextFreeRule T
+      (BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack))}
+    (hr : r ∈ M.toLinearGrammar.cfg.rules) :
+    Internal.GrammarRuleMeaning M r := by
+  classical
+  change r ∈ ((Internal.toLinearGrammarSpecs M).map
+    Internal.LinearRuleSpec.rule).toFinset at hr
+  rw [List.mem_toFinset] at hr
+  obtain ⟨spec, _, rfl⟩ := List.mem_map.mp hr
+  exact spec.meaning
+
+private theorem grammarRule_mem_of_meaning (M : OneTurnNPDA T State Stack)
+    {r : ContextFreeRule T
+      (BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack))}
+    (h : Internal.GrammarRuleMeaning M r) :
+    r ∈ M.toLinearGrammar.cfg.rules := by
+  classical
+  change r ∈ ((Internal.toLinearGrammarSpecs M).map
+    Internal.LinearRuleSpec.rule).toFinset
+  rw [List.mem_toFinset]
+  cases h with
+  | root p input x hr =>
+      apply List.mem_map.mpr
+      refine ⟨{ rule := _, meaning := .root p input x hr }, ?_, rfl⟩
+      apply List.mem_append_left
+      unfold Internal.rootGrammarRules
+      apply List.mem_flatMap.mpr
+      refine ⟨⟨_, hr⟩, by simp, ?_⟩
+      simp
+  | turn p q input x z hr =>
+      apply List.mem_map.mpr
+      refine ⟨{ rule := _, meaning := .turn p q input x z hr }, ?_, rfl⟩
+      apply List.mem_append_right
+      apply List.mem_append_left
+      apply List.mem_append_left
+      apply List.mem_append_left
+      unfold Internal.turnGrammarRules
+      apply List.mem_flatMap.mpr
+      refine ⟨⟨_, hr⟩, by simp, ?_⟩
+      simp
+  | leftNeutral p p' q input x y z hr hendpoint =>
+      apply List.mem_map.mpr
+      refine ⟨{ rule := _, meaning :=
+        .leftNeutral p p' q input x y z hr hendpoint }, ?_, rfl⟩
+      apply List.mem_append_right
+      apply List.mem_append_left
+      apply List.mem_append_left
+      apply List.mem_append_right
+      unfold Internal.leftGrammarRules
+      apply List.mem_flatMap.mpr
+      refine ⟨⟨_, hr⟩, by simp, ?_⟩
+      simp [hendpoint]
+  | rightNeutral p q q' input x y z hr hendpoint =>
+      apply List.mem_map.mpr
+      refine ⟨{ rule := _, meaning :=
+        .rightNeutral p q q' input x y z hr hendpoint }, ?_, rfl⟩
+      apply List.mem_append_right
+      apply List.mem_append_left
+      apply List.mem_append_right
+      unfold Internal.rightGrammarRules
+      apply List.mem_flatMap.mpr
+      refine ⟨⟨_, hr⟩, by simp, ?_⟩
+      simp [hendpoint]
+  | pair p p' q q' leftInput rightInput x y z w hleft hright =>
+      let meaning := Internal.GrammarRuleMeaning.pair p p' q q'
+        leftInput rightInput x y z w hleft hright
+      apply List.mem_map.mpr
+      refine ⟨{ rule := _, meaning := meaning }, ?_, rfl⟩
+      apply List.mem_append_right
+      apply List.mem_append_right
+      unfold Internal.pairGrammarRules
+      apply List.mem_flatMap.mpr
+      refine ⟨⟨_, hleft⟩, by simp, ?_⟩
+      apply List.mem_flatMap.mpr
+      refine ⟨⟨_, hright⟩, by simp, ?_⟩
+      simp
+
+```
+
+### Bridge と生成木の双方向対応
+
+意味的 Bridge からは、未読入力と共通スタック接尾辞を任意に保つ具体的実行を作れる。
+逆に生成木の各規則を `GrammarRuleMeaning` で分類すると、終端のみの turn、左右の中立
+拡張、増加・減少の対から対応する Bridge 構成子が一意に復元される。終端列中に非終端
+記号が現れないことと、終端・非終端・終端という分解の単射性が不可能な分岐を除く。
+
+```lean
+/-- A semantic bridge induces a concrete run above every untouched suffix and
+with every unread continuation. -/
+@[grind .] theorem Bridge.reaches {M : OneTurnNPDA T State Stack}
+    {p q : State} {x z : Stack} {word : List T}
+    (h : Bridge M p x q z word) (input : List T) (suffix : List Stack) :
+    M.Reaches (word ++ input, (p, .push), x :: suffix)
+      (input, (q, .pop), z :: suffix) := by
+  induction h generalizing input suffix with
+  | @turn r z hr hsource htarget hpush =>
+      have hs : r.source = (r.source.1, TurnPhase.push) :=
+        Prod.ext rfl hsource
+      have ht : r.target = (r.target.1, TurnPhase.pop) :=
+        Prod.ext rfl htarget
+      rw [← hs, ← ht]
+      simpa only [hpush, List.singleton_append] using
+        Relation.ReflTransGen.single
+          (bridgeRule_step M _ hr input suffix)
+  | @leftNeutral r y z q middle hr hsource htarget hpush inner ih =>
+      have first := bridgeRule_step M _ hr (middle ++ input) suffix
+      have rest := ih input suffix
+      have hs : r.source = (r.source.1, TurnPhase.push) :=
+        Prod.ext rfl hsource
+      have ht : r.target = (r.target.1, TurnPhase.push) :=
+        Prod.ext rfl htarget
+      have firstRun : M.Reaches
+          (r.input.toList ++ middle ++ input,
+            (r.source.1, .push), r.pop :: suffix)
+          (middle ++ input, (r.target.1, .push), y :: suffix) := by
+        rw [← hs, ← ht]
+        simpa only [hpush, List.singleton_append, List.append_assoc] using
+          Relation.ReflTransGen.single first
+      simpa only [List.append_assoc] using firstRun.trans rest
+  | @rightNeutral p x y r middle inner hr hsource htarget hpush ih =>
+      have first := ih (r.input.toList ++ input) suffix
+      have last := bridgeRule_step M _ hr input suffix
+      have hs : r.source = (r.source.1, TurnPhase.pop) :=
+        Prod.ext rfl hsource
+      have ht : r.target = (r.target.1, TurnPhase.pop) :=
+        Prod.ext rfl htarget
+      have lastRun : M.Reaches
+          (r.input.toList ++ input, (r.source.1, .pop), r.pop :: suffix)
+          (input, (r.target.1, .pop), y :: suffix) := by
+        rw [← hs, ← ht]
+        simpa only [hpush, List.singleton_append] using
+          Relation.ReflTransGen.single last
+      simpa only [List.append_assoc] using first.trans lastRun
+  | @pair left right y z middle hleft hleftSource hleftTarget hleftPush inner hright
+      hrightSource hrightTarget hrightPush ih =>
+      have first := bridgeRule_step M _ hleft
+        (middle ++ right.input.toList ++ input) suffix
+      have middleRun := ih (right.input.toList ++ input) (z :: suffix)
+      have last := bridgeRule_step M _ hright input (z :: suffix)
+      have hls : left.source = (left.source.1, TurnPhase.push) :=
+        Prod.ext rfl hleftSource
+      have hlt : left.target = (left.target.1, TurnPhase.push) :=
+        Prod.ext rfl hleftTarget
+      have hrs : right.source = (right.source.1, TurnPhase.pop) :=
+        Prod.ext rfl hrightSource
+      have hrt : right.target = (right.target.1, TurnPhase.pop) :=
+        Prod.ext rfl hrightTarget
+      have firstRun : M.Reaches
+          (left.input.toList ++ (middle ++ (right.input.toList ++ input)),
+            (left.source.1, .push), left.pop :: suffix)
+          (middle ++ (right.input.toList ++ input),
+            (left.target.1, .push), y :: z :: suffix) := by
+        rw [← hls, ← hlt]
+        simpa only [hleftPush, List.cons_append, List.nil_append,
+          List.append_assoc] using
+          Relation.ReflTransGen.single first
+      have lastRun : M.Reaches
+          (right.input.toList ++ input,
+            (right.source.1, .pop), right.pop :: z :: suffix)
+          (input, (right.target.1, .pop), z :: suffix) := by
+        rw [← hrs, ← hrt]
+        simpa only [hrightPush, List.nil_append] using
+          Relation.ReflTransGen.single last
+      simpa only [List.append_assoc] using
+        (firstRun.trans middleRun).trans lastRun
+
+@[grind .] theorem Bridge.start_supported {M : OneTurnNPDA T State Stack}
+    {p q : State} {x z : Stack} {word : List T}
+    (h : Bridge M p x q z word) :
+    p ∈ Internal.baseSupport M ∧ x ∈ Internal.bridgeStackSupport M := by
+  induction h with
+  | turn hr hsource htarget hpush =>
+      constructor
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hr, by simp⟩
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hr, by simp⟩
+  | leftNeutral hr hsource htarget hpush inner ih =>
+      constructor
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hr, by simp⟩
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hr, by simp⟩
+  | rightNeutral inner hr hsource htarget hpush ih => exact ih
+  | pair hleft hleftSource hleftTarget hleftPush inner hright
+      hrightSource hrightTarget hrightPush ih =>
+      constructor
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hleft, by simp⟩
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hleft, by simp⟩
+
+@[grind .] theorem Bridge.end_supported {M : OneTurnNPDA T State Stack}
+    {p q : State} {x z : Stack} {word : List T}
+    (h : Bridge M p x q z word) :
+    q ∈ Internal.baseSupport M ∧ z ∈ Internal.bridgeStackSupport M := by
+  induction h with
+  | turn hr hsource htarget hpush =>
+      constructor
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hr, by simp⟩
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hr, by simp [hpush]⟩
+  | leftNeutral hr hsource htarget hpush inner ih => exact ih
+  | rightNeutral inner hr hsource htarget hpush ih =>
+      constructor
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hr, by simp⟩
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hr, by simp [hpush]⟩
+  | pair hleft hleftSource hleftTarget hleftPush inner hright
+      hrightSource hrightTarget hrightPush ih =>
+      constructor
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hright, by simp⟩
+      · apply List.mem_append_right
+        exact List.mem_flatMap.mpr ⟨_, hleft, by simp [hleftPush]⟩
+
+private theorem bridgeEndpoint_mem (M : OneTurnNPDA T State Stack)
+    {q : State} {z : Stack} (hq : q ∈ Internal.baseSupport M)
+    (hz : z ∈ Internal.bridgeStackSupport M) :
+    (q, z) ∈ Internal.bridgeEndpoints M := by
+  unfold Internal.bridgeEndpoints
+  apply List.mem_flatMap.mpr
+  exact ⟨q, hq, by simp [hz]⟩
+
+private theorem terminalSymbols_injective {N : Type} :
+    Function.Injective (terminalSymbols (T := T) (N := N)) := by
+  exact List.map_injective_iff.mpr fun _ _ h => by simpa using h
+
+private theorem terminal_nonterminal_injective {N : Type}
+    {pre suffix pre' suffix' : List T} {A A' : N}
+    (h : terminalSymbols pre ++ [.nonterminal A] ++ terminalSymbols suffix =
+      terminalSymbols pre' ++ [.nonterminal A'] ++ terminalSymbols suffix') :
+    pre = pre' ∧ A = A' ∧ suffix = suffix' := by
+  induction pre generalizing pre' with
+  | nil =>
+      cases pre' with
+      | nil =>
+          simp only [terminalSymbols_nil, List.nil_append] at h
+          have hhead := (List.cons.inj h).1
+          have htail := (List.cons.inj h).2
+          exact ⟨rfl, by simpa using hhead,
+            terminalSymbols_injective htail⟩
+      | cons b pre' =>
+          simp only [terminalSymbols_nil, terminalSymbols_cons,
+            List.nil_append, List.cons_append] at h
+          cases (List.cons.inj h.symm).1
+  | cons a pre ih =>
+      cases pre' with
+      | nil =>
+          simp only [terminalSymbols_nil, terminalSymbols_cons,
+            List.nil_append, List.cons_append] at h
+          cases (List.cons.inj h).1
+      | cons b pre' =>
+          simp only [terminalSymbols_cons, List.cons_append] at h
+          have hhead := (List.cons.inj h).1
+          have htail := (List.cons.inj h).2
+          have hab : a = b := by simpa using hhead
+          subst b
+          obtain ⟨hpre, hA, hsuffix⟩ := ih htail
+          exact ⟨congrArg (a :: ·) hpre, hA, hsuffix⟩
+
+private theorem terminalSymbols_ne_nonterminal {N : Type}
+    (word pre suffix : List T) (A : N) :
+    terminalSymbols word ≠
+      terminalSymbols pre ++ [.nonterminal A] ++ terminalSymbols suffix := by
+  intro h
+  have hmem : (Symbol.nonterminal A : Symbol T N) ∈ terminalSymbols word := by
+    rw [h]
+    simp
+  simp [terminalSymbols] at hmem
+
+/-- Every semantic bridge has the corresponding production tree in the finite
+grammar of the original machine. -/
+theorem Bridge.linearGenerates {M : OneTurnNPDA T State Stack}
+    {p q : NormalState T State Stack} {x z : NPDA.FinalStack Stack}
+    {word : List T} (h : Bridge M.normalize p x q z word) :
+    Mathling.Grammar.LinearGrammar.LinearGenerates M.toLinearGrammar
+      (.bridge p x q z) word := by
+  induction h with
+  | @turn r z hr hsource htarget hpush =>
+      have hs : r.source = (r.source.1, .push) := Prod.ext rfl hsource
+      have ht : r.target = (r.target.1, .pop) := Prod.ext rfl htarget
+      have hr' : ({ source := (r.source.1, .push)
+                    input := r.input
+                    pop := r.pop
+                    target := (r.target.1, .pop)
+                    push := [z] } : PushdownRule T _ _) ∈ M.normalize.rules := by
+        simpa only [← hs, ← ht, ← hpush] using hr
+      apply Mathling.Grammar.LinearGrammar.LinearGenerates.leaf
+        (grammarRule_mem_of_meaning M
+          (.turn r.source.1 r.target.1 r.input r.pop z hr'))
+      rfl
+  | @leftNeutral r y z q middle hr hsource htarget hpush inner ih =>
+      have hs : r.source = (r.source.1, .push) := Prod.ext rfl hsource
+      have ht : r.target = (r.target.1, .push) := Prod.ext rfl htarget
+      have hr' : ({ source := (r.source.1, .push)
+                    input := r.input
+                    pop := r.pop
+                    target := (r.target.1, .push)
+                    push := [y] } : PushdownRule T _ _) ∈ M.normalize.rules := by
+        simpa only [← hs, ← ht, ← hpush] using hr
+      have hend := inner.end_supported
+      have hendpoint := bridgeEndpoint_mem M.normalize hend.1 hend.2
+      simpa using Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+        (pre := r.input.toList) (suffix := [])
+        (grammarRule_mem_of_meaning M
+          (.leftNeutral r.source.1 r.target.1 q r.input r.pop y z hr'
+            hendpoint)) (by exact (List.append_nil _).symm) ih
+  | @rightNeutral p x y r middle inner hr hsource htarget hpush ih =>
+      have hs : r.source = (r.source.1, .pop) := Prod.ext rfl hsource
+      have ht : r.target = (r.target.1, .pop) := Prod.ext rfl htarget
+      have hr' : ({ source := (r.source.1, .pop)
+                    input := r.input
+                    pop := r.pop
+                    target := (r.target.1, .pop)
+                    push := [y] } : PushdownRule T _ _) ∈ M.normalize.rules := by
+        simpa only [← hs, ← ht, ← hpush] using hr
+      have hstart := inner.start_supported
+      have hendpoint := bridgeEndpoint_mem M.normalize hstart.1 hstart.2
+      simpa using Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+        (pre := []) (suffix := r.input.toList)
+        (grammarRule_mem_of_meaning M
+          (.rightNeutral p r.source.1 r.target.1 r.input x r.pop y hr'
+            hendpoint)) rfl ih
+  | @pair left right y z middle hleft hleftSource hleftTarget hleftPush inner
+      hright hrightSource hrightTarget hrightPush ih =>
+      have hls : left.source = (left.source.1, .push) :=
+        Prod.ext rfl hleftSource
+      have hlt : left.target = (left.target.1, .push) :=
+        Prod.ext rfl hleftTarget
+      have hrs : right.source = (right.source.1, .pop) :=
+        Prod.ext rfl hrightSource
+      have hrt : right.target = (right.target.1, .pop) :=
+        Prod.ext rfl hrightTarget
+      have hleft' : ({ source := (left.source.1, .push)
+                       input := left.input
+                       pop := left.pop
+                       target := (left.target.1, .push)
+                       push := [y, z] } : PushdownRule T _ _) ∈
+          M.normalize.rules := by
+        simpa only [← hls, ← hlt, ← hleftPush] using hleft
+      have hright' : ({ source := (right.source.1, .pop)
+                        input := right.input
+                        pop := right.pop
+                        target := (right.target.1, .pop)
+                        push := [] } : PushdownRule T _ _) ∈
+          M.normalize.rules := by
+        simpa only [← hrs, ← hrt, ← hrightPush] using hright
+      simpa [List.append_assoc] using
+        Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+          (pre := left.input.toList) (suffix := right.input.toList)
+          (grammarRule_mem_of_meaning M
+            (.pair left.source.1 left.target.1 right.source.1 right.target.1
+              left.input right.input left.pop y z right.pop hleft' hright'))
+          rfl ih
+
+private theorem linearGenerates_bridge_aux {M : OneTurnNPDA T State Stack}
+    {A : BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack)}
+    {word : List T}
+    (h : Mathling.Grammar.LinearGrammar.LinearGenerates M.toLinearGrammar
+      A word) :
+    ∀ (p : NormalState T State Stack) (x : NPDA.FinalStack Stack)
+      (q : NormalState T State Stack) (z : NPDA.FinalStack Stack),
+      A = .bridge p x q z → Bridge M.normalize p x q z word := by
+  refine Mathling.Grammar.LinearGrammar.LinearGenerates.rec
+    (motive := fun A word _ =>
+      ∀ (p : NormalState T State Stack) (x : NPDA.FinalStack Stack)
+        (q : NormalState T State Stack) (z : NPDA.FinalStack Stack),
+        A = BridgeNT.bridge p x q z → Bridge M.normalize p x q z word)
+    ?_ ?_ h
+  · intro r word hr hout p x q z hA
+    have hmeaning := grammarRuleMeaning_of_mem M hr
+    cases hmeaning with
+    | root => cases hA
+    | turn p q input x z hrule =>
+        cases hA
+        have hword := terminalSymbols_injective hout
+        subst word
+        exact .turn hrule rfl rfl rfl
+    | leftNeutral p p' q input x y z hrule hendpoint =>
+        cases hA
+        have hout' : terminalSymbols word =
+            terminalSymbols input.toList ++
+              [.nonterminal (BridgeNT.bridge p' y q z)] ++
+                terminalSymbols [] := by
+          rw [terminalSymbols_nil, List.append_nil]
+          exact hout.symm
+        exact (terminalSymbols_ne_nonterminal word input.toList []
+          (BridgeNT.bridge p' y q z) hout').elim
+    | rightNeutral p q q' input x y z hrule hendpoint =>
+        cases hA
+        exact (terminalSymbols_ne_nonterminal word [] input.toList
+          (BridgeNT.bridge p x q y) hout.symm).elim
+    | pair p p' q q' leftInput rightInput x y z w hleft hright =>
+        cases hA
+        exact (terminalSymbols_ne_nonterminal word leftInput.toList
+          rightInput.toList (BridgeNT.bridge p' y q w) hout.symm).elim
+  · intro r pre suffix middle B hr hout child ih p x q z hA
+    have hmeaning := grammarRuleMeaning_of_mem M hr
+    cases hmeaning with
+    | root => cases hA
+    | turn p q input x z hrule =>
+        cases hA
+        exact (terminalSymbols_ne_nonterminal input.toList pre suffix B
+          hout).elim
+    | leftNeutral p p' q input x y z hrule hendpoint =>
+        cases hA
+        have hout' : terminalSymbols input.toList ++
+            [.nonterminal (BridgeNT.bridge p' y q z)] ++ terminalSymbols [] =
+            terminalSymbols pre ++ [.nonterminal B] ++
+              terminalSymbols suffix := by
+          rw [terminalSymbols_nil, List.append_nil]
+          exact hout
+        obtain ⟨hpre, hB, hsuffix⟩ :=
+          terminal_nonterminal_injective hout'
+        subst pre
+        subst B
+        have hinner := ih (p := p') (q := q) (x := y) (z := z) rfl
+        subst suffix
+        simpa using Bridge.leftNeutral hrule rfl rfl rfl hinner
+    | rightNeutral p q q' input x y z hrule hendpoint =>
+        cases hA
+        have hout' : terminalSymbols [] ++
+            [.nonterminal (BridgeNT.bridge p x q y)] ++
+              terminalSymbols input.toList =
+            terminalSymbols pre ++ [.nonterminal B] ++
+              terminalSymbols suffix := by
+          rw [terminalSymbols_nil, List.nil_append]
+          exact hout
+        obtain ⟨hpre, hB, hsuffix⟩ :=
+          terminal_nonterminal_injective hout'
+        subst pre
+        subst B
+        have hinner := ih (p := p) (q := q) (x := x) (z := y) rfl
+        subst suffix
+        simpa using Bridge.rightNeutral hinner hrule rfl rfl rfl
+    | pair p p' q q' leftInput rightInput x y z w hleft hright =>
+        cases hA
+        obtain ⟨hpre, hB, hsuffix⟩ :=
+          terminal_nonterminal_injective hout
+        subst pre
+        subst B
+        have hinner := ih (p := p') (q := q) (x := y) (z := w) rfl
+        subst suffix
+        simpa [List.append_assoc] using
+          Bridge.pair hleft rfl rfl rfl hinner hright rfl rfl rfl
+
+/-- A production tree rooted at a bridge nonterminal reconstructs the unique
+balanced one-turn span denoted by that nonterminal. -/
+theorem linearGenerates_bridge {M : OneTurnNPDA T State Stack}
+    {p q : NormalState T State Stack} {x z : NPDA.FinalStack Stack}
+    {word : List T}
+    (h : Mathling.Grammar.LinearGrammar.LinearGenerates M.toLinearGrammar
+    (.bridge p x q z) word) : Bridge M.normalize p x q z word :=
+  linearGenerates_bridge_aux h p x q z rfl
+
+```
+
+### 開始規則と受理実行
+
+開始非終端の規則は、boot/bottom から最後の pop 規則の直前までを表す Bridge を一つ
+だけ含む。正規化機械で `done` に入る規則は epsilon で検査記号を除くため、その規則を
+Bridge の末尾へ接続すると唯一の空スタック受理構成になる。逆方向では受理到達列の
+最終一歩を分離し、残りを `bridge_of_reaches` へ渡す。
+
+```lean
+private theorem linearGenerates_start_iff_bridge
+    (M : OneTurnNPDA T State Stack) (word : List T) :
+    Mathling.Grammar.LinearGrammar.LinearGenerates M.toLinearGrammar
+        (BridgeNT.start : BridgeNT (NormalState T State Stack)
+          (NPDA.FinalStack Stack)) word ↔
+      ∃ (p : NormalState T State Stack) (x : NPDA.FinalStack Stack),
+        ({ source := (p, .pop)
+           input := none
+           pop := x
+           target := (.done, .pop)
+           push := [] } : PushdownRule T _ _) ∈ M.normalize.rules ∧
+        Bridge M.normalize .boot .bottom p x word := by
+  constructor
+  · intro h
+    refine Mathling.Grammar.LinearGrammar.LinearGenerates.rec
+      (motive := fun A generated _ =>
+        A = (BridgeNT.start : BridgeNT (NormalState T State Stack)
+          (NPDA.FinalStack Stack)) →
+        ∃ (p : NormalState T State Stack) (x : NPDA.FinalStack Stack),
+          ({ source := (p, .pop)
+             input := none
+             pop := x
+             target := (.done, .pop)
+             push := [] } : PushdownRule T _ _) ∈ M.normalize.rules ∧
+          Bridge M.normalize .boot .bottom p x generated)
+      ?_ ?_ h rfl
+    · intro r generated hr hout hA
+      have hmeaning := grammarRuleMeaning_of_mem M hr
+      cases hmeaning with
+      | root p input x hrule =>
+          cases hA
+          change ([.nonterminal (BridgeNT.bridge
+              (.boot : NormalState T State Stack) .bottom p x)] ++
+            terminalSymbols input.toList) = terminalSymbols generated at hout
+          have hout' :
+              terminalSymbols (N := BridgeNT (NormalState T State Stack)
+                (NPDA.FinalStack Stack)) generated =
+              terminalSymbols [] ++
+                [.nonterminal (BridgeNT.bridge
+                  (.boot : NormalState T State Stack) .bottom p x)] ++
+                terminalSymbols input.toList := by
+            simpa using hout.symm
+          exact (terminalSymbols_ne_nonterminal generated [] input.toList
+            (BridgeNT.bridge (.boot : NormalState T State Stack) .bottom p x)
+            hout').elim
+      | turn => cases hA
+      | leftNeutral => cases hA
+      | rightNeutral => cases hA
+      | pair => cases hA
+    · intro r pre suffix middle B hr hout child ih hA
+      have hmeaning := grammarRuleMeaning_of_mem M hr
+      cases hmeaning with
+      | root p input x hrule =>
+          cases hA
+          change BridgeNT (NormalState T State Stack)
+            (NPDA.FinalStack Stack) at B
+          change ([.nonterminal (BridgeNT.bridge
+              (.boot : NormalState T State Stack) .bottom p x)] ++
+                terminalSymbols input.toList) =
+            terminalSymbols pre ++ [.nonterminal B] ++
+              terminalSymbols suffix at hout
+          have hdone := M.normalize_done_rule hrule rfl
+          have hinput : input = none := hdone.2.2.2
+          subst input
+          have hout' :
+              terminalSymbols (N := BridgeNT (NormalState T State Stack)
+                (NPDA.FinalStack Stack)) [] ++
+                [.nonterminal (BridgeNT.bridge
+                  (.boot : NormalState T State Stack) .bottom p x)] ++
+                terminalSymbols [] =
+              terminalSymbols pre ++ [.nonterminal B] ++
+                terminalSymbols suffix := by
+            simpa using hout
+          obtain ⟨hpre, hB, hsuffix⟩ :=
+            terminal_nonterminal_injective hout'
+          subst pre
+          subst B
+          subst suffix
+          exact ⟨p, x, hrule,
+            by simpa using linearGenerates_bridge child⟩
+      | turn => cases hA
+      | leftNeutral => cases hA
+      | rightNeutral => cases hA
+      | pair => cases hA
+  · rintro ⟨p, x, hrule, hbridge⟩
+    simpa only [List.nil_append, List.append_nil] using
+      Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+        (pre := []) (suffix := [])
+        (grammarRule_mem_of_meaning M (.root p none x hrule))
+        rfl hbridge.linearGenerates
+
+private theorem reaches_done_iff_bridge
+    (M : OneTurnNPDA T State Stack) (word : List T) :
+    M.normalize.Reaches
+        (word, (.boot, .push), [.bottom])
+        ([], (.done, .pop), []) ↔
+      ∃ (p : NormalState T State Stack) (x : NPDA.FinalStack Stack),
+        ({ source := (p, .pop)
+           input := none
+           pop := x
+           target := (.done, .pop)
+           push := [] } : PushdownRule T _ _) ∈ M.normalize.rules ∧
+        Bridge M.normalize .boot .bottom p x word := by
+  constructor
+  · intro h
+    rcases Relation.ReflTransGen.cases_tail h with heq | ⟨middle, h, step⟩
+    · simp at heq
+    · generalize hfinal :
+        (([], (.done, .pop), []) :
+          ID T (NormalState T State Stack) (NPDA.FinalStack Stack)) = final
+          at step
+      cases step with
+        | @consume a input stack r hr hinput =>
+            change r ∈ M.normalize.rules at hr
+            have htarget : r.target =
+                ((.done, .pop) : NormalState T State Stack × TurnPhase) :=
+              (congrArg (fun c => c.2.1) hfinal).symm
+            have hdone := M.normalize_done_rule hr (by rw [htarget])
+            rw [hdone.2.2.2] at hinput
+            contradiction
+        | @epsilon input stack r hr hinput =>
+            change r ∈ M.normalize.rules at hr
+            have htarget : r.target =
+                ((.done, .pop) : NormalState T State Stack × TurnPhase) :=
+              (congrArg (fun c => c.2.1) hfinal).symm
+            have hdone := M.normalize_done_rule hr (by rw [htarget])
+            have hstack : stack = [] := by
+              exact (List.append_eq_nil_iff.mp
+                (congrArg (fun c => c.2.2) hfinal).symm).2
+            have hinputNil : input = [] :=
+              (congrArg (fun c => c.1) hfinal).symm
+            subst input
+            have hsource : r.source = (r.source.1, .pop) :=
+              Prod.ext rfl hdone.1
+            have hrule :
+                ({ source := (r.source.1, .pop)
+                   input := none
+                   pop := r.pop
+                   target := (.done, .pop)
+                   push := [] } : PushdownRule T _ _) ∈ M.normalize.rules := by
+              simpa only [← hsource, ← htarget, ← hinput, ← hdone.2.2.1]
+                using hr
+            have hprefix : M.normalize.Reaches
+                (word, (.boot, .push), [.bottom])
+                ([], (r.source.1, .pop), [r.pop]) := by
+              rw [← hsource]
+              simpa only [hstack] using h
+            have hbridge := bridge_of_reaches M.normalize
+              (fun rule hmem => (M.normalize_rule_shape hmem).1)
+              (word := word) (input := []) (suffix := []) (by
+                simpa using hprefix)
+            exact ⟨r.source.1, r.pop, hrule, hbridge⟩
+  · rintro ⟨p, x, hrule, hbridge⟩
+    have hspan := hbridge.reaches [] []
+    have hlast := bridgeRule_step M.normalize
+      ({ source := (p, .pop)
+         input := none
+         pop := x
+         target := (.done, .pop)
+         push := [] } : PushdownRule T _ _) hrule [] []
+    have hspan' : M.normalize.Reaches
+        (word, (.boot, .push), [.bottom])
+        ([], (p, .pop), [x]) := by
+      simpa using hspan
+    have hlast' : M.normalize.Reaches
+        ([], (p, .pop), [x])
+        ([], (.done, .pop), []) := by
+      simpa using Relation.ReflTransGen.single hlast
+    exact hspan'.trans hlast'
+
+/-- The finite bridge grammar generates exactly the language of the original
+one-turn NPDA. -/
+@[important, grind =, simp] public theorem toLinearGrammar_language
+    (M : OneTurnNPDA T State Stack) :
+    M.toLinearGrammar.language = M.language := by
+  ext word
+  calc
+    word ∈ M.toLinearGrammar.language ↔
+        Mathling.Grammar.LinearGrammar.LinearGenerates M.toLinearGrammar
+          (BridgeNT.start : BridgeNT (NormalState T State Stack)
+            (NPDA.FinalStack Stack)) word :=
+      (Mathling.Grammar.LinearGrammar.linearGenerates_iff
+        M.toLinearGrammar word).symm
+    _ ↔ M.normalize.Reaches
+        (word, (.boot, .push), [.bottom])
+        ([], (.done, .pop), []) :=
+      (linearGenerates_start_iff_bridge M word).trans
+        (reaches_done_iff_bridge M word).symm
+    _ ↔ M.normalize.Accepts word :=
+      (M.normalize_accepts_iff_reaches_done word).symm
+    _ ↔ word ∈ M.normalize.language := Iff.rfl
+    _ ↔ word ∈ M.language := by rw [M.normalize_language]
+
+/-- Every language accepted by a finite-local one-turn NPDA is linear. -/
+@[important, grind .] public theorem language_isLinear
+    (M : OneTurnNPDA T State Stack) : M.language.IsLinear :=
+  ⟨M.toLinearGrammar, M.toLinearGrammar_language⟩
+
+end Mathling.Automata.OneTurnNPDA
+
+```
+
+### 言語クラスとしての特徴付け
+
+文法から一回転機械への順変換と、Bridge 文法への逆変換を組み合わせると、線形言語は
+有限局所 one-turn NPDA が受理する言語とちょうど一致する。状態型とスタック型は言語
+クラスの定理では存在量化され、特定の符号化を公開 API に固定しない。
+
+```lean
+
+namespace Language
+
+open Mathling.Automata Mathling.Grammar
+
+/-- Linear grammars and finite-local one-turn NPDAs present exactly the same
+class of languages. -/
+@[important, grind =] public theorem isLinear_iff_exists_oneTurnNPDA
+    {T : Type} {L : Language T} :
+    L.IsLinear ↔
+      ∃ State Stack : Type,
+        ∃ M : OneTurnNPDA T State Stack, M.language = L := by
+  constructor
+  · rintro ⟨g, rfl⟩
+    exact ⟨LinearGrammar.LinearPDAState g, LinearGrammar.LinearStack T,
+      g.toOneTurnNPDA, g.toOneTurnNPDA_language⟩
+  · rintro ⟨State, Stack, M, rfl⟩
+    exact M.language_isLinear
+
+end Language
 ```
 
 <!--

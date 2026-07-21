@@ -3,6 +3,7 @@
     import Mathling.Automata.Pushdown
     import Mathling.Automata.Regular.Finite
     import Mathling.Grammar.Regular.Regex
+    import Mathling.Grammar.Regular.Linear
     import Mathling.Grammar.Deterministic
 
     import LiterateLean
@@ -11,7 +12,11 @@
 
 # Mathling 回帰テストドライバ
 
-有限局所規則の NPDA と、終状態受理から空スタック受理への正規化の最小回帰例を型検査する。マシンは epsilon 遷移で1つのスタック記号を取り除き、非受理状態から受理状態へ移る。さらに有限 NFA の局所 NPDA 埋め込みと、正規表現から正則・文脈自由言語への接続 API も型検査する。
+有限局所規則の NPDA と、終状態受理から空スタック受理への正規化の最小回帰例を型検査する。
+一回転機械の例は空語上で epsilon 遷移だけを使い、多記号 push、push/pop 両局面の
+中立規則、局面切替、完全な pop を順に実行する。これにより正規化と Bridge 文法への
+逆変換を同じ具体例で検査する。さらに有限 NFA の局所 NPDA 埋め込みと、正規表現から
+正則・文脈自由言語への接続 API も型検査する。
 
 ```lean
 namespace Mathling.Tests
@@ -42,6 +47,156 @@ def popMachine : NPDA Unit Bool PUnit.{1} where
     popMachine.finalToEmpty.language = popMachine.language :=
   NPDA.finalToEmpty_language popMachine
 
+```
+
+## 一回転正規化と Bridge 文法
+
+次の機械は空語を受理するが、実行中に長さ 3 の push、push 局面の中立規則、局面切替、
+pop 局面の中立規則をすべて通る。その後に三記号を除いて空スタックへ到達するため、
+正規化の分割規則と Bridge 文法の四種類の規則を一つの回帰例で検査できる。
+
+```lean
+inductive OneTurnRegressionState where
+  | start
+  | grown
+  | pushNeutral
+  | switched
+  | popNeutral
+  | popMiddle
+  | popLast
+  | done
+  deriving DecidableEq
+
+open OneTurnRegressionState
+
+def growRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
+  { source := (.start, .push), input := none, pop := false,
+    target := (.grown, .push), push := [true, false, true] }
+
+def pushNeutralRule : PushdownRule Unit
+    (OneTurnRegressionState × TurnPhase) Bool :=
+  { source := (.grown, .push), input := none, pop := true,
+    target := (.pushNeutral, .push), push := [true] }
+
+def switchRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
+  { source := (.pushNeutral, .push), input := none, pop := true,
+    target := (.switched, .pop), push := [true] }
+
+def popNeutralRule : PushdownRule Unit
+    (OneTurnRegressionState × TurnPhase) Bool :=
+  { source := (.switched, .pop), input := none, pop := true,
+    target := (.popNeutral, .pop), push := [true] }
+
+def popFirstRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
+  { source := (.popNeutral, .pop), input := none, pop := true,
+    target := (.popMiddle, .pop), push := [] }
+
+def popMiddleRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
+  { source := (.popMiddle, .pop), input := none, pop := false,
+    target := (.popLast, .pop), push := [] }
+
+def popLastRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
+  { source := (.popLast, .pop), input := none, pop := true,
+    target := (.done, .pop), push := [] }
+
+def oneTurnRegressionMachine : OneTurnNPDA Unit OneTurnRegressionState Bool where
+  rules := [growRule, pushNeutralRule, switchRule, popNeutralRule,
+    popFirstRule, popMiddleRule, popLastRule]
+  start := [.start]
+  accept := [.done]
+  initialStack := [false]
+  pop_stays_pop := by
+    intro r hr hp
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+    rcases hr with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+      simp_all [growRule, pushNeutralRule, switchRule, popNeutralRule,
+        popFirstRule, popMiddleRule, popLastRule]
+  push_phase_nonshrinking := by
+    intro r hr hp
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+    rcases hr with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+      simp_all [growRule, pushNeutralRule, switchRule, popNeutralRule,
+        popFirstRule, popMiddleRule, popLastRule]
+  pop_phase_nongrowing := by
+    intro r hr hp
+    simp only [List.mem_cons, List.not_mem_nil, or_false] at hr
+    rcases hr with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+      simp_all [growRule, pushNeutralRule, switchRule, popNeutralRule,
+        popFirstRule, popMiddleRule, popLastRule]
+
+private theorem regressionEpsilonStep
+    (r : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool)
+    (hr : r ∈ oneTurnRegressionMachine.rules) (hinput : r.input = none)
+    (tail : List Bool) :
+    oneTurnRegressionMachine.Step
+      ([], r.source, r.pop :: tail) ([], r.target, r.push ++ tail) := by
+  change oneTurnRegressionMachine.toNPDA.Step
+    ([], r.source, r.pop :: tail) ([], r.target, r.push ++ tail)
+  apply NPDA.Step.epsilon r
+  · change r ∈ oneTurnRegressionMachine.rules
+    exact hr
+  · exact hinput
+
+@[grind .] theorem oneTurnRegressionMachine_accepts_empty :
+    oneTurnRegressionMachine.Accepts [] := by
+  refine ⟨(.start, .push), ?_, (.done, .pop), ?_, [], ?_⟩
+  · change (OneTurnRegressionState.start, TurnPhase.push) ∈
+      [(OneTurnRegressionState.start, TurnPhase.push)]
+    simp
+  · change (OneTurnRegressionState.done, TurnPhase.pop) ∈
+      [(OneTurnRegressionState.done, TurnPhase.push),
+        (OneTurnRegressionState.done, TurnPhase.pop)]
+    simp
+  have hGrow := Relation.ReflTransGen.single
+    (regressionEpsilonStep growRule
+      (by simp [oneTurnRegressionMachine]) rfl [])
+  have hPushNeutral := Relation.ReflTransGen.single
+    (regressionEpsilonStep pushNeutralRule
+      (by simp [oneTurnRegressionMachine]) rfl [false, true])
+  have hSwitch := Relation.ReflTransGen.single
+    (regressionEpsilonStep switchRule
+      (by simp [oneTurnRegressionMachine]) rfl [false, true])
+  have hPopNeutral := Relation.ReflTransGen.single
+    (regressionEpsilonStep popNeutralRule
+      (by simp [oneTurnRegressionMachine]) rfl [false, true])
+  have hPopFirst := Relation.ReflTransGen.single
+    (regressionEpsilonStep popFirstRule
+      (by simp [oneTurnRegressionMachine]) rfl [false, true])
+  have hPopMiddle := Relation.ReflTransGen.single
+    (regressionEpsilonStep popMiddleRule
+      (by simp [oneTurnRegressionMachine]) rfl [true])
+  have hPopLast := Relation.ReflTransGen.single
+    (regressionEpsilonStep popLastRule
+      (by simp [oneTurnRegressionMachine]) rfl [])
+  change oneTurnRegressionMachine.Reaches
+    ([], (.start, .push), [false]) ([], (.done, .pop), [])
+  simpa [growRule, pushNeutralRule, switchRule, popNeutralRule,
+    popFirstRule, popMiddleRule, popLastRule] using
+      ((((((hGrow.trans hPushNeutral).trans hSwitch).trans hPopNeutral).trans
+        hPopFirst).trans hPopMiddle).trans hPopLast)
+
+@[grind =] theorem oneTurn_normalize_regression :
+    oneTurnRegressionMachine.normalize.language =
+      oneTurnRegressionMachine.language :=
+  oneTurnRegressionMachine.normalize_language
+
+@[grind =] theorem oneTurn_toLinearGrammar_regression :
+    oneTurnRegressionMachine.toLinearGrammar.language =
+      oneTurnRegressionMachine.language :=
+  oneTurnRegressionMachine.toLinearGrammar_language
+
+@[grind .] theorem oneTurn_language_isLinear_regression :
+    oneTurnRegressionMachine.language.IsLinear :=
+  oneTurnRegressionMachine.language_isLinear
+
+```
+
+## 有限オートマトンと正規表現の接続
+
+残りの例は有限 NFA の pushdown 埋め込み、epsilon-NFA、正規表現への変換、および
+正則言語から決定性文脈自由言語への包含を型検査する。
+
+```lean
 def singletonNFA : Mathling.Automata.NFA Bool Bool where
   step q a := if q = false ∧ a = true then {true} else ∅
   start := {false}

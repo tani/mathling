@@ -42,7 +42,7 @@ flowchart LR
     Right -->|"forget rule shape"| Linear
     Left -->|"forget rule shape"| Linear
     Linear -->|"forget rule shape"| CFG
-    Linear -->|"same language"| OneTurn
+    Linear <-->|"finite-local machine presentation"| OneTurn
 
     Regular -->|"language-class inclusion"| CFL
     Regular -->|"finite alphabet"| DCFL
@@ -70,7 +70,10 @@ The central verified bridges are:
   `Language.isContextFree_iff_exists_chomskyNormalGrammar`, and
   `Language.isContextFree_iff_exists_greibachNormalGrammar` for context-free presentations;
 - `NFA.toNPDA_language`, `DFA.toDPDA_language`, and
-  `LinearGrammar.toOneTurnNPDA_language` for language-preserving embeddings.
+  `LinearGrammar.toOneTurnNPDA_language` for language-preserving embeddings;
+- `OneTurnNPDA.toLinearGrammar_language` and
+  `Language.isLinear_iff_exists_oneTurnNPDA` for the bidirectional equivalence between linear
+  grammars and finite-local one-turn NPDAs;
 - `Language.isRegular_iff_εnfa`,
   `Language.IsRegular.isDeterministicContextFree`, and
   `Language.IsDeterministicContextFree.isContextFree` for the ε-NFA and deterministic
