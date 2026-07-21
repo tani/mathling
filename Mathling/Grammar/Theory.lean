@@ -20,10 +20,15 @@ Parse-tree height counts nodes: a leaf has height `1`, and a binary node has
 height one plus the maximum height of its children.
 -/
 
+
+
 namespace Mathling.Grammar
 
 universe u
 
+```
+
+```lean
 variable {T : Type u}
 
 /-- A nonempty derivation tree for a grammar in Chomsky normal form. -/
@@ -36,6 +41,9 @@ variable {T : Type u}
         ContextFreeRule T g.cfg.NT) ∈ g.cfg.rules)
       (l : ParseTree g B) (r : ParseTree g C) : ParseTree g A
 
+```
+
+```lean
 namespace ParseTree
 
 /-- The terminal word along the leaves of a parse tree. -/
@@ -50,10 +58,16 @@ public def height {g : ChomskyNormalGrammar T} {A : g.cfg.NT} :
   | .leaf _ _ _ => 1
   | .node _ _ _ _ l r => 1 + max (height l) (height r)
 
+```
+
+```lean
 @[grind ., simp] theorem one_le_height {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) : 1 ≤ height t := by
   cases t <;> simp [height]
 
+```
+
+```lean
 @[grind ., simp] theorem one_le_yield_length {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) : 1 ≤ (yield t).length := by
   induction t with
@@ -122,6 +136,9 @@ end ParseTree
         ContextFreeRule T g.cfg.NT) ∈ g.cfg.rules)
       (l : ParseTree g B) (c : ParseCtx g C X) : ParseCtx g A X
 
+```
+
+```lean
 namespace ParseCtx
 
 /-- Fill a parse context's hole. -/
@@ -166,6 +183,9 @@ public def IsProper {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
   | .left _ _ _ _ _ _ _ => True
   | .right _ _ _ _ _ _ _ => True
 
+```
+
+```lean
 @[grind =, simp] theorem yield_plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
     (c : ParseCtx g A X) (t : ParseTree g X) :
     ParseTree.yield (plug c t) =
@@ -177,6 +197,9 @@ public def IsProper {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
   | right A B C X h l c ih =>
       simp [plug, ParseTree.yield, preYield, postYield, ih, List.append_assoc]
 
+```
+
+```lean
 @[grind ., simp] theorem height_plug_le {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
     (c : ParseCtx g A X) (t : ParseTree g X) :
     ParseTree.height (plug c t) ≤ ctxHeight c + ParseTree.height t := by
@@ -217,6 +240,9 @@ public def compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT} :
   | .left A B C X h c r, d => .left A B C Y h (compose c d) r
   | .right A B C X h l c, d => .right A B C Y h l (compose c d)
 
+```
+
+```lean
 @[grind =, simp] theorem plug_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
     (c : ParseCtx g A X) (d : ParseCtx g X Y) (t : ParseTree g Y) :
     plug (compose c d) t = plug c (plug d t) := by
@@ -225,6 +251,9 @@ public def compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT} :
   | left A B C X h c r ih => simp [compose, plug, ih]
   | right A B C X h l c ih => simp [compose, plug, ih]
 
+```
+
+```lean
 @[grind =, simp] theorem preYield_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
     (c : ParseCtx g A X) (d : ParseCtx g X Y) :
     preYield (compose c d) = preYield c ++ preYield d := by
@@ -234,6 +263,9 @@ public def compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT} :
   | right A B C X h l c ih =>
       simp [compose, preYield, ih, List.append_assoc]
 
+```
+
+```lean
 @[grind =, simp] theorem postYield_compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT}
     (c : ParseCtx g A X) (d : ParseCtx g X Y) :
     postYield (compose c d) = postYield d ++ postYield c := by
@@ -315,6 +347,9 @@ end ParseCtx
       (l : ParseTree g B) (r : ParseTree g C) (b : Spine g r) :
       Spine g (.node A B C h l r)
 
+```
+
+```lean
 namespace Spine
 
 /-- Variables encountered along a branch. -/
@@ -336,6 +371,9 @@ public def longest {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
         .downRight A B C h l r (longest r)
 termination_by sizeOf t
 
+```
+
+```lean
 @[grind =, simp] theorem vars_longest_length
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) : (vars (longest t)).length = t.height := by
@@ -360,6 +398,9 @@ theorem root_mem_active
 grind_pattern root_mem_active =>
   ParseTree.height t, A ∈ ContextFreeGrammar.activeNonterminals g.cfg
 
+```
+
+```lean
 @[grind .] theorem vars_mem_active
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {t : ParseTree g A}
     (b : Spine g t) :
@@ -451,6 +492,8 @@ end Spine
 
 /-- A sufficiently tall parse tree contains a repeated variable on a bounded
 suffix of a root-to-leaf branch. -/
+
+
 @[grind .] theorem ParseTree.exists_pump
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} (t : ParseTree g A)
     (hm : (ContextFreeGrammar.activeNonterminals g.cfg).card < t.height) :
@@ -506,6 +549,9 @@ mutual
         CnfFormResult g (x :: xs) (u ++ v)
 end
 
+```
+
+```lean
 @[grind .] private theorem cnfNonterminalResult
     (g : ChomskyNormalGrammar T)
     (r : ContextFreeRule T g.cfg.NT) (hr : r ∈ g.cfg.rules)
@@ -610,6 +656,9 @@ public def ParseCtx.nest {g : ChomskyNormalGrammar T} {X : g.cfg.NT}
   | 0 => s
   | i + 1 => c.plug (nest c s i)
 
+```
+
+```lean
 @[grind .] private theorem append_flatten_replicate_comm (w : List T) (i : Nat) :
     w ++ (List.replicate i w).flatten =
       (List.replicate i w).flatten ++ w := by
@@ -619,11 +668,17 @@ public def ParseCtx.nest {g : ChomskyNormalGrammar T} {X : g.cfg.NT}
       simp only [List.replicate_succ, List.flatten_cons]
       rw [List.append_assoc, ih, ← List.append_assoc]
 
+```
+
+```lean
 @[grind .] private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
     (List.replicate (i + 1) w).flatten =
       (List.replicate i w).flatten ++ w := by
   simpa [List.replicate_succ] using append_flatten_replicate_comm w i
 
+```
+
+```lean
 @[grind =, simp] theorem ParseCtx.yield_nest
     {g : ChomskyNormalGrammar T} {X : g.cfg.NT}
     (c : ParseCtx g X X) (s : ParseTree g X) (i : Nat) :

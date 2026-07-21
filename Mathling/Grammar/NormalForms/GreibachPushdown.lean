@@ -17,8 +17,14 @@
 
 ```lean
 
+```
+
+```lean
 namespace Language
 
+```
+
+```lean
 open Mathling.Automata Mathling.Grammar
 
 /-- A language is context-free exactly when some grammar in Greibach normal form
@@ -26,6 +32,8 @@ generates it. Forward: every context-free grammar has a language-preserving
 Greibach-normal presentation (`ContextFreeGrammar.Classical.toGreibachNormalGrammar`).
 Backward: forgetting Greibach-normality evidence returns a plain context-free
 grammar for the same language. -/
+
+
 @[important, grind =] public theorem isContextFree_iff_exists_greibachNormalGrammar
     {T : Type} {L : Language T} :
     L.IsContextFree ↔ ∃ g : GreibachNormalGrammar T, g.language = L := by
@@ -49,6 +57,8 @@ grammar for the same language. -/
 finite local NPDA, both state and stack alphabets being existential witnesses.
 This composes `isContextFree_iff_exists_greibachNormalGrammar` with the general
 context-free/pushdown equivalence `isContextFree_iff_exists_npda`. -/
+
+
 @[important] public theorem exists_greibachNormalGrammar_iff_exists_npda
     {T : Type} {L : Language T} :
     (∃ g : GreibachNormalGrammar T, g.language = L) ↔

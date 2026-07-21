@@ -21,8 +21,14 @@
 ```lean
 namespace Mathling.Tests
 
+```
+
+```lean
 open Mathling.Automata
 
+```
+
+```lean
 def popRule : PushdownRule Unit Bool PUnit.{1} where
   source := false
   input := none
@@ -30,12 +36,18 @@ def popRule : PushdownRule Unit Bool PUnit.{1} where
   target := true
   push := []
 
+```
+
+```lean
 def popMachine : NPDA Unit Bool PUnit.{1} where
   rules := [popRule]
   start := [false]
   accept := [true]
   initialStack := [PUnit.unit]
 
+```
+
+```lean
 @[grind .] theorem popMachine_accepts_empty : popMachine.Accepts [] := by
   refine ⟨false, by simp [popMachine], true, by simp [popMachine], [], ?_⟩
   apply Relation.ReflTransGen.single
@@ -43,6 +55,9 @@ def popMachine : NPDA Unit Bool PUnit.{1} where
     (NPDA.Step.epsilon (M := popMachine) popRule (by simp [popMachine]) rfl
       (input := []) (stack := []))
 
+```
+
+```lean
 @[grind =] theorem finalToEmpty_regression :
     popMachine.finalToEmpty.language = popMachine.language :=
   NPDA.finalToEmpty_language popMachine
@@ -67,38 +82,65 @@ inductive OneTurnRegressionState where
   | done
   deriving DecidableEq
 
+```
+
+```lean
 open OneTurnRegressionState
 
+```
+
+```lean
 def growRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
   { source := (.start, .push), input := none, pop := false,
     target := (.grown, .push), push := [true, false, true] }
 
+```
+
+```lean
 def pushNeutralRule : PushdownRule Unit
     (OneTurnRegressionState × TurnPhase) Bool :=
   { source := (.grown, .push), input := none, pop := true,
     target := (.pushNeutral, .push), push := [true] }
 
+```
+
+```lean
 def switchRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
   { source := (.pushNeutral, .push), input := none, pop := true,
     target := (.switched, .pop), push := [true] }
 
+```
+
+```lean
 def popNeutralRule : PushdownRule Unit
     (OneTurnRegressionState × TurnPhase) Bool :=
   { source := (.switched, .pop), input := none, pop := true,
     target := (.popNeutral, .pop), push := [true] }
 
+```
+
+```lean
 def popFirstRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
   { source := (.popNeutral, .pop), input := none, pop := true,
     target := (.popMiddle, .pop), push := [] }
 
+```
+
+```lean
 def popMiddleRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
   { source := (.popMiddle, .pop), input := none, pop := false,
     target := (.popLast, .pop), push := [] }
 
+```
+
+```lean
 def popLastRule : PushdownRule Unit (OneTurnRegressionState × TurnPhase) Bool :=
   { source := (.popLast, .pop), input := none, pop := true,
     target := (.done, .pop), push := [] }
 
+```
+
+```lean
 def oneTurnRegressionMachine : OneTurnNPDA Unit OneTurnRegressionState Bool where
   rules := [growRule, pushNeutralRule, switchRule, popNeutralRule,
     popFirstRule, popMiddleRule, popLastRule]
@@ -137,6 +179,9 @@ private theorem regressionEpsilonStep
     exact hr
   · exact hinput
 
+```
+
+```lean
 @[grind .] theorem oneTurnRegressionMachine_accepts_empty :
     oneTurnRegressionMachine.Accepts [] := by
   refine ⟨(.start, .push), ?_, (.done, .pop), ?_, [], ?_⟩
@@ -175,16 +220,25 @@ private theorem regressionEpsilonStep
       ((((((hGrow.trans hPushNeutral).trans hSwitch).trans hPopNeutral).trans
         hPopFirst).trans hPopMiddle).trans hPopLast)
 
+```
+
+```lean
 @[grind =] theorem oneTurn_normalize_regression :
     oneTurnRegressionMachine.normalize.language =
       oneTurnRegressionMachine.language :=
   oneTurnRegressionMachine.normalize_language
 
+```
+
+```lean
 @[grind =] theorem oneTurn_toLinearGrammar_regression :
     oneTurnRegressionMachine.toLinearGrammar.language =
       oneTurnRegressionMachine.language :=
   oneTurnRegressionMachine.toLinearGrammar_language
 
+```
+
+```lean
 @[grind .] theorem oneTurn_language_isLinear_regression :
     oneTurnRegressionMachine.language.IsLinear :=
   oneTurnRegressionMachine.language_isLinear
@@ -202,39 +256,63 @@ def singletonNFA : Mathling.Automata.NFA Bool Bool where
   start := {false}
   accept := {true}
 
+```
+
+```lean
 @[grind =] theorem finiteNFA_toNPDA_regression :
   singletonNFA.toNPDA.language = singletonNFA.accepts :=
   Mathling.Automata.NFA.toNPDA_language singletonNFA
 
+```
+
+```lean
 @[grind =] theorem finiteNFA_toεNFA_regression :
     singletonNFA.toεNFA.accepts = singletonNFA.accepts :=
   Mathling.Automata.NFA.toεNFA_language singletonNFA
 
+```
+
+```lean
 @[grind .] theorem regular_dcfl_regression :
     singletonNFA.accepts.IsDeterministicContextFree := by
   exact (Language.isRegular_iff_nfa.mpr
     ⟨Bool, inferInstance, singletonNFA, rfl⟩).isDeterministicContextFree
 
+```
+
+```lean
 @[grind .] theorem regular_dcfl_is_cfl_regression :
     singletonNFA.accepts.IsContextFree :=
   regular_dcfl_regression.isContextFree
 
+```
+
+```lean
 @[grind =] theorem finiteNFA_toRegex_regression :
     Mathling.Automata.RegularExpression.language singletonNFA.toRegex =
       singletonNFA.accepts :=
   Mathling.Automata.NFA.toRegex_language singletonNFA
 
+```
+
+```lean
 @[grind .] theorem regex_hierarchy_regression :
     Language.HasRegularExpression
       (Mathling.Automata.RegularExpression.language
         (Mathling.Automata.RegularExpression.symbol true)) := by
   exact ⟨Mathling.Automata.RegularExpression.symbol true, rfl⟩
 
+```
+
+```lean
 @[grind .] theorem regex_contextFree_regression :
     (Mathling.Automata.RegularExpression.language
       (Mathling.Automata.RegularExpression.symbol true)).IsContextFree :=
   regex_hierarchy_regression.isContextFree
 
+```
+
+```lean
 @[grind =] theorem regex_compileNFA_regression :
     (Mathling.Automata.RegularExpression.compileNFA
       (Mathling.Automata.RegularExpression.symbol true)).machine.accepts =
@@ -242,6 +320,9 @@ def singletonNFA : Mathling.Automata.NFA Bool Bool where
         (Mathling.Automata.RegularExpression.symbol true) :=
   Mathling.Automata.RegularExpression.compileNFA_language _
 
+```
+
+```lean
 @[grind =] theorem kleene_equivalence_regression :
     (Mathling.Automata.RegularExpression.language
       (Mathling.Automata.RegularExpression.symbol true)).IsRegular ↔
@@ -250,6 +331,9 @@ def singletonNFA : Mathling.Automata.NFA Bool Bool where
           (Mathling.Automata.RegularExpression.symbol true)) :=
   Language.isRegular_iff_hasRegularExpression
 
+```
+
+```lean
 def run : IO Unit :=
   IO.println "Mathling regression proofs compiled successfully."
 

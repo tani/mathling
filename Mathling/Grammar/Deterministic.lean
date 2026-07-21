@@ -16,6 +16,9 @@
 ```lean
 namespace Language
 
+```
+
+```lean
 open Mathling.Automata
 
 /-- Every regular language is deterministic context-free. -/

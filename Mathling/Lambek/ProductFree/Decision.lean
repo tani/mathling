@@ -39,6 +39,9 @@ $Γ = Δ \text{ ++ } Λ$ となるような $(Δ, Λ)$ の全パターンを返�
 
 ```lean
 @[grind]
+```
+
+```lean
 def splits {α} : List α → List (List α × List α)
   | [] => [([], [])]
   | x :: xs => ([], x :: xs) :: (splits xs).map (fun (l, r) => (x :: l, r))
@@ -49,6 +52,9 @@ def splits {α} : List α → List (List α × List α)
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma splits_list_degree (h : X ∈ splits Γ) :
   X.1 ++ X.2 = Γ := by
   induction Γ generalizing X <;> grind
@@ -60,6 +66,9 @@ lemma splits_list_degree (h : X ∈ splits Γ) :
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma splits_mem {α} (Γ Δ : List α) : (Γ, Δ) ∈ splits (Γ ++ Δ) := by
   induction Γ <;> cases Δ <;> grind [splits]
 ```
@@ -71,6 +80,9 @@ lemma splits_mem {α} (Γ Δ : List α) : (Γ, Δ) ∈ splits (Γ ++ Δ) := by
 
 ```lean
 @[grind]
+```
+
+```lean
 def picks {α} : List α → List (List α × α × List α)
   | [] => []
   | x :: xs => ([], x, xs) :: (picks xs).map (fun (l, a, r) => (x :: l, a, r))
@@ -80,6 +92,9 @@ def picks {α} : List α → List (List α × α × List α)
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma picks_list_degree (h : X ∈ picks Γ) :
    X.1 ++ [X.2.1] ++ X.2.2 = Γ := by
   induction Γ generalizing X <;> grind
@@ -89,6 +104,9 @@ lemma picks_list_degree (h : X ∈ picks Γ) :
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma picks_mem {α} (Γ Δ : List α) (a : α) :
     (Γ, a, Δ) ∈ picks (Γ ++ [a] ++ Δ) := by
   induction Γ <;> simp_all [picks]
@@ -102,6 +120,9 @@ lemma picks_mem {α} (Γ Δ : List α) (a : α) :
 
 ```lean
 @[grind]
+```
+
+```lean
 inductive Cand where
   | rdiv (L : List Tp) (B A : Tp) (Δ Λ : List Tp)
   | ldiv (Γ Δ : List Tp) (A B : Tp) (Λ : List Tp)
@@ -118,6 +139,9 @@ inductive Cand where
 
 ```lean
 @[grind]
+```
+
+```lean
 def candidates (Γ : List Tp) : List Cand :=
   (picks Γ).flatMap (fun (L, f, R) =>
     match f with
@@ -132,6 +156,9 @@ def candidates (Γ : List Tp) : List Cand :=
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma candidates_list_degree (h : c ∈ candidates Γ) :
   match c with
     | .rdiv L B A Δ Λ => L ++ [B ⧸ A] ++ Δ ++ Λ = Γ
@@ -157,6 +184,9 @@ lemma candidates_list_degree (h : c ∈ candidates Γ) :
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma candidates_rdiv_mem (Γ Δ Λ : List Tp) (A B : Tp) :
   Cand.rdiv Γ B A Δ Λ ∈ candidates (Γ ++ [B ⧸ A] ++ Δ ++ Λ) := by
   unfold candidates
@@ -171,6 +201,9 @@ lemma candidates_rdiv_mem (Γ Δ Λ : List Tp) (A B : Tp) :
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma candidates_ldiv_mem (Γ₁ Δ R : List Tp) (A B : Tp) :
   Cand.ldiv Γ₁ Δ A B R ∈ candidates (Γ₁ ++ Δ ++ [A ⧹ B] ++ R) := by
   unfold candidates
@@ -191,6 +224,9 @@ lemma candidates_ldiv_mem (Γ₁ Δ R : List Tp) (A B : Tp) :
 
 ```lean
 @[grind .]
+```
+
+```lean
 def prove1 (Γ : List Tp) (A : Tp) : Bool :=
   match A with
   | Tp.atom s =>
@@ -217,6 +253,9 @@ decreasing_by
 
 ```lean
 @[grind .]
+```
+
+```lean
 def proveAux : Nat → List Tp → Tp → Bool
   | 0, _,  _ => false
   | n + 1, Γ,  A =>
@@ -253,6 +292,9 @@ public def prove2 (Γ : List Tp) (A : Tp) : Bool :=
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma proveAux_mono (h : proveAux n Γ A) :
   proveAux (n + 1) Γ A := by
   induction n generalizing Γ A <;> grind
@@ -262,6 +304,9 @@ lemma proveAux_mono (h : proveAux n Γ A) :
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma proveAux_mono_le {n m : Nat} (h : n ≤ m) (hp : proveAux n Γ A) :
     proveAux m Γ A := by
   induction h <;> grind
@@ -296,6 +341,9 @@ graph TD
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma proveAux_sound (h : proveAux n Γ A) : prove1 Γ A := by
   induction n generalizing Γ A with
   | zero => grind
@@ -345,6 +393,9 @@ graph TD
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
   unfold prove2
   induction Γ, A using prove1.induct
@@ -414,6 +465,9 @@ lemma proveAux_complete (h : prove1 Γ A) : prove2 Γ A := by
 
 ```lean
 @[grind =]
+```
+
+```lean
 lemma prove1_iff_prove2 : prove1 Γ A ↔ prove2 Γ A := by grind
 ```
 
@@ -424,6 +478,9 @@ lemma prove1_iff_prove2 : prove1 Γ A ↔ prove2 Γ A := by grind
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma prove1_sound (h : prove1 Γ A) : Γ ⇒ A := by
   induction Γ, A using prove1.induct with
   | case1 Γ s h_rdiv_left h_rdiv_right h_ldiv_left h_ldiv_right =>
@@ -463,6 +520,9 @@ graph TD
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma prove1_complete (h : Γ ⇒ A) : prove1 Γ A := by
   revert h
   classical
@@ -497,6 +557,9 @@ lemma prove1_complete (h : Γ ⇒ A) : prove1 Γ A := by
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma prove1_iff_sequent : prove1 Γ A ↔ Γ ⇒ A := by grind
 ```
 

@@ -17,8 +17,14 @@ bottom 記号だけが残ったときに専用受理状態へ移るため、公�
 
 ```lean
 
+```
+
+```lean
 namespace Mathling.Grammar
 
+```
+
+```lean
 open Mathling.Automata
 
 /-- Control states of the direct grammar-to-PDA construction. -/
@@ -33,8 +39,14 @@ open Mathling.Automata
   | symbol (value : Symbol T N)
   deriving Repr
 
+```
+
+```lean
 namespace ContextFreeGrammar
 
+```
+
+```lean
 variable {T : Type*}
 
 noncomputable section
@@ -90,6 +102,9 @@ public def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
   | .terminal a => a ∈ terminalSupport g
   | .nonterminal _ => True
 
+```
+
+```lean
 @[grind .] theorem mem_rhsTerminals {N : Type*} {a : T}
     {xs : List (Symbol T N)} (h : Symbol.terminal a ∈ xs) :
     a ∈ rhsTerminals xs := by
@@ -106,6 +121,9 @@ public def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
           · cases h
           · simpa [rhsTerminals] using ih h
 
+```
+
+```lean
 @[grind .] theorem output_supported (g : ContextFreeGrammar T)
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     ∀ x ∈ r.output, Supported g x := by
@@ -118,18 +136,27 @@ public def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
       · simpa using hr
       · exact mem_rhsTerminals hx
 
+```
+
+```lean
 @[grind .] theorem expansionRule_mem (g : ContextFreeGrammar T)
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     expansionRule r ∈ (toNPDA g).rules := by
   simp only [toNPDA, List.mem_append, List.mem_map, Finset.mem_toList]
   exact Or.inl (Or.inl ⟨r, hr, rfl⟩)
 
+```
+
+```lean
 @[grind .] theorem terminalRule_mem (g : ContextFreeGrammar T)
     {a : T} (ha : a ∈ terminalSupport g) :
     terminalRule g a ∈ (toNPDA g).rules := by
   simp only [toNPDA, List.mem_append, List.mem_map]
   exact Or.inl (Or.inr ⟨a, ha, rfl⟩)
 
+```
+
+```lean
 @[grind .] theorem finishRule_mem (g : ContextFreeGrammar T) :
     finishRule g ∈ (toNPDA g).rules := by
   simp [toNPDA]
@@ -184,6 +211,9 @@ public def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
     have htail := ihTail hxs rest suffix
     simpa [encodeForm, List.append_assoc] using hhead.trans htail
 
+```
+
+```lean
 @[grind .] theorem generates_reaches (g : ContextFreeGrammar T) {w : List T}
     (h : w ∈ g.language) :
     (toNPDA g).Reaches
@@ -232,6 +262,9 @@ public def GrammarRunGood (g : ContextFreeGrammar T) (word : List T) :
         word = consumed ++ input ∧ stack = [] ∧
         g.Derives [.nonterminal g.initial] (terminalSymbols consumed)
 
+```
+
+```lean
 @[grind .] private theorem encoded_cons_parts (g : ContextFreeGrammar T)
     {x : Symbol T g.NT} {rest : List (GrammarPDAStack T g.NT)}
     {form : List (Symbol T g.NT)}
@@ -246,6 +279,9 @@ public def GrammarRunGood (g : ContextFreeGrammar T) (word : List T) :
       cases hy
       exact ⟨ys, rfl, hrest⟩
 
+```
+
+```lean
 @[grind .] private theorem bottom_parts (g : ContextFreeGrammar T)
     {rest : List (GrammarPDAStack T g.NT)} {form : List (Symbol T g.NT)}
     (h : GrammarPDAStack.bottom :: rest =
@@ -308,6 +344,9 @@ grammarStep_good と grammarReaches_good は、GrammarRunGood が実際に不変
         · simp [finishRule]
         · simpa using hderives
 
+```
+
+```lean
 @[grind .] theorem grammarReaches_good (g : ContextFreeGrammar T) (word : List T)
     {c c' : NPDA.ID T GrammarPDAState (GrammarPDAStack T g.NT)}
     (h : (toNPDA g).Reaches c c') :
@@ -362,6 +401,9 @@ namespace Classical
 public noncomputable abbrev toNPDA (g : ContextFreeGrammar T) :=
   _root_.Mathling.Grammar.ContextFreeGrammar.toNPDA g
 
+```
+
+```lean
 @[grind =, simp] theorem toNPDA_language (g : ContextFreeGrammar T) :
     (Classical.toNPDA g).language = g.language :=
   _root_.Mathling.Grammar.ContextFreeGrammar.toNPDA_language g
@@ -380,12 +422,21 @@ end Mathling.Grammar
 
 ```lean
 namespace Mathling.Automata
+```
+
+```lean
 namespace NPDA
 
+```
+
+```lean
 open Mathling.Grammar
 
 universe u
 
+```
+
+```lean
 variable {T : Type u} {State Stack : Type}
 
 /-- Triple nonterminals: from state, removed stack symbol, and destination state. -/
@@ -464,6 +515,9 @@ ContextFreeNT は「source 状態から pop 記号を1つ取り除いて target 
           · omega
           · exact fun x hx => hall x (by simp [hx])
 
+```
+
+```lean
 @[grind .] theorem length_eq_of_mem_listsOfLength {choices path : List State} {n : Nat}
     (h : path ∈ listsOfLength choices n) : path.length = n := by
   induction n generalizing path with
@@ -473,12 +527,18 @@ ContextFreeNT は「source 状態から pop 記号を1つ取り除いて target 
       obtain ⟨q, hq, tail, htail, rfl⟩ := h
       simp [ih htail]
 
+```
+
+```lean
 @[grind .] theorem rule_source_mem_stateSupport (M : NPDA T State Stack)
     {r : PushdownRule T State Stack} (hr : r ∈ M.rules) :
     r.source ∈ M.stateSupport := by
   apply List.mem_append_right
   exact List.mem_flatMap.mpr ⟨r, hr, by simp⟩
 
+```
+
+```lean
 @[grind .] theorem contextFreeRule_mem [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
     {r : PushdownRule T State Stack} (hr : r ∈ M.rules)
@@ -493,6 +553,9 @@ ContextFreeNT は「source 状態から pop 記号を1つ取り除いて target 
   exact List.mem_flatMap.mpr ⟨r, hr,
     List.mem_map.mpr ⟨path, hpath, rfl⟩⟩
 
+```
+
+```lean
 @[grind .] theorem contextFreeRule_cases [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
     {start done : State} {bottom : Stack}
@@ -616,6 +679,9 @@ mutual
         FormMeaning M (x :: xs) (u ++ v)
 end
 
+```
+
+```lean
 @[grind .] theorem getLastD_cons_default (x : State) (xs : List State) (a b : State) :
     (x :: xs).getLastD a = (x :: xs).getLastD b := by
   induction xs generalizing x with
@@ -624,6 +690,8 @@ end
 
 /-- A meaningful segment form is exactly a balanced computation of its stack
 word along the encoded control-state path. -/
+
+
 @[grind .] theorem segmentForm_stackBalanced (M : NPDA T State Stack)
     {path : List State} {stack : List Stack} {p : State} {word : List T}
     (hlen : path.length = stack.length + 1)
@@ -676,6 +744,8 @@ StackBalanced な計算であることを示す。これは意味論と Balanced
 ```lean
 /-- The right-hand side of a generated production describes precisely the
 input action and pushed-stack computation of its source transition. -/
+
+
 @[grind .] theorem contextFreeRule_meaning [DecidableEq State]
     (M : NPDA T State Stack) (r : PushdownRule T State Stack)
     {path : List State} (hpath : path ∈ M.compatiblePaths r)
@@ -725,6 +795,8 @@ input action and pushed-stack computation of its source transition. -/
 
 /-- Every terminal derivation from a triple nonterminal reconstructs a
 balanced run of the original NPDA. -/
+
+
 @[grind .] theorem balanced_of_derives [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
     {start done : State} {bottom : Stack}
@@ -751,6 +823,8 @@ push されたスタックの計算へ翻訳し、derivationFormTree_meaning は
 ```lean
 /-- The generated triple grammar and balanced-run semantics coincide whenever
 the requested target state belongs to the finite state support. -/
+
+
 @[grind .] theorem mem_emptyToContextFreeGrammar_language_iff
     [DecidableEq T] [DecidableEq State] [DecidableEq Stack]
     (M : NPDA T State Stack) {start done : State} {bottom : Stack}
@@ -763,6 +837,8 @@ the requested target state belongs to the finite state support. -/
 
 /-- Acceptance of the normalized machine is precisely one balanced computation
 that removes its private bottom marker. -/
+
+
 @[grind .] theorem finalToEmpty_accepts_iff_balanced (M : NPDA T State Stack)
     (word : List T) :
     M.finalToEmpty.Accepts word ↔
@@ -811,6 +887,9 @@ public def toContextFreeGrammar [DecidableEq T] [DecidableEq State]
     exact (M.finalToEmpty_accepts_iff_balanced word).symm
   · simp [stateSupport, finalToEmpty]
 
+```
+
+```lean
 namespace Classical
 
 noncomputable section
@@ -820,6 +899,9 @@ public def toContextFreeGrammar (M : NPDA T State Stack) : ContextFreeGrammar T 
   classical
   exact M.toContextFreeGrammar
 
+```
+
+```lean
 @[grind =, simp] theorem toContextFreeGrammar_language (M : NPDA T State Stack) :
     (toContextFreeGrammar M).language = M.language := by
   classical
@@ -845,10 +927,15 @@ isContextFree_iff_exists_npda が、toNPDA_language と toContextFreeGrammar_lan
 ```lean
 namespace Language
 
+```
+
+```lean
 open Mathling.Automata Mathling.Grammar
 
 /-- A language is context-free exactly when some standard finite local NPDA
 accepts it. Both machine state and stack alphabets are existential witnesses. -/
+
+
 @[important, grind =] public theorem isContextFree_iff_exists_npda {T : Type} {L : Language T} :
     L.IsContextFree ↔
       ∃ State Stack : Type, ∃ M : NPDA T State Stack, M.language = L := by
@@ -882,21 +969,35 @@ accepts it. Both machine state and stack alphabets are existential witnesses. -/
 
 end Language
 
+```
+
+```lean
 namespace Mathling.Automata.NPDA
 
+```
+
+```lean
 variable {T State Stack : Type}
 
 /-- The language of every finite-local NPDA is context-free.  The classical
 CFG construction supplies the witness without exposing decidable-equality
 requirements in the statement. -/
+
+
 @[important, grind .] public theorem language_isContextFree
     (M : NPDA T State Stack) : M.language.IsContextFree :=
   Language.isContextFree_iff_exists_npda.mpr ⟨State, Stack, M, rfl⟩
 
 end Mathling.Automata.NPDA
 
+```
+
+```lean
 namespace Mathling.Automata.DPDA
 
+```
+
+```lean
 variable {T State Stack : Type}
 
 /-- Every local DPDA recognizes a deterministic context-free language. -/

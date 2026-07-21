@@ -21,8 +21,13 @@ Mathlib の有限オートマトン版 pumping lemma を、Mathling が公開す
 This module transfers Mathlib's DFA pumping lemma to `Language.IsRegular`.
 -/
 
+
+
 namespace Mathling.Automata
 
+```
+
+```lean
 open Computability
 
 /-- Every regular language satisfies the pumping lemma. -/

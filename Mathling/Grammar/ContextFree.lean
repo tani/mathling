@@ -22,6 +22,8 @@ The semantic notions of rewriting, derivation, and language remain Mathlib's
 `ContextFreeGrammar` notions.
 -/
 
+
+
 namespace Mathling.Grammar
 
 /-- Nonterminals occurring in a sentential form, in their original order. -/
@@ -30,6 +32,9 @@ public def rhsNonterminals {T N : Type*} : List (Symbol T N) → List N
   | Symbol.terminal _ :: xs => rhsNonterminals xs
   | Symbol.nonterminal A :: xs => A :: rhsNonterminals xs
 
+```
+
+```lean
 namespace ContextFreeRule
 
 /-- The input and all right-hand-side nonterminals of a rule. -/
@@ -63,6 +68,9 @@ end ContextFreeRule
 ```lean
 namespace ContextFreeGrammar
 
+```
+
+```lean
 variable {T N : Type*}
 
 /-- The finite support explicitly mentioned by a grammar. -/
@@ -70,12 +78,18 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
   {g.initial} ∪ g.rules.biUnion fun r =>
     (ContextFreeRule.nonterminals r).toFinset
 
+```
+
+```lean
 @[grind ., simp] public theorem initial_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT] :
     g.initial ∈ activeNonterminals g := by
   classical
   simp [activeNonterminals]
 
+```
+
+```lean
 @[grind =>] public theorem rule_input_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
@@ -86,6 +100,9 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
   right
   exact ⟨r, hr, by simp [ContextFreeRule.nonterminals]⟩
 
+```
+
+```lean
 @[grind .] private theorem mem_rhsNonterminals_of_nonterminal_mem
     {xs : List (Symbol T N)} {A : N}
     (hA : Symbol.nonterminal A ∈ xs) : A ∈ rhsNonterminals xs := by
@@ -102,6 +119,9 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
           · exact List.mem_cons.mpr (Or.inl (Symbol.nonterminal.inj hEq))
           · exact List.mem_cons.mpr (Or.inr (ih htail))
 
+```
+
+```lean
 @[grind =>] public theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} {A : g.NT} (hr : r ∈ g.rules)
@@ -204,6 +224,9 @@ end
         DerivationFormTree.cons head (derivationFormTree_append g tail hy)
 termination_by xs.length
 
+```
+
+```lean
 @[grind .] private theorem derivationFormTree_split_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {w : List T}
     (h : DerivationFormTree g (xs ++ ys) w) :
@@ -235,6 +258,9 @@ termination_by xs
       simpa [terminalSymbols] using
         DerivationFormTree.cons (DerivationSymbolTree.terminal a) ih
 
+```
+
+```lean
 @[grind .] private theorem derivationFormTree_of_produces
     (g : ContextFreeGrammar T)
     {u v : List (Symbol T g.NT)} {w : List T}
@@ -253,6 +279,9 @@ termination_by xs
     derivationFormTree_append g hp
       (DerivationFormTree.cons (DerivationSymbolTree.nonterminal r hr hout) hq)
 
+```
+
+```lean
 @[grind .] public theorem derivationFormTree_of_derives
     (g : ContextFreeGrammar T) {xs : List (Symbol T g.NT)} {w : List T}
     (h : g.Derives xs (terminalSymbols w)) :

@@ -18,6 +18,9 @@
 
 ```lean
 
+```
+
+```lean
 namespace Mathling.Meta
 
 /-- A no-op tag attribute: `@[important]` marks a declaration as noteworthy for

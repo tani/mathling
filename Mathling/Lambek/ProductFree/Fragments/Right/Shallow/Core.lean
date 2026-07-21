@@ -85,6 +85,9 @@ public def list_degree (Γ : List Tp) : Nat :=
 
 ```lean
 @[grind =]
+```
+
+```lean
 lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
   grind only [list_degree, Mathling.Lambek.ProductFree.translatedListDegree_traversible]
 ```
@@ -208,6 +211,9 @@ infixl:50 " ⇒ " => Sequent
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma nonempty_premises
   (h : Mathling.Lambek.ProductFree.Right.Shallow.Sequent Γ A) : Γ ≠ [] := by
   cases Γ with
@@ -221,6 +227,9 @@ lemma nonempty_premises
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   exact Mathling.Lambek.ProductFree.translatedNonemptyAppend h
 ```

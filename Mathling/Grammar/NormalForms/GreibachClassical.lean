@@ -13,8 +13,17 @@
 
 ```lean
 
+```
+
+```lean
 namespace Mathling.Grammar
+```
+
+```lean
 namespace ContextFreeGrammar
+```
+
+```lean
 namespace Classical
 
 /-- Convert a context-free grammar over a small terminal type to Greibach normal

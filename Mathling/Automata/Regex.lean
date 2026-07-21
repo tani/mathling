@@ -25,13 +25,21 @@ Mathlib の `RegularExpression` をそのまま Mathling 名前空間へ再輸�
 Regular-expression syntax, language semantics, and executable matching.
 -/
 
+
+
 open scoped Computability
 
+```
+
+```lean
 namespace Mathling.Automata
 
 /-- Mathlib's regular expressions, re-exported in the Mathling namespace. -/
 public abbrev RegularExpression (α : Type*) := _root_.RegularExpression α
 
+```
+
+```lean
 namespace RegularExpression
 
 /-- The regular expression that matches no words. -/
@@ -63,20 +71,38 @@ $`\mathrm{language} : \mathrm{RegularExpression}\,\alpha \to \mathrm{Language}\,
 public abbrev language (r : RegularExpression α) : Language α :=
   _root_.RegularExpression.matches' r
 
+```
+
+```lean
 @[grind =, simp] public theorem language_empty : language (empty : RegularExpression α) = 0 := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem language_epsilon :
     language (epsilon : RegularExpression α) = 1 := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem language_symbol (a : α) :
     language (symbol a) = ({[a]} : Language α) := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem language_union (r s : RegularExpression α) :
     language (union r s) = language r + language s := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem language_concat (r s : RegularExpression α) :
     language (concat r s) = language r * language s := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem language_star (r : RegularExpression α) :
     language (star r) = (language r)∗ := rfl
 
@@ -98,6 +124,9 @@ private def symbolDFA [DecidableEq α] (a : α) : DFA α (Option Bool) where
   start := none
   accept := {some false}
 
+```
+
+```lean
 @[grind =, simp] private theorem symbolDFA_evalFrom_dead [DecidableEq α]
     (a : α) (word : List α) :
     (symbolDFA a).evalFrom (some true) word = some true := by
@@ -105,6 +134,9 @@ private def symbolDFA [DecidableEq α] (a : α) : DFA α (Option Bool) where
   | nil => rfl
   | cons b word ih => simpa [symbolDFA] using ih
 
+```
+
+```lean
 @[grind =] private theorem symbolDFA_language [DecidableEq α] (a : α) :
     (symbolDFA a).accepts = ({[a]} : Language α) := by
   ext word
@@ -128,6 +160,8 @@ private def symbolDFA [DecidableEq α] (a : α) : DFA α (Option Bool) where
 
 /-- Every regular expression over a nonempty finite alphabet denotes a regular
 language.  The proof is the language-level form of Thompson construction. -/
+
+
 @[important, grind .] public theorem language_isRegular [Nonempty α]
     (r : RegularExpression α) : (language r).IsRegular := by
   letI : Inhabited α := ⟨Classical.choice inferInstance⟩
@@ -203,6 +237,9 @@ flowchart LR
 ```lean
 namespace Internal
 
+```
+
+```lean
 def isRegexReserved (c : Char) : Bool :=
   c == '(' || c == ')' || c == '|' || c == '*'
 
@@ -210,6 +247,7 @@ def isRegexReserved (c : Char) : Bool :=
 abbrev ParseState := Except String (RegularExpression Char × List Char)
 
 mutual
+
   def parseUnion (fuel : Nat) (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
@@ -217,6 +255,7 @@ mutual
       match parseConcat f cs with
       | .ok (first, rest) => parseUnionTail f first rest
       | .error e => .error e
+
 
   def parseUnionTail (fuel : Nat) (acc : RegularExpression Char)
       (cs : List Char) : ParseState :=
@@ -230,6 +269,7 @@ mutual
         | .error e => .error e
       | cs' => .ok (acc, cs')
 
+
   def parseConcat (fuel : Nat) (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
@@ -237,6 +277,7 @@ mutual
       match parseStar f cs with
       | .ok (first, rest) => parseConcatTail f first rest
       | .error e => .error e
+
 
   def parseConcatTail (fuel : Nat) (acc : RegularExpression Char)
       (cs : List Char) : ParseState :=
@@ -247,6 +288,7 @@ mutual
       | .ok (nxt, rest) => parseConcatTail f (acc * nxt) rest
       | .error _ => .ok (acc, cs)
 
+
   def parseStar (fuel : Nat) (cs : List Char) : ParseState :=
     match fuel with
     | 0 => .error "expression too complex"
@@ -254,6 +296,7 @@ mutual
       match parseAtom f cs with
       | .ok (base, rest) => .ok (parseStarTail f base rest)
       | .error e => .error e
+
 
   def parseStarTail (fuel : Nat) (acc : RegularExpression Char)
       (cs : List Char) : RegularExpression Char × List Char :=
@@ -263,6 +306,7 @@ mutual
       match cs with
       | '*' :: cs' => parseStarTail f (star acc) cs'
       | cs' => (acc, cs')
+
 
   def parseAtom (fuel : Nat) (cs : List Char) : ParseState :=
     match fuel with

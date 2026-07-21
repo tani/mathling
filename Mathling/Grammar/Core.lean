@@ -19,15 +19,23 @@ Shared context-free grammar utilities, rule-shape predicates, and bundles for
 linear, right-linear, left-linear, Chomsky-normal, and Greibach-normal grammars.
 -/
 
+
+
 namespace Mathling.Grammar
 
 /-- Embed a terminal word into a context-free sentential form. -/
 public abbrev terminalSymbols {T N : Type*} (w : List T) : List (Symbol T N) :=
   w.map Symbol.terminal
 
+```
+
+```lean
 @[grind =, simp] public theorem terminalSymbols_nil {T N : Type*} :
     terminalSymbols (T := T) (N := N) [] = [] := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem terminalSymbols_cons {T N : Type*} (a : T) (w : List T) :
     terminalSymbols (N := N) (a :: w) =
       Symbol.terminal a :: terminalSymbols w := rfl
@@ -36,15 +44,23 @@ public abbrev terminalSymbols {T N : Type*} (w : List T) : List (Symbol T N) :=
 
 Its body is exposed because public rewrite-preservation theorems reduce this
 mapping while transporting derivations across grammar conversions. -/
+
+
 @[expose] public def Symbol.mapNonterminal {T N M : Type*} (f : N → M) :
     Symbol T N → Symbol T M
   | .terminal a => .terminal a
   | .nonterminal A => .nonterminal (f A)
 
+```
+
+```lean
 @[grind =, simp] public theorem Symbol.mapNonterminal_terminal {T N M : Type*}
     (f : N → M) (a : T) :
     Symbol.mapNonterminal f (.terminal a) = .terminal a := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem Symbol.mapNonterminal_nonterminal {T N M : Type*}
     (f : N → M) (A : N) :
     Symbol.mapNonterminal f (.nonterminal A : Symbol T N) =
@@ -54,14 +70,22 @@ mapping while transporting derivations across grammar conversions. -/
 
 Its body is exposed because public conversion proofs simplify the mapped rule
 to construct and analyse transported rewrites. -/
+
+
 @[expose] public def ContextFreeRule.mapNonterminal {T N M : Type*} (f : N → M)
     (r : ContextFreeRule T N) : ContextFreeRule T M :=
   { input := f r.input, output := r.output.map (Symbol.mapNonterminal f) }
 
+```
+
+```lean
 @[grind =, simp] public theorem ContextFreeRule.mapNonterminal_input {T N M : Type*}
     (f : N → M) (r : ContextFreeRule T N) :
     (ContextFreeRule.mapNonterminal f r).input = f r.input := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem ContextFreeRule.mapNonterminal_output {T N M : Type*}
     (f : N → M) (r : ContextFreeRule T N) :
     (ContextFreeRule.mapNonterminal f r).output =
@@ -70,13 +94,21 @@ to construct and analyse transported rewrites. -/
 /-- Whether a symbol is structurally a nonterminal.
 
 Its body is exposed because the public constructor equations reduce it. -/
+
+
 @[expose] public def Symbol.IsNonterminal {T N : Type*} : Symbol T N → Prop
   | .terminal _ => False
   | .nonterminal _ => True
 
+```
+
+```lean
 @[grind =, simp] public theorem Symbol.isNonterminal_terminal {T N : Type*} (a : T) :
     Symbol.IsNonterminal (.terminal a : Symbol T N) = False := rfl
 
+```
+
+```lean
 @[grind =, simp] public theorem Symbol.isNonterminal_nonterminal {T N : Type*} (A : N) :
     Symbol.IsNonterminal (.nonterminal A : Symbol T N) = True := rfl
 
@@ -84,6 +116,8 @@ Its body is exposed because the public constructor equations reduce it. -/
 
 Its body is exposed because public normal-form conversions eliminate this
 pointwise invariant when constructing replacement rules. -/
+
+
 @[expose] public def allNonterminals {T N : Type*} (xs : List (Symbol T N)) : Prop :=
   ∀ x ∈ xs, Symbol.IsNonterminal x
 
@@ -91,18 +125,28 @@ pointwise invariant when constructing replacement rules. -/
 
 Its body is exposed because public right- and left-linear embeddings simplify
 the induced nonterminal count. -/
+
+
 @[expose] public def symbolIsNonterminal {T N : Type*} : Symbol T N → Bool
   | .terminal _ => false
   | .nonterminal _ => true
 
 
+```
+
+```lean
 namespace ContextFreeRule
 
+```
+
+```lean
 variable {T N : Type*}
 
 /-- The number of nonterminal symbols on the right-hand side of a rule.
 
 Its body is exposed because public linearity proofs calculate this count. -/
+
+
 @[expose] public def nonterminalCount (r : ContextFreeRule T N) : Nat :=
   r.output.countP symbolIsNonterminal
 
@@ -110,6 +154,8 @@ Its body is exposed because public linearity proofs calculate this count. -/
 
 Its body is exposed because public regular-grammar embeddings prove it by
 normalizing the public count definition. -/
+
+
 @[expose] public def IsLinear (r : ContextFreeRule T N) : Prop :=
   Mathling.Grammar.ContextFreeRule.nonterminalCount r ≤ 1
 
@@ -117,6 +163,8 @@ normalizing the public count definition. -/
 
 Its body is exposed because public right-linear conversions eliminate this
 three-way rule-shape predicate in their proof terms. -/
+
+
 @[expose] public def IsRightLinear (r : ContextFreeRule T N) : Prop :=
   r.output = [] ∨
   (∃ a, r.output = [Symbol.terminal a]) ∨
@@ -126,6 +174,8 @@ three-way rule-shape predicate in their proof terms. -/
 
 Its body is exposed because public reversal conversions eliminate this
 three-way rule-shape predicate in their proof terms. -/
+
+
 @[expose] public def IsLeftLinear (r : ContextFreeRule T N) : Prop :=
   r.output = [] ∨
   (∃ a, r.output = [Symbol.terminal a]) ∨
@@ -136,6 +186,8 @@ three-way rule-shape predicate in their proof terms. -/
 
 Its body is exposed because public normal-form conversions construct each
 admissible rule-shape case directly. -/
+
+
 @[expose] public def IsChomskyNormal (S : N) (r : ContextFreeRule T N) : Prop :=
   (r.input = S ∧ r.output = []) ∨
   (∃ a : T, r.output = [Symbol.terminal a]) ∨
@@ -145,6 +197,8 @@ admissible rule-shape case directly. -/
 
 Its body is exposed because public Greibach conversions construct its cases
 directly in their proof terms. -/
+
+
 @[expose] public def IsGreibachNormal (S : N) (r : ContextFreeRule T N) : Prop :=
   (r.input = S ∧ r.output = []) ∨
   ∃ a : T, ∃ tail : List N,
@@ -156,6 +210,9 @@ public structure LinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
   linear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsLinear r
 
+```
+
+```lean
 namespace LinearGrammar
 
 /-- The language generated after forgetting the linearity certificate. -/

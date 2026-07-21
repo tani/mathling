@@ -116,6 +116,9 @@ public def list_degree : List Tp → Nat
 
 ```lean
 @[grind =]
+```
+
+```lean
 lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
   induction Γ <;> grind
 ```
@@ -135,6 +138,9 @@ public lemma nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   grind only [List.append_eq_nil_iff]
 ```
@@ -327,6 +333,9 @@ $Δ, Γ, Λ ⇒ B$ の証明をカットフリー体系の規則のみで具体�
 
 ```lean
 set_option maxHeartbeats 1000000 in
+```
+
+```lean
 @[important, grind =>]
 public theorem cut_admissible
   (d_left : Γ ⇒ A)
@@ -572,6 +581,8 @@ public theorem rdiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (B ⧸ A)) 
 
 Its body is exposed because public fragment translations normalize this
 predicate inside their `grind` proofs. -/
+
+
 @[grind, expose] public def is_atom : Tp → Prop
   | Tp.atom _ => True
   | _   => False
@@ -623,6 +634,8 @@ public def translatedListDegree (toProductFree : α → Tp) (Γ : List α) : Nat
 
 Its body is exposed because public fragment proofs reduce it after a case
 split on the translated formula. -/
+
+
 @[expose] public def translatedIsAtom (toProductFree : α → Tp) (A : α) : Prop :=
   is_atom (toProductFree A)
 ```

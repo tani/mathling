@@ -31,10 +31,19 @@ flowchart LR
 ```lean
 namespace Mathling.Automata
 
+```
+
+```lean
 namespace NFA
 
+```
+
+```lean
 open RegularExpression
 
+```
+
+```lean
 variable {α σ : Type*}
 
 /-- An NFA path whose proper intermediate states lie in `allowed`. -/
@@ -47,6 +56,9 @@ variable {α σ : Type*}
       (internal : word = [] ∨ mid ∈ allowed) :
       RestrictedPath M allowed p q (a :: word)
 
+```
+
+```lean
 @[grind .] private theorem RestrictedPath.toPath
     {M : NFA α σ} {allowed : Set σ} {p q : σ} {word : List α}
     (h : RestrictedPath M allowed p q word) : Nonempty (M.Path p q word) := by
@@ -64,6 +76,9 @@ private theorem RestrictedPath.ofPath_univ
   | cons mid p q a word edge rest ih =>
       exact .cons edge ih (Or.inr (Set.mem_univ mid))
 
+```
+
+```lean
 @[grind .] private theorem RestrictedPath.mono
     {M : NFA α σ} {S U : Set σ} (hSU : S ⊆ U)
     {p q : σ} {word : List α} (h : RestrictedPath M S p q word) :
@@ -73,6 +88,9 @@ private theorem RestrictedPath.ofPath_univ
   | cons edge rest internal ih =>
       exact .cons edge ih (internal.imp_right fun h => hSU h)
 
+```
+
+```lean
 @[grind .] private theorem RestrictedPath.append
     {M : NFA α σ} {S : Set σ} {p mid q : σ} {u v : List α}
     (hmid : mid ∈ S) (hu : RestrictedPath M S p mid u)
@@ -161,6 +179,9 @@ private def unionAll : List (RegularExpression α) → RegularExpression α
   | [] => empty
   | r :: rs => union r (unionAll rs)
 
+```
+
+```lean
 @[grind =, simp] private theorem mem_language_unionAll
     (rs : List (RegularExpression α)) (word : List α) :
     word ∈ language (unionAll rs) ↔ ∃ r ∈ rs, word ∈ language r := by
@@ -181,6 +202,9 @@ private noncomputable def edgeRegex [Fintype α]
   classical
   exact unionAll ((Finset.univ.filter fun a => q ∈ M.step p a).toList.map symbol)
 
+```
+
+```lean
 @[grind =] private theorem mem_language_edgeRegex [Fintype α]
     (M : NFA α σ) (p q : σ) (word : List α) :
     word ∈ language (edgeRegex M p q) ↔
@@ -200,6 +224,9 @@ private noncomputable def baseRegex [Fintype α]
   classical
   exact union (if p = q then epsilon else empty) (edgeRegex M p q)
 
+```
+
+```lean
 @[grind =] private theorem mem_language_baseRegex [Fintype α]
     (M : NFA α σ) (p q : σ) (word : List α) :
     word ∈ language (baseRegex M p q) ↔
@@ -242,6 +269,9 @@ private noncomputable def eliminate [Fintype α]
           (star (eliminate M states k k)))
           (eliminate M states k q))
 
+```
+
+```lean
 @[grind =] private theorem mem_language_eliminate [Fintype α]
     (M : NFA α σ) (states : List σ) (p q : σ) (word : List α) :
     word ∈ language (eliminate M states p q) ↔

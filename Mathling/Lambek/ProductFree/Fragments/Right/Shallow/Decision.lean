@@ -71,6 +71,9 @@ public def prove2 (Γ : List Tp) (A : Tp) : Bool :=
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma proveAux_mono {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) :
   proveAux (n + 1) Γ A := by
   grind only [proveAux, translatedProveAux_mono]
@@ -80,6 +83,9 @@ lemma proveAux_mono {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) :
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma proveAux_mono_le {n m : Nat} {Γ : List Tp} {A : Tp} (h : n ≤ m) (hp : proveAux n Γ A) :
     proveAux m Γ A := by
   grind only [proveAux, translatedProveAux_mono_le]
@@ -90,6 +96,9 @@ lemma proveAux_mono_le {n m : Nat} {Γ : List Tp} {A : Tp} (h : n ≤ m) (hp : p
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma proveAux_sound {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) : prove1 Γ A := by
   grind only [prove1, proveAux, translatedProveAux_sound]
 ```
@@ -100,6 +109,9 @@ lemma proveAux_sound {n : Nat} {Γ : List Tp} {A : Tp} (h : proveAux n Γ A) : p
 
 ```lean
 @[grind =>]
+```
+
+```lean
 lemma proveAux_complete {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : prove2 Γ A := by
   grind only [prove1, prove2, translatedProveAux_complete]
 ```
@@ -121,6 +133,9 @@ lemma proveAux_complete {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : prove2 Γ A 
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma prove1_sound {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : Γ ⇒ A := by
   simpa [prove1, Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.translatedProve1_sound
@@ -132,6 +147,9 @@ lemma prove1_sound {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : Γ ⇒ A := by
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma prove1_complete {Γ : List Tp} {A : Tp} (h : Γ ⇒ A) : prove1 Γ A := by
   have h_pf :
       Mathling.Lambek.ProductFree.Sequent
@@ -146,6 +164,9 @@ lemma prove1_complete {Γ : List Tp} {A : Tp} (h : Γ ⇒ A) : prove1 Γ A := by
 
 ```lean
 @[grind .]
+```
+
+```lean
 lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := by
   grind only [prove1_sound, prove1_complete]
 ```

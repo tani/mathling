@@ -18,10 +18,14 @@
 Nondeterministic, deterministic, and one-turn pushdown automata.
 -/
 
+
+
 namespace Mathling.Automata
 
 /-- One local pushdown rule: inspect one stack symbol, optionally consume one
 input symbol, and replace the inspected symbol by a finite stack word. -/
+
+
 @[ext] public structure PushdownRule (α State Stack : Type*) where
   source : State
   input : Option α
@@ -36,8 +40,14 @@ input symbol, and replace the inspected symbol by a finite stack word. -/
   accept : List State
   initialStack : List Stack
 
+```
+
+```lean
 namespace NPDA
 
+```
+
+```lean
 variable {α State Stack : Type*}
 
 /-- An instantaneous description: unread input, control state, and stack. -/
@@ -64,6 +74,8 @@ public abbrev Reaches (M : NPDA α State Stack) := Relation.ReflTransGen M.Step
 
 Its body is exposed because public grammar conversions destruct acceptance
 witnesses and reconstruct them as reachability witnesses. -/
+
+
 @[expose] public def Accepts (M : NPDA α State Stack) (w : List α) : Prop :=
   ∃ q₀ ∈ M.start, ∃ qf ∈ M.accept, ∃ stack,
     M.Reaches (w, q₀, M.initialStack) ([], qf, stack)
@@ -72,11 +84,15 @@ witnesses and reconstruct them as reachability witnesses. -/
 
 Its body is exposed because public language-equivalence theorems rewrite
 membership into the corresponding acceptance predicate. -/
+
+
 @[expose] public def language (M : NPDA α State Stack) : Language α := {w | M.Accepts w}
 
 mutual
   /-- A run that removes one designated top symbol while preserving an
   arbitrary stack suffix. -/
+
+
   @[grind cases] public inductive Balanced (M : NPDA α State Stack) :
       State → Stack → State → List α → Prop
     | rule {q : State} {childWord : List α}
@@ -96,6 +112,8 @@ end
 
 /-- A balanced one-symbol computation induces a concrete run with arbitrary
 unread input and an arbitrary untouched stack suffix. -/
+
+
 @[grind .] public theorem Balanced.reaches {M : NPDA α State Stack}
     {p q : State} {top : Stack} {word : List α}
     (h : Balanced M p top q word)
@@ -165,6 +183,8 @@ unread input and an arbitrary untouched stack suffix. -/
 
 /-- Fresh control states used to turn final-state acceptance into empty-stack
 acceptance. -/
+
+
 @[grind cases] public inductive FinalState (State : Type*) where
   | boot
   | sim (state : State)
@@ -180,9 +200,14 @@ acceptance. -/
 
 /-- Every stack symbol that can occur in a run from the declared initial
 stack. -/
+
+
 def stackSupport (M : NPDA α State Stack) : List Stack :=
   M.initialStack ++ M.rules.flatMap fun r => r.pop :: r.push
 
+```
+
+```lean
 namespace Internal
 
 public def bootRules (M : NPDA α State Stack) :
@@ -226,6 +251,8 @@ end Internal
 
 Its body is exposed because public conversion theorems simplify its generated
 rules and endpoints when transporting accepting runs. -/
+
+
 @[expose] public def finalToEmpty (M : NPDA α State Stack) :
     NPDA α (FinalState State) (FinalStack Stack) where
   rules := Internal.bootRules M ++ Internal.simulationRules M ++
@@ -240,6 +267,8 @@ the final transition removes it.
 
 Its body is exposed because public conversion proofs simplify the invariant
 at the final configuration to recover an empty stack. -/
+
+
 @[expose] public def FinalStackGood :
     ID α (FinalState State) (FinalStack Stack) → Prop
   | (_, .boot, stack) => stack = [.bottom]
@@ -288,11 +317,17 @@ at the final configuration to recover an empty stack. -/
 def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   ∀ x ∈ stack, x ∈ M.stackSupport
 
+```
+
+```lean
 @[grind .] theorem initialStack_supported (M : NPDA α State Stack) :
     M.StackSupported M.initialStack := by
   intro x hx
   exact List.mem_append_left _ hx
 
+```
+
+```lean
 @[grind .] theorem rule_pop_mem_stackSupport (M : NPDA α State Stack)
     {r : PushdownRule α State Stack} (hr : r ∈ M.rules) :
     r.pop ∈ M.stackSupport := by
@@ -300,6 +335,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   apply List.mem_flatMap.mpr
   exact ⟨r, hr, by simp⟩
 
+```
+
+```lean
 @[grind .] theorem rule_push_supported (M : NPDA α State Stack)
     {r : PushdownRule α State Stack} (hr : r ∈ M.rules) :
     M.StackSupported r.push := by
@@ -308,6 +346,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   apply List.mem_flatMap.mpr
   exact ⟨r, hr, by simp [hx]⟩
 
+```
+
+```lean
 @[grind .] theorem Step.stack_supported {M : NPDA α State Stack}
     {c c' : ID α State Stack} (h : M.Step c c') :
     M.StackSupported c.2.2 → M.StackSupported c'.2.2 := by
@@ -323,6 +364,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       · exact M.rule_push_supported hr x hx
       · exact hs x (by simp [hx])
 
+```
+
+```lean
 @[grind .] theorem Reaches.stack_supported {M : NPDA α State Stack}
     {c c' : ID α State Stack} (h : M.Reaches c c') :
     M.StackSupported c.2.2 → M.StackSupported c'.2.2 := by
@@ -330,6 +374,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   | refl => exact id
   | tail h step ih => exact fun hs => step.stack_supported (ih hs)
 
+```
+
+```lean
 @[grind .] theorem bootRule_mem (M : NPDA α State Stack)
     {q : State} (hq : q ∈ M.start) :
     ({ source := .boot, input := none, pop := .bottom, target := .sim q
@@ -338,6 +385,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       M.finalToEmpty.rules := by
   simp [finalToEmpty, Internal.bootRules, hq]
 
+```
+
+```lean
 @[grind .] theorem simulationRule_mem (M : NPDA α State Stack)
     {r : PushdownRule α State Stack} (hr : r ∈ M.rules) :
     ({ source := .sim r.source, input := r.input, pop := .old r.pop
@@ -348,6 +398,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   exact Or.inl (Or.inl (Or.inl (Or.inl (Or.inr
     (List.mem_map.mpr ⟨r, hr, rfl⟩)))))
 
+```
+
+```lean
 @[grind .] theorem enterDrainRule_mem (M : NPDA α State Stack)
     {q : State} (hq : q ∈ M.accept) {x : Stack}
     (hx : x ∈ M.stackSupport) :
@@ -357,6 +410,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       M.finalToEmpty.rules := by
   simp [finalToEmpty, Internal.enterDrainRules, hq, hx]
 
+```
+
+```lean
 @[grind .] theorem acceptBottomRule_mem (M : NPDA α State Stack)
     {q : State} (hq : q ∈ M.accept) :
     ({ source := .sim q, input := none, pop := .bottom
@@ -365,6 +421,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       M.finalToEmpty.rules := by
   simp [finalToEmpty, Internal.acceptBottomRules, hq]
 
+```
+
+```lean
 @[grind .] theorem drainRule_mem (M : NPDA α State Stack)
     {x : Stack} (hx : x ∈ M.stackSupport) :
     ({ source := .drain, input := none, pop := .old x
@@ -373,6 +432,9 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       M.finalToEmpty.rules := by
   simp [finalToEmpty, Internal.drainRules, hx]
 
+```
+
+```lean
 @[grind .] theorem finishDrainRule_mem (M : NPDA α State Stack) :
     (Internal.finishDrainRule :
       PushdownRule α (FinalState State) (FinalStack Stack)) ∈
@@ -467,6 +529,9 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
   | (input, .done, stack) =>
       stack = [] ∧ M.AcceptingPrefix word input
 
+```
+
+```lean
 @[grind .] private theorem old_cons_parts {x : Stack} {tail : List (FinalStack Stack)}
     {stack : List Stack}
     (h : FinalStack.old x :: tail =
@@ -481,6 +546,9 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
       cases hy
       exact ⟨stack, rfl, htail⟩
 
+```
+
+```lean
 @[grind .] private theorem bottom_parts {tail : List (FinalStack Stack)}
     {stack : List Stack}
     (h : FinalStack.bottom :: tail =
@@ -557,6 +625,8 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
 
 /-- The stack-shape component of the normalization invariant propagates over
 reachable configurations. -/
+
+
 @[grind .] public theorem finalReaches_stack_good (M : NPDA α State Stack)
     {word : List α} {c' : ID α (FinalState State) (FinalStack Stack)}
     (h : M.finalToEmpty.Reaches
@@ -642,6 +712,8 @@ reachable configurations. -/
 
 /-- Split a balanced computation at a concatenation boundary in its initial
 stack word. -/
+
+
 @[grind .] theorem StackBalanced.split {M : NPDA α State Stack}
     {p q : State} {left right : List Stack} {word : List α}
     (h : StackBalanced M p (left ++ right) q word) :
@@ -659,6 +731,8 @@ stack word. -/
 
 /-- Any concrete run that empties its complete initial stack decomposes into
 the balanced semantics used by the triple construction. -/
+
+
 @[grind .] public theorem stackBalanced_of_reaches_to_empty {M : NPDA α State Stack}
     {p q : State} {stack : List Stack} {word : List α}
     (h : M.Reaches (word, p, stack) ([], q, [])) :
@@ -710,14 +784,22 @@ public structure DPDA (α State Stack : Type*) where
     r.source = s.source → r.pop = s.pop →
     (r.input = none ∨ s.input = none ∨ r.input = s.input) → r = s
 
+```
+
+```lean
 namespace DPDA
 
+```
+
+```lean
 variable {α State Stack : Type*}
 
 /-- Forget determinism and expose the unique start state as a singleton list.
 
 Its body is exposed because public language-preservation proofs reduce the
 resulting NPDA fields across the automata-module boundary. -/
+
+
 @[expose] public def toNPDA (M : DPDA α State Stack) : NPDA α State Stack where
   rules := M.rules
   start := [M.start]
@@ -777,8 +859,14 @@ public structure OneTurnNPDA (α State Stack : Type*) where
 /-- Alternate descriptive name for a nondeterministic one-turn PDA. -/
 public abbrev NondeterministicOneTurnPDA := OneTurnNPDA
 
+```
+
+```lean
 namespace OneTurnNPDA
 
+```
+
+```lean
 variable {α State Stack : Type*}
 
 /-- An instantaneous description including the one-turn phase. -/
@@ -789,6 +877,8 @@ public abbrev ID (α State Stack : Type*) :=
 
 Its body is exposed because public language-preservation proofs reduce the
 resulting NPDA fields across the automata-module boundary. -/
+
+
 @[expose] public def toNPDA (M : OneTurnNPDA α State Stack) : NPDA α (State × TurnPhase) Stack where
   rules := M.rules
   start := M.start.map (·, TurnPhase.push)
@@ -824,6 +914,9 @@ public abbrev Reaches (M : OneTurnNPDA α State Stack) := M.toNPDA.Reaches
   | drain
   | done
 
+```
+
+```lean
 namespace Internal
 
 public def initializationChain (q : State) : List Stack → List Stack →
@@ -906,6 +999,9 @@ public def normalizedRules (M : OneTurnNPDA α State Stack) :
   initializationRules M ++ normalizedSimulationRules M ++ enterDrainRules M ++
     normalizedDrainRules M
 
+```
+
+```lean
 inductive NormalizedRuleKind (M : OneTurnNPDA α State Stack) :
     PushdownRule α (NormalState α State Stack × TurnPhase) (NPDA.FinalStack Stack) →
       Prop where
@@ -977,6 +1073,9 @@ inductive NormalizedRuleKind (M : OneTurnNPDA α State Stack) :
         { source := (.drain, .pop), input := none, pop := .bottom,
           target := (.done, .pop), push := [] }
 
+```
+
+```lean
 theorem initializationChain_kind (M : OneTurnNPDA α State Stack)
     (q : State) (hq : q ∈ M.start) (done remaining : List Stack)
     {r : PushdownRule α (NormalState α State Stack × TurnPhase)
@@ -993,6 +1092,9 @@ theorem initializationChain_kind (M : OneTurnNPDA α State Stack)
           · exact .initStep q hq current done next rest
           · exact ih (next :: current :: done) hr
 
+```
+
+```lean
 theorem expansionChain_kind (M : OneTurnNPDA α State Stack)
     (old : PushdownRule α (State × TurnPhase) Stack) (hold : old ∈ M.rules)
     (hphase : old.source.2 = .push ∧ old.target.2 = .push)
@@ -1014,6 +1116,9 @@ theorem expansionChain_kind (M : OneTurnNPDA α State Stack)
           · apply ih (next :: current :: done)
               (by simpa [List.append_assoc] using hpush) hr
 
+```
+
+```lean
 theorem normalizedRule_kind (M : OneTurnNPDA α State Stack)
     {r : PushdownRule α (NormalState α State Stack × TurnPhase)
       (NPDA.FinalStack Stack)} (hr : r ∈ normalizedRules M) :
@@ -1067,6 +1172,9 @@ theorem normalizedRule_kind (M : OneTurnNPDA α State Stack)
     · exact .drainOld x hx
     · exact .drainBottom
 
+```
+
+```lean
 @[aesop safe apply] theorem initializationChain_shape (q : State) (done : List Stack)
     {rest : List Stack}
     {r : PushdownRule α (NormalState α State Stack × TurnPhase) (NPDA.FinalStack Stack)}
@@ -1083,6 +1191,9 @@ theorem normalizedRule_kind (M : OneTurnNPDA α State Stack)
           · cases rest <;> simp
           · exact ih (next :: current :: done) hr
 
+```
+
+```lean
 @[aesop safe apply] theorem expansionChain_shape
     (old : PushdownRule α (State × TurnPhase) Stack) (done : List Stack)
     {rest : List Stack}
@@ -1100,6 +1211,9 @@ theorem normalizedRule_kind (M : OneTurnNPDA α State Stack)
           · cases rest <;> simp
           · exact ih (next :: current :: done) hr
 
+```
+
+```lean
 theorem initializationRules_shape (M : OneTurnNPDA α State Stack)
     {r : PushdownRule α (NormalState α State Stack × TurnPhase) (NPDA.FinalStack Stack)}
     (hr : r ∈ initializationRules M) :
@@ -1121,6 +1235,9 @@ theorem initializationRules_shape (M : OneTurnNPDA α State Stack)
       · have hshape := initializationChain_shape q [first] hr
         exact ⟨hshape.1, hshape.2.1, by omega⟩
 
+```
+
+```lean
 theorem normalizedSimulationRules_shape (M : OneTurnNPDA α State Stack)
     {r : PushdownRule α (NormalState α State Stack × TurnPhase) (NPDA.FinalStack Stack)}
     (hr : r ∈ normalizedSimulationRules M) :
@@ -1154,6 +1271,9 @@ theorem normalizedSimulationRules_shape (M : OneTurnNPDA α State Stack)
     · intro ht
       simpa using M.pop_phase_nongrowing old hold ht
 
+```
+
+```lean
 theorem enterDrainRules_shape (M : OneTurnNPDA α State Stack)
     {r : PushdownRule α (NormalState α State Stack × TurnPhase) (NPDA.FinalStack Stack)}
     (hr : r ∈ enterDrainRules M) :
@@ -1170,6 +1290,9 @@ theorem enterDrainRules_shape (M : OneTurnNPDA α State Stack)
     · rcases hr with ⟨x, hx, rfl⟩ | rfl <;> simp
     · simp at hphase
 
+```
+
+```lean
 theorem normalizedDrainRules_shape (M : OneTurnNPDA α State Stack)
     {r : PushdownRule α (NormalState α State Stack × TurnPhase) (NPDA.FinalStack Stack)}
     (hr : r ∈ normalizedDrainRules M) :
@@ -1182,18 +1305,27 @@ theorem normalizedDrainRules_shape (M : OneTurnNPDA α State Stack)
 
 end Internal
 
+```
+
+```lean
 @[aesop safe apply] private theorem original_pop_stays_pop
     (M : OneTurnNPDA α State Stack)
     (r : PushdownRule α (State × TurnPhase) Stack) (hr : r ∈ M.rules)
     (hp : r.source.2 = .pop) : r.target.2 = .pop :=
   M.pop_stays_pop r hr hp
 
+```
+
+```lean
 @[aesop safe apply] private theorem original_push_nonshrinking
     (M : OneTurnNPDA α State Stack)
     (r : PushdownRule α (State × TurnPhase) Stack) (hr : r ∈ M.rules)
     (hp : r.source.2 = .push) : 1 ≤ r.push.length :=
   M.push_phase_nonshrinking r hr hp
 
+```
+
+```lean
 @[aesop safe apply] private theorem original_pop_nongrowing
     (M : OneTurnNPDA α State Stack)
     (r : PushdownRule α (State × TurnPhase) Stack) (hr : r ∈ M.rules)
@@ -1237,6 +1369,8 @@ public def normalize (M : OneTurnNPDA α State Stack) :
 /-- Every normalized rule changes stack height by at most one: its replacement
 word has length zero, one, or two, with the phase constraints ruling out the
 wrong direction. -/
+
+
 @[grind .] public theorem normalize_rule_shape (M : OneTurnNPDA α State Stack)
     {r : PushdownRule α
       (NormalState α State Stack × TurnPhase) (NPDA.FinalStack Stack)}
@@ -1271,6 +1405,8 @@ wrong direction. -/
 
 /-- A normalized rule entering the unique final state is the last pop-phase
 step and removes its inspected symbol without consuming input. -/
+
+
 @[grind .] public theorem normalize_done_rule (M : OneTurnNPDA α State Stack)
     {r : PushdownRule α
       (NormalState α State Stack × TurnPhase) (NPDA.FinalStack Stack)}
@@ -1312,6 +1448,8 @@ def AcceptingPrefix (M : OneTurnNPDA α State Stack) (word input : List α) : Pr
 
 /-- The semantic invariant carried by initialization, split pushes, simulation,
 and final stack draining. -/
+
+
 def NormalRunGood (M : OneTurnNPDA α State Stack) (word : List α) :
     ID α (NormalState α State Stack) (NPDA.FinalStack Stack) → Prop
   | (input, (.boot, .push), stack) => input = word ∧ stack = [.bottom]
@@ -1770,6 +1908,8 @@ private theorem expansionChain_reaches (M : OneTurnNPDA α State Stack)
 
 /-- Lift one original transition to the normalized machine, expanding a long
 push into a finite epsilon chain when necessary. -/
+
+
 theorem Step.normalize {M : OneTurnNPDA α State Stack}
     {c c' : ID α State Stack} (h : M.Step c c') :
     M.normalize.Reaches
@@ -2056,6 +2196,8 @@ private theorem accepted_reaches_done (M : OneTurnNPDA α State Stack)
 
 /-- Acceptance by the normalized machine is exactly reachability from its
 unique boot configuration to its unique drained final configuration. -/
+
+
 @[grind .] public theorem normalize_accepts_iff_reaches_done
     (M : OneTurnNPDA α State Stack) (word : List α) :
     M.normalize.Accepts word ↔
