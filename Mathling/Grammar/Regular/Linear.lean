@@ -12,6 +12,8 @@
 
 線形文法の生成木と一回転 NPDA を対応付ける。生成規則から機械を構成し、木から受理実行を作る順方向と、受理実行から木を復元する逆方向を証明して、両者の言語が一致することを導く。
 
+以下は `Mathling.Grammar` 名前空間を開くだけの骨格である。実際の宣言は後続のフェンスに現れるが、LiterateLean の規約により namespace/end の対もそれぞれ独立したフェンスに収める必要があるため、ここでは開閉のみを行う。
+
 ```lean
 
 /-!
@@ -28,15 +30,21 @@ end Mathling.Grammar
 
 ```
 
+`IsLinear` 以下の言語述語は `Language` 名前空間の下に置く。まずその名前空間を開く。
+
 ```lean
 namespace Language
 
 ```
 
+`LinearGrammar` や `ContextFreeGrammar` など、線形文法まわりの補助定義を修飾なしで使えるように開いておく。
+
 ```lean
 open Mathling.Grammar
 
 ```
+
+以降の宣言は終端記号の型 `T` を共有するので、ここで一度だけ変数として固定する。
 
 ```lean
 variable {T : Type*}
@@ -46,12 +54,16 @@ variable {T : Type*}
   ∃ g : LinearGrammar T, g.language = L
 ```
 
+`IsLinear` は存在命題として定義されているだけなので、この `rfl` 補題によって初めて「線形文法の言語である」という主張と `IsLinear` が定義上等価であることを、`grind`/`simp` の書き換え規則として使えるようにする。以後の証明はこの補題を介して `IsLinear` を具体的な証人 `g` に展開する。
+
 ```lean
 /-- The witness-based presentation of the class of linear languages. -/
 @[important, grind =, simp] public theorem isLinear_iff_exists_linearGrammar
     {L : Language T} : L.IsLinear ↔ ∃ g : LinearGrammar T, g.language = L := by
   rfl
 ```
+
+線形文法は文脈自由文法に線形性の証明を添えた構造なので、その証明を忘れるだけで文脈自由性が得られる。この一方向の埋め込みが、線形言語のクラスを文脈自由言語のクラスの部分クラスとして位置づける基礎となる。
 
 ```lean
 /-- Every linear language is context-free after forgetting rule linearity. -/
@@ -63,15 +75,21 @@ variable {T : Type*}
 end Language
 ```
 
+以降の宣言は `LinearGrammar` 型そのものに対する補題であり、`Mathling.Grammar` 名前空間の下に置く。
+
 ```lean
 namespace Mathling.Grammar
 
 ```
 
+`LinearGrammar.language_isContextFree` と `LinearGrammar.language_isLinear` は `g : LinearGrammar T` を主語とする形の補題群なので、`LinearGrammar` 名前空間を開いて `g.language_isContextFree` のような呼び出しを可能にする。
+
 ```lean
 namespace LinearGrammar
 
 ```
+
+これは `Language.IsLinear.isContextFree` の裏返しで、文法の側から見た主張である。任意の線形文法 `g` について、`g.cfg` への忘却写像がそのまま文脈自由性の証人になることを示し、後段の NPDA 構成が文脈自由文法の理論(`ContextFreeGrammar.Derives` など)をそのまま利用できることを保証する。
 
 ```lean
 variable {T : Type*}
@@ -85,6 +103,8 @@ context-free grammar for the same language. -/
   ⟨g.cfg, rfl⟩
 ```
 
+`Language.IsLinear` の定義を `g` 自身を証人として即座に満たす、いわば自明な逆向きの橋渡し。この補題があることで、上の `isLinear_iff_exists_linearGrammar` を経由せずに直接「この文法の言語は線形である」と言える。
+
 ```lean
 /-- Every linear grammar presents a linear language. -/
 @[important, grind .] public theorem language_isLinear (g : LinearGrammar T) :
@@ -94,10 +114,14 @@ context-free grammar for the same language. -/
 end LinearGrammar
 ```
 
+ここから先は生成木の意味論と NPDA 構成という、このモジュールの本体を担う証明群であり、再び `LinearGrammar` 名前空間を開く。
+
 ```lean
 namespace LinearGrammar
 
 ```
+
+以降の補助補題は `LinearGenerates`(生成木)と `Derives`(文脈自由導出)の対応を示す下準備であり、共通の終端記号型 `T` を変数として固定する。
 
 ```lean
 variable {T : Type*}
@@ -105,6 +129,8 @@ variable {T : Type*}
 
 
 ```
+
+線形性の核心は「右辺に非終端記号は高々一個」という制約である。非終端記号を一個も含まない生成規則の右辺は、この補題により純粋な終端語として取り出せる。以降の場合分け(`split_linear_output`)の基底部として使われる。
 
 ```lean
 @[grind .] private theorem terminals_of_count_eq_zero {N : Type}
@@ -126,6 +152,8 @@ variable {T : Type*}
           omega
 
 ```
+
+線形文法の規則右辺は、非終端記号が現れないか、あるいは終端語 `pre` ・非終端記号 `B` ・終端語 `suffix` の三分割としてちょうど一箇所にだけ現れるかのいずれかである。この二値分解が `LinearGenerates` の `leaf`/`branch` という二つの構成子に直接対応し、生成木の帰納法をこの分解に沿って進められるようにする。
 
 ```lean
 @[grind .] private theorem split_linear_output {N : Type}
@@ -153,6 +181,8 @@ variable {T : Type*}
           exact Or.inr ⟨[], A, suffix, by simp [terminalSymbols]⟩
 ```
 
+`split_linear_output` の二値分解を、規則適用の帰納的な構造として固定したのが `LinearGenerates` である。`leaf` は非終端記号を含まない規則を直接適用する場合、`branch` は右辺の唯一の非終端記号 `B` を子の生成木で置き換える場合に対応する。この帰納的述語が「文法規則から実際にどの語が生成されるか」という意味論そのものであり、以降のすべての証明(NPDA への変換・逆変換)はこの構造に関する帰納法として組み立てられる。
+
 ```lean
 /-- The production-tree semantics of a linear grammar. -/
 @[grind cases] public inductive LinearGenerates (g : LinearGrammar T) : g.cfg.NT → List T → Prop
@@ -167,6 +197,8 @@ variable {T : Type*}
       (child : LinearGenerates g B middle) :
       LinearGenerates g r.input (pre ++ middle ++ suffix)
 ```
+
+生成木の意味論と文脈自由文法の一般的な導出関係 `Derives` は、そのままでは別々の概念である。この補題は「生成木が存在すれば、それに沿った導出列も存在する」という順方向を示し、`LinearGenerates` が `Derives` の妥当な特殊化であることを保証する半分である(逆方向は後の `derives_linear_context` が担う)。
 
 ```lean
 @[grind .] private theorem generates_derives (g : LinearGrammar T)
@@ -187,6 +219,8 @@ variable {T : Type*}
 
 
 ```
+
+逆方向の証明(`Derives` から `LinearGenerates` を復元する)の要となる補助補題。文脈が終端記号列に挟まれた単一の非終端記号 `A` の形をしているとき、その文脈の中で書き換えを起こせる規則は `A` を左辺に持つ規則しかなく、書き換え後の形も一意に定まる。この一意性がなければ、導出列から元の規則をたどり直すことができない。
 
 ```lean
 @[grind .] private theorem rewrites_terminal_context (r : ContextFreeRule T N)
@@ -211,6 +245,8 @@ variable {T : Type*}
 
 
 ```
+
+`generates_derives` の逆方向。任意の文脈自由導出が、線形文法の制約(規則右辺の非終端記号は高々一個)のもとでは必ず `LinearGenerates` の生成木として再構成できることを示す。`rewrites_terminal_context` と `split_linear_output` を使って導出の各段を一意に追跡し、木を組み立てる。この補題により、次の `linearGenerates_iff` で生成木と文法の言語(`Derives` 経由の定義)が完全に一致することが言える。
 
 ```lean
 @[grind .] private theorem derives_linear_context (g : LinearGrammar T)
@@ -260,6 +296,8 @@ variable {T : Type*}
         · exact LinearGenerates.branch hr hout hmiddle
 ```
 
+`generates_derives` と `derives_linear_context` を組み合わせて、生成木による意味論と文法の言語(`g.language`、すなわち開始記号からの `Derives`)が過不足なく一致することを確定する。この同値性が成立して初めて、以降の NPDA 構成が「`LinearGenerates` を模倣すれば文法の言語を認識する機械になる」という主張に翻訳できる。
+
 ```lean
 /-- Production trees and context-free derivations agree for linear grammars. -/
 @[grind .] theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
@@ -282,6 +320,8 @@ variable {T : Type*}
 open Mathling.Automata
 ```
 
+以降 NPDA の基本定義(`PushdownRule`、`OneTurnNPDA`、`TurnPhase` など)を修飾なしで使うために、`NPDA` 名前空間も開く。続けてスタックアルファベットを定義する。`LinearStack` はスタックの底を示す `bottom` と、生成木を辿る途中で退避された終端記号を保持する `old` の二種類しか持たない――これは「スタックに積むのは規則右辺に現れる終端記号だけ」という一回転構成の不変条件を型として固定するものである。
+
 ```lean
 open Mathling.Automata.NPDA
 
@@ -292,6 +332,8 @@ open Mathling.Automata.NPDA
   deriving Repr, DecidableEq
 ```
 
+構成する NPDA の遷移規則は有限個でなければならない。そのために、実際に文法規則の右辺に出現する終端記号だけを`terminalSupport` として有限リストに集める。ここに現れない終端記号は決してスタックに積まれることはない。
+
 ```lean
 /-- The terminal symbols appearing in the rules of the grammar. -/
 public noncomputable def terminalSupport (g : LinearGrammar T) : List T :=
@@ -300,11 +342,15 @@ public noncomputable def terminalSupport (g : LinearGrammar T) : List T :=
     | _ => none
 ```
 
+`terminalSupport` から実際に到達可能なスタック記号の全体(`bottom` を含む)を作る。後述の遷移規則の枚挙(`toOneTurnNPDARules`)はスタックの一番上の記号ごとに規則を複製するため、この有限リストが遷移規則を有限個に保つ鍵となる。
+
 ```lean
 /-- All possible stack symbols in reachable runs of the PDA. -/
 public noncomputable def stackSymbols (g : LinearGrammar T) : List (LinearStack T) :=
   LinearStack.bottom :: (terminalSupport g).map LinearStack.old
 ```
+
+線形規則の右辺には非終端記号が高々一つしかないので、それを取り出して「この規則がどの非終端記号へ分岐するか」を表す関数を定義する。非終端記号が存在しない(leaf 型の)規則には便宜上のデフォルト値を返す。この関数は `pushBranch` 状態から次にどの状態へ遷移すべきかを決めるのに使われる。
 
 ```lean
 /-- Extract the nonterminal of a linear rule if it exists. -/
@@ -315,6 +361,8 @@ public def ruleNonterminal (r : ContextFreeRule T N) (default : N) : N :=
   | B :: _ => B
   | [] => default
 ```
+
+以降の索引操作の補題群のための、リストに対する純粋な補助事実から始める。`List.drop` を一つ進めると先頭要素が取り出せるという事実は、規則右辺を位置 `idx` から走査する `scan`/`pushBranch` 系の証明で繰り返し使われる。
 
 ```lean
 private theorem drop_eq_cons_drop {A : Type*} (L : List A) (idx : Nat) (h : idx < L.length) :
@@ -335,12 +383,16 @@ private theorem drop_eq_cons_drop {A : Type*} (L : List A) (idx : Nat) (h : idx 
           exact ih'
 ```
 
+`ruleNonterminal` の定義を辿るための素朴な補助関数として、記号列に現れる非終端記号だけを順に取り出す。次の補題でこのリストが実際に単一要素であることを線形性から示す。
+
 ```lean
 private def ruleNonterminals (xs : List (Symbol T N)) : List N :=
   xs.filterMap fun
     | Symbol.nonterminal A => some A
     | _ => none
 ```
+
+線形規則(非終端記号の出現回数が高々一)の右辺に非終端記号 `B` が現れるなら、`ruleNonterminals` はちょうど `[B]` になる。この一意性がなければ `ruleNonterminal` が「正しい」非終端記号を返す保証がなく、`pushBranch` から `derive` への遷移が誤った状態に飛んでしまう。
 
 ```lean
 private theorem ruleNonterminals_eq_singleton {xs : List (Symbol T N)} {B : N}
@@ -376,6 +428,8 @@ private theorem ruleNonterminals_eq_singleton {xs : List (Symbol T N)} {B : N}
             simp [symbolIsNonterminal] at hfalse
 ```
 
+`ruleNonterminals_eq_singleton` を `ruleNonterminal` の定義に橋渡しする。ある位置 `idx` に非終端記号 `B` が実際に見つかったなら、`ruleNonterminal r _` は必ずその `B` を返す。これにより「規則右辺のどこに非終端記号があるか」を索引で追跡していた証明を、`ruleNonterminal` という状態遷移が実際に使う関数の言葉に書き換えられる。
+
 ```lean
 private theorem ruleNonterminal_eq {T : Type*} (g : LinearGrammar T)
     (r : ContextFreeRule T g.cfg.NT) (hr : r ∈ g.cfg.rules) (idx : Nat) (B : g.cfg.NT)
@@ -390,6 +444,8 @@ private theorem ruleNonterminal_eq {T : Type*} (g : LinearGrammar T)
   unfold ruleNonterminals at hone
   rw [hone]
 ```
+
+`pre ++ [B] ++ suffix` という分解が与えられているとき、その中で非終端記号として見つかる位置は `pre.length` しかありえず、見つかる記号も `C` に一致する。この位置の一意性は、生成木を辿りながら PDA の状態(`scan`/`pushBranch` のインデックス)を復元する逆方向の証明で、索引の食い違いを排除するために必要になる。
 
 ```lean
 private theorem nonterminal_position_unique {N : Type*} {xs : List (Symbol T N)}
@@ -425,6 +481,8 @@ private theorem nonterminal_position_unique {N : Type*} {xs : List (Symbol T N)}
       cases hsuffix : suffix[k]? <;> simp [hsuffix] at hopt
 ```
 
+構成する制御状態は、生成木の深さ優先走査の「今どこにいるか」を直接コード化したものである。`derive A` は非終端記号 `A` をこれから生成する局面、`scan r idx` は選んだ規則 `r` の右辺を位置 `idx` まで読み終えた局面、`pushBranch r idx` は右辺の残りをスタックへ退避する局面、`matchStack` は退避した記号を入力と突き合わせて回収する局面(one-turn の「pop」フェーズ)、`finished` は受理状態である。この五種類だけで任意の生成木を模倣できることが、以降の `_reaches` 系補題と `LinearGood` 不変条件の両方で使われる。
+
 ```lean
 /-- Control states for the production-driven linear-grammar PDA. -/
 @[grind cases] public inductive LinearPDAState (g : LinearGrammar T) where
@@ -435,10 +493,14 @@ private theorem nonterminal_position_unique {N : Type*} {xs : List (Symbol T N)}
   | finished
 ```
 
+遷移規則の具体的な列挙は公開 API の一部ではなく実装の詳細なので、`Internal` 名前空間に隠す。これにより利用側は `toOneTurnNPDA` が満たす性質だけを見ればよく、規則がどのようにエンコードされているかに依存しない。
+
 ```lean
 namespace Internal
 
 ```
+
+`LinearPDAState` の五局面それぞれに対応する遷移規則を、有限リストとして具体的に枚挙する。`derive`→`scan` は規則を選ぶ ε 遷移、`scan` 内の終端記号は入力を消費し、非終端記号に出会うと `pushBranch` へ ε 遷移する。`pushBranch` は右辺の残りを右から左へスタックに積みながら最終的に子の `derive` へ入り、`matchStack` は退避した終端記号を入力と照合し、`bottom` に達したら `finished` へ遷移する。この関数全体が one-turn NPDA(push 局面と pop 局面の一回きりの切り替え)の必要十分な局所規則集合であり、`toOneTurnNPDA` の `pop_stays_pop` 等の不変条件はまさにこの列挙に対する `aesop` で示される。
 
 ```lean
 variable {T : Type*}
@@ -486,6 +548,8 @@ end Internal
 
 ```
 
+`toOneTurnNPDARules` の内部詳細は隠したまま公開してよい定義に取り込むため、`Internal` を開いて名前を持ち込む。この `toOneTurnNPDA` こそがモジュールの主目的の一つであり、開始状態・受理状態・初期スタックを固定したうえで、one-turn 制約(push 局面でスタックが縮まない・pop 局面で伸びない・pop 局面が pop のままである)を証明として同梱する。この三つの証明はいずれも規則の有限列挙を場合分けして `aesop` に委ねるだけで済み、規則の設計自体が one-turn 性を自動的に満たすように作られていることを裏付けている。
+
 ```lean
 open Internal
 
@@ -516,6 +580,8 @@ public noncomputable def toOneTurnNPDA (g : LinearGrammar T) :
     aesop
 ```
 
+`toOneTurnNPDARules` は四つの `flatMap`/`map` を連結した一つの巨大な式なので、個々の規則が実際にその中に含まれることを示すたびに定義展開と `List.mem_append` 等の書き換えを繰り返すのは煩雑である。以下の `_mem` 系補題群は、五種類の遷移パターンそれぞれについて「この形の規則は確かに `toOneTurnNPDARules g` の要素である」という事実を一度だけ証明し、以降の実行列構成(`_reaches` 系)ではこれらを部品として呼ぶだけで済むようにする。まず、非終端記号 `A` を生成し始める際に規則 `r` を選ぶ ε 遷移から。
+
 ```lean
 private theorem chooseRule_mem (g : LinearGrammar T)
     {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
@@ -526,6 +592,8 @@ private theorem chooseRule_mem (g : LinearGrammar T)
         toOneTurnNPDARules g := by
   simp [toOneTurnNPDARules, hr, hs]
 ```
+
+`scan` 局面で右辺の位置 `idx` に終端記号 `a` があるとき、入力から `a` を一つ消費して次の位置へ進む規則が存在することを示す。
 
 ```lean
 private theorem scanTerminalRule_mem (g : LinearGrammar T)
@@ -545,6 +613,8 @@ private theorem scanTerminalRule_mem (g : LinearGrammar T)
   simp
 ```
 
+`scan` 局面で右辺の位置 `idx` に非終端記号 `B` が見つかった場合の ε 遷移で、右辺の残りをスタックへ退避する `pushBranch` 局面(索引は右辺の全長から始まる)へ移る。
+
 ```lean
 private theorem scanNonterminalRule_mem (g : LinearGrammar T)
     {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
@@ -563,6 +633,8 @@ private theorem scanNonterminalRule_mem (g : LinearGrammar T)
   simp
 ```
 
+`scan` が右辺の末尾(`idx` が右辺長以上)に達した、すなわち非終端記号を含まない規則を読み終えた場合の ε 遷移で、退避すべきものが何もないので直接 `matchStack`(pop フェーズ)へ移る。
+
 ```lean
 private theorem scanFinishRule_mem (g : LinearGrammar T)
     {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
@@ -579,6 +651,8 @@ private theorem scanFinishRule_mem (g : LinearGrammar T)
   rw [dif_neg (by omega)]
   simp
 ```
+
+`pushBranch` 局面で右辺を右から左へ辿るとき、一つ手前の記号が終端記号 `a` であれば、それをスタックへ積んで索引を一つ戻す規則が存在する。この規則こそが「非終端記号より右側の終端記号列を、子の生成が終わるまでスタックに退避しておく」という one-turn 構成の核心部分にあたる。
 
 ```lean
 private theorem pushTerminalRule_mem (g : LinearGrammar T)
@@ -599,6 +673,8 @@ private theorem pushTerminalRule_mem (g : LinearGrammar T)
   simp
 ```
 
+`pushBranch` の走査が非終端記号の直後(索引が 1、つまり退避すべき終端記号を使い果たした)まで戻ったとき、その非終端記号を子として `derive` 局面へ移る規則が存在する。ここでスタックに退避しておいた終端記号列はそのまま残り、後で `matchStack` が回収する。
+
 ```lean
 private theorem pushNonterminalRule_mem (g : LinearGrammar T)
     {r : ContextFreeRule T g.cfg.NT} (hr : r ∈ g.cfg.rules)
@@ -618,6 +694,8 @@ private theorem pushNonterminalRule_mem (g : LinearGrammar T)
   simp
 ```
 
+`matchStack` 局面で、スタックの一番上に退避されていた終端記号 `a` を入力の `a` と突き合わせて両方から取り除く規則。one-turn の pop フェーズはこの規則の繰り返しだけで進み、スタックが縮む一方であることが `pop_phase_nongrowing` の根拠になっている。
+
 ```lean
 private theorem matchRule_mem (g : LinearGrammar T) {a : T}
     (ha : a ∈ terminalSupport g) :
@@ -627,6 +705,8 @@ private theorem matchRule_mem (g : LinearGrammar T) {a : T}
         toOneTurnNPDARules g := by
   simp [toOneTurnNPDARules, ha]
 ```
+
+スタックが `bottom` だけになったら、それを取り除いて `finished` へ移る唯一の終了規則。これが成功する時点で入力もスタックも空になっていなければならないという受理条件を、後の `LinearGood` と `toOneTurnNPDA_language` が利用する。
 
 ```lean
 private theorem finishRule_mem (g : LinearGrammar T) :
@@ -639,7 +719,7 @@ private theorem finishRule_mem (g : LinearGrammar T) :
 
 ## 順方向：生成木から実行列を構成する
 
-以降の `_reaches` 系の補題は、`toOneTurnNPDA` が意図した通りの複数ステップ実行列を持つことを示す部品である。
+以降の `_reaches` 系の補題は、`toOneTurnNPDA` が意図した通りの複数ステップ実行列を持つことを示す部品である。まず、`scan` 局面が右辺の終端記号の連続をそのまま入力から読み進められることを示す。これは `scanTerminalRule_mem` の単発規則を語の長さぶん連結しただけの、繰り返し消費のコンパイルである。
 
 ```lean
 @[grind .] private theorem scan_terminals_reaches (g : LinearGrammar T)
@@ -681,6 +761,8 @@ private theorem finishRule_mem (g : LinearGrammar T) :
       simpa only [List.length_cons, Nat.add_assoc, Nat.add_comm, Nat.add_left_comm] using hrest
 
 ```
+
+`pushBranch` 局面が非終端記号 `B` の右側の終端記号列 `todo` を一つずつスタックへ積みながら `derive B` まで遷移できることを示す。積んだ記号は逆順で `todo.map LinearStack.old` としてスタックの先頭に並び、one-turn の push フェーズがここで終わって `derive B` の内部処理(次の子文法規則の選択)に移る。ここでスタックが伸びる分だけ、後で `matchStack_reaches` が同じ量を消費して回収する必要がある。
 
 ```lean
 @[grind .] private theorem pushBranch_reaches (g : LinearGrammar T)
@@ -772,6 +854,8 @@ private theorem finishRule_mem (g : LinearGrammar T) :
 
 ```
 
+`pushBranch_reaches` でスタックに退避した終端記号列を、pop フェーズの `matchStack` 局面が入力と突き合わせて一つずつ消費できることを示す。`word` の各記号が `terminalSupport g` に属している必要があるのは、`matchRule_mem` がその集合に対してしか規則を持たないためであり、この前提が満たされる場面(退避された記号はすべて何らかの規則右辺に由来する)は呼び出し側の `generates_reaches` で保証される。
+
 ```lean
 @[grind .] private theorem matchStack_reaches (g : LinearGrammar T) (word : List T)
     (hmem : ∀ a ∈ word, a ∈ terminalSupport g) (input : List T)
@@ -797,6 +881,8 @@ private theorem finishRule_mem (g : LinearGrammar T) :
 
 ```
 
+`matchStack` がスタックの `bottom` 記号に達したときに `finishRule_mem` の規則で `finished` へ移れることを、実行列として一段だけ確認する。すべての退避記号を回収し終えた後の最後の一手であり、`generates_reaches` の `leaf` ケースの末尾でこの一歩が使われる。
+
 ```lean
 @[grind .] private theorem finish_reaches (g : LinearGrammar T) (stack : List (LinearStack T)) :
     g.toOneTurnNPDA.Reaches
@@ -811,6 +897,8 @@ private theorem finishRule_mem (g : LinearGrammar T) :
   exact finishRule_mem g
 
 ```
+
+前段のすべての `_reaches` 補題(`chooseRule`、`scan_terminals_reaches`、`pushBranch_reaches`)を生成木 `LinearGenerates` の構造に沿って組み立て、任意の生成木に対して `derive A` から `matchStack` までの完全な実行列を作る主定理。`leaf` ケースは規則選択・終端記号の走査・pop フェーズへの遷移の三段、`branch` ケースはそれに加えて子の生成木を再帰的に埋め込む。この補題が示す実行列は、後の `toOneTurnNPDA_language` で「文法が生成する語は機械も受理する」という順方向を支える中心部品である。
 
 ```lean
 @[grind .] private theorem generates_reaches (g : LinearGrammar T)
@@ -959,7 +1047,7 @@ private theorem finishRule_mem (g : LinearGrammar T) :
 
 ## 逆方向：受理から生成木を復元する不変条件
 
-逆向きの含意を示すための不変条件 `LinearGood` を定義する。
+逆向きの含意を示すための不変条件 `LinearGood` を定義する。その定義には「今スタックに何が積まれているか」を、いずれ入力側に現れるべき終端記号列として読み替える橋渡しが要る。`stackToTerminals` はその読み替えで、`bottom` に達した時点で打ち切る(それより下は存在しない)。
 
 ```lean
 public def stackToTerminals (T : Type*) : List (LinearStack T) → List T
@@ -967,6 +1055,8 @@ public def stackToTerminals (T : Type*) : List (LinearStack T) → List T
   | .bottom :: _ => []
   | .old a :: xs => a :: stackToTerminals T xs
 ```
+
+`toOneTurnNPDARules` の定義は四つの `flatMap` の連結という「作り方」の情報しか与えないため、任意の規則 `r ∈ toOneTurnNPDARules g` について、それがどの構成パターン(選択・終端走査・非終端走査・走査終了・終端退避・非終端退避・照合・終了)に属するかを言い当てるのは自明ではない。`LinearRuleKind` はその八通りの「規則の由来」を分類する帰納的述語であり、次の `linearRuleKind_of_mem` によって任意の規則がこのいずれかに一意に分類されることが示される。この分類がなければ、逆方向の証明(`rule_step_good`)は規則の形について網羅的な場合分けができない。
 
 ```lean
 private inductive LinearRuleKind (g : LinearGrammar T) :
@@ -1019,6 +1109,8 @@ private inductive LinearRuleKind (g : LinearGrammar T) :
       { source := (.matchStack, .pop), input := none, pop := .bottom,
         target := (.finished, .pop), push := [] }
 ```
+
+この完全性補題が `LinearRuleKind` を実際に使えるようにする鍵である。`toOneTurnNPDARules` の定義をほどいて `List.mem_append`/`mem_flatMap` で分解し、八つの構成パターンのどれに当てはまるかを機械的に場合分けする。以降のすべての逆方向の証明は、規則の集合的な定義そのものではなく、この分類結果だけを見て進む。
 
 ```lean
 private theorem linearRuleKind_of_mem (g : LinearGrammar T)
@@ -1075,6 +1167,8 @@ private theorem linearRuleKind_of_mem (g : LinearGrammar T)
     exact .finish
 ```
 
+`pushBranch` の索引を一つ減らす際、それまでに読んだ接頭辞 `take idx` が、一つ手前の接頭辞に直前の要素を一つ足したものと一致することを言うだけの、リストに関する純粋な補助事実。`rule_step_good` の `pushTerminal`/`pushNonterminal` ケースで、`LinearGood` が記述する `r.output.take idx` の形を段階的に更新するために使う。
+
 ```lean
 private theorem take_succ_of_drop_eq_cons {A : Type*} {xs : List A}
     {idx : Nat} (_hidx : idx ≤ xs.length) (hpos : 0 < idx) {x : A} {tail : List A}
@@ -1088,6 +1182,8 @@ private theorem take_succ_of_drop_eq_cons {A : Type*} {xs : List A}
     _ = xs.take (idx - 1) ++ xs[idx - 1]?.toList := List.take_add_one
     _ = xs.take (idx - 1) ++ [x] := by rw [hget]; rfl
 ```
+
+これがモジュールの逆方向の証明を支える不変条件そのものである。機械の各局面(状態とスタック)ごとに、「もし機械がここから受理まで到達できるなら、未読の入力はどんな生成木で説明できるか」という仕様を局面の形に応じて場合分けして述べる。`derive` では入力全体がスタック上の退避記号を除いた語の生成木、`scan` では規則右辺の残りの形(非終端記号を含むかどうか)に応じて未読部分の形を、`pushBranch` では走査済みの接頭辞と子の生成木を、`matchStack`/`finished` では入力とスタックの整合性のみを要求する。この述語は「実行が成功する」という操作的な性質を「対応する生成木が存在する」という宣言的な性質に翻訳する橋であり、次の `rule_step_good` によって遷移の各一歩について保存されることを示す。
 
 ```lean
 private def LinearGood (g : LinearGrammar T) :
@@ -1117,6 +1213,8 @@ private def LinearGood (g : LinearGrammar T) :
   | (input, (.finished, _), _) => input = []
   | _ => False
 ```
+
+`LinearGood` が実際に遷移規則の適用について後ろ向きに保存されることを示す中心補題。遷移後の局面が `LinearGood` を満たすなら、その一歩前の局面も満たす。証明は `linearRuleKind_of_mem` による八通りの分類ごとに、`LinearGood` の該当ケースの存在量化された証人を組み立て直すだけであり、たとえば `pushTerminal`/`pushNonterminal` では `take_succ_of_drop_eq_cons` を使って走査済み接頭辞を一段伸ばす。
 
 ```lean
 private theorem rule_step_good (g : LinearGrammar T)
@@ -1255,6 +1353,8 @@ private theorem rule_step_good (g : LinearGrammar T)
     rfl
 ```
 
+`rule_step_good` を機械の一般的な `Step` 関係(`consume` と `epsilon` の二種類)に橋渡しするだけの薄い層。NPDA の実行モデルと `toOneTurnNPDARules` の規則という二つの表現の間の食い違いを吸収し、次の `reaches_good` が `Reaches`(複数ステップ)に対して帰納法を回せるようにする。
+
 ```lean
 @[grind .] private theorem step_good (g : LinearGrammar T)
     {c c' : Mathling.Automata.OneTurnNPDA.ID T (LinearPDAState g) (LinearStack T)}
@@ -1270,6 +1370,8 @@ private theorem rule_step_good (g : LinearGrammar T)
 
 ```
 
+`step_good` を反射推移閉包に沿って積み重ね、実行列全体について「終点が `LinearGood` を満たすなら始点も満たす」ことを得る。これにより、機械が入力を受理する(終点が `finished` かつ入力が空)という事実から、始点である `derive g.cfg.initial` の局面が `LinearGood` を満たすこと、すなわち入力全体を説明する生成木が存在することを導ける――これが逆方向の証明の最終段階で使われる。
+
 ```lean
 @[grind .] private theorem reaches_good (g : LinearGrammar T)
     {c c' : Mathling.Automata.OneTurnNPDA.ID T (LinearPDAState g) (LinearStack T)}
@@ -1283,6 +1385,8 @@ private theorem rule_step_good (g : LinearGrammar T)
 ```
 
 ## 主定理：構成した PDA の言語と文法の言語の一致
+
+順方向(`generates_reaches`)と逆方向(`reaches_good`/`linearRuleKind_of_mem` を通じた `LinearGood`)をここで統合し、`toOneTurnNPDA` が受理する語の集合と文法 `g` が生成する語の集合がちょうど一致することを確定する。⊇ 方向は生成木から実行列を組み立てるだけだが、⊆ 方向は受理実行から `LinearGood` を経由して生成木を復元する必要があり、これが本モジュールの逆変換部分の到達点である。
 
 ```lean
 /-- The local one-turn PDA accepts exactly the language generated by the linear grammar. -/
@@ -1347,23 +1451,35 @@ flowchart LR
     R --> O["outer Bridge preserves Z"]
 ```
 
+逆変換(任意の一回転 NPDA から等価な線形文法を作る)の宣言はすべて `OneTurnNPDA` に対する拡張として与えるので、その名前空間を開く。
+
 ```lean
 namespace Mathling.Automata.OneTurnNPDA
 
 ```
 
+`LinearGrammar` や `LinearGenerates` を修飾なしで参照するために `Mathling.Grammar` を開く。
+
 ```lean
 open Mathling.Grammar
 ```
+
+`PushdownRule`、`TurnPhase`、`NormalState`、`FinalStack` など、正規化された NPDA の内部表現を扱うための名前を持ち込む。
 
 ```lean
 open Mathling.Automata.NPDA
 
 ```
 
+以降の Bridge 構成はすべて共通の終端記号型・状態型・スタック型を前提とするので、ここで一度だけ固定する。
+
 ```lean
 variable {T State Stack : Type}
+```
 
+Bridge 文法の非終端記号は、機械の状態とスタック記号の対 `(p, X)`・`(q, Z)` から作る一つの「橋」だけを持つ。開始記号 `start` は文法全体の入口であり、`bridge p X q Z` は「push 局面の `(p,X)` から pop 局面の `(q,Z)` へ、共通のスタック接尾を保ったまま到達する実行区間」を表す非終端記号である。この符号化により、機械の任意の状態対に対して文法の非終端記号が一つ対応し、以降の `Bridge` 帰納的述語(実行区間の意味論)と `GrammarRuleMeaning`(生成規則の意味)がこの型を介して結びつく。
+
+```lean
 /-- Nonterminals of the bridge grammar. -/
 @[grind cases] public inductive BridgeNT (State Stack : Type*) where
   | start
@@ -1373,10 +1489,14 @@ variable {T State Stack : Type}
 
 ```
 
+Bridge 文法の規則も有限個でなければならないので、まず「機械の中で実際に登場しうる状態・スタック記号の組」を有限に列挙する補助関数群を `Internal` に隠す。
+
 ```lean
 namespace Internal
 
 ```
+
+機械が実際に使う状態は、開始状態・受理状態・各規則の始点と終点だけである。この有限リストが、Bridge 非終端記号の状態成分の値域を制限する。
 
 ```lean
 def baseSupport (M : OneTurnNPDA T State Stack) : List State :=
@@ -1384,11 +1504,15 @@ def baseSupport (M : OneTurnNPDA T State Stack) : List State :=
 
 ```
 
+同様に、実際にスタックへ現れうる記号は初期スタックと各規則の pop/push 対象だけである。
+
 ```lean
 def bridgeStackSupport (M : OneTurnNPDA T State Stack) : List Stack :=
   M.initialStack ++ M.rules.flatMap fun r => r.pop :: r.push
 
 ```
+
+`baseSupport` と `bridgeStackSupport` の直積が、Bridge 非終端記号の左右それぞれの端点(状態とスタック記号の組)がとりうる値の全体を与える。`leftNeutral`/`rightNeutral` の生成規則はこの有限集合上の存在量化として書かれ、これによって規則の総数が有限に保たれる。
 
 ```lean
 def bridgeEndpoints (M : OneTurnNPDA T State Stack) : List (State × Stack) :=
@@ -1396,6 +1520,8 @@ def bridgeEndpoints (M : OneTurnNPDA T State Stack) : List (State × Stack) :=
 
 end Internal
 ```
+
+これが逆変換の意味論的な核であり、上の Mermaid 図が示す四つのパターン(単発の turn、左右の中立拡張、増加・減少規則の対)をそのまま帰納的述語として写したものである。`Bridge M p x q z word` は「機械が状態 `p`・スタック先頭 `x` から `word` を読んで状態 `q`・スタック先頭 `z` に至る、任意の共通接尾辞の上で成り立つ実行区間が存在する」ことを意味する。`turn` は push から pop へ一発で折り返す最小単位、`leftNeutral`/`rightNeutral` は push 側・pop 側にそれぞれ中立遷移を一つ足す場合、`pair` は push で二つ積んでから内側の Bridge を経て pop で対応する分を消費する場合である。この四構成子だけで one-turn の任意の実行区間を表現できることが、後の `bridge_of_phase_runs` で証明される。
 
 ```lean
 /-- A balanced one-turn span that preserves an arbitrary stack suffix. -/
@@ -1428,6 +1554,8 @@ end Internal
         (left.input.toList ++ middle ++ right.input.toList)
 ```
 
+`Bridge` を機械の実際の実行から復元するには、まず push フェーズだけで完結する実行の断片を扱える形にしておく必要がある。`PushRun` はまさにそれで、push 状態から push 状態への遷移だけを連ねた実行列を表す帰納的述語であり、`split_reaches` で任意の実行を push 部分と pop 部分に分解する際の左半分として使われる。
+
 ```lean
 /-- A run segment that stays entirely in the push phase. -/
 @[grind cases] inductive PushRun (M : OneTurnNPDA T State Stack) :
@@ -1441,6 +1569,8 @@ end Internal
       PushRun M r.source.1 (r.pop :: tail) q stack
         (r.input.toList ++ word)
 ```
+
+`PushRun` の対になる pop フェーズ版。`PushRun` は先頭の一歩を分解する `head` 構成子を持つのに対し、`PopRun` はあえて末尾の一歩を分解する `tail` 構成子として定義してある。これは pop フェーズの実行がスタックの縮小(`pop_phase_nongrowing`)によって進むため、`bridge_of_phase_runs` の中で「最後にどの規則が適用されたか」に着目した構造的再帰を回すのに都合がよいからである。
 
 ```lean
 /-- A run segment that stays entirely in the pop phase, presented so its last
@@ -1459,6 +1589,8 @@ step is available to structural recursion. -/
         (word ++ r.input.toList)
 ```
 
+`PushRun`/`PopRun`/`Bridge` はいずれも規則の抽象的な「一歩」を土台にしているが、機械の実際の `Step` 関係は入力の有無によって `consume`/`epsilon` の二種類に分かれている。この補題はその違いを吸収し、規則 `r` に対応する一歩が常に `M.Step` として実現できることを示す、以降のすべての `.reaches` 系証明が共有する最小単位である。
+
 ```lean
 private theorem bridgeRule_step (M : OneTurnNPDA T State Stack)
     (r : PushdownRule T (State × TurnPhase) Stack) (hr : r ∈ M.rules)
@@ -1473,6 +1605,8 @@ private theorem bridgeRule_step (M : OneTurnNPDA T State Stack)
       simpa [hinput, toNPDA] using
         NPDA.Step.consume r hr hinput (input := input) (stack := tail)
 ```
+
+`PushRun` という抽象的な実行区間の記述を、`bridgeRule_step` を積み重ねて機械の実際の `Reaches` 関係へ翻訳する。この方向(構造から実行列へ)は `Bridge.reaches` などの「意味論から具体的な受理実行を作る」順方向の一部として使われる。
 
 ```lean
 theorem PushRun.reaches {M : OneTurnNPDA T State Stack}
@@ -1498,6 +1632,8 @@ theorem PushRun.reaches {M : OneTurnNPDA T State Stack}
 
 ```
 
+`PushRun.reaches` の pop フェーズ版。`PopRun` は末尾から構成されるため、帰納法は積み重ねる方向が逆(先に得た実行列の後ろへ最後の一歩を継ぎ足す)になる点に注意。
+
 ```lean
 theorem PopRun.reaches {M : OneTurnNPDA T State Stack}
     {p q : State} {startStack endStack : List Stack} {word : List T}
@@ -1522,6 +1658,8 @@ theorem PopRun.reaches {M : OneTurnNPDA T State Stack}
 
 ```
 
+one-turn 制約(push 局面でスタックが縮まない)を `PushRun` の言葉に翻訳したもの。この単調性が `bridge_of_phase_runs` で「途中で共通接尾辞の長さが変わらない」ことを示すのに使われ、`Bridge` の構成子選択を有限の場合分けに落とし込む。
+
 ```lean
 theorem PushRun.length_mono {M : OneTurnNPDA T State Stack}
     {p q : State} {startStack endStack : List Stack} {word : List T}
@@ -1536,6 +1674,8 @@ theorem PushRun.length_mono {M : OneTurnNPDA T State Stack}
 
 ```
 
+`PushRun.length_mono` の双対で、pop 局面でスタックが伸びないという one-turn 制約から従う。push 側の単調増加と pop 側の単調減少という二つの事実が揃って初めて、`bridge_of_phase_runs` が「共通の接尾辞の長さは実行の前後で変わらない」という不変条件を確立できる。
+
 ```lean
 theorem PopRun.length_mono {M : OneTurnNPDA T State Stack}
     {p q : State} {startStack endStack : List Stack} {word : List T}
@@ -1548,6 +1688,8 @@ theorem PopRun.length_mono {M : OneTurnNPDA T State Stack}
       simp only [List.length_cons, List.length_append] at ih ⊢
       omega
 ```
+
+one-turn 機械は push フェーズから pop フェーズへ一度だけ切り替わり、逆戻りはしない。この補題はその不可逆性を実行列のレベルで確認するもので、「pop 局面から到達できる局面はすべて pop 局面である」ことを保証する。次の `split_reaches` で実行列を push 部分と pop 部分にきれいに二分できるのは、この事実のおかげである。
 
 ```lean
 private theorem reaches_pop_mono {M : OneTurnNPDA T State Stack}
@@ -1564,6 +1706,8 @@ private theorem reaches_pop_mono {M : OneTurnNPDA T State Stack}
           exact M.pop_stays_pop r hr (by simpa using hmid)
 ```
 
+`reaches_pop_mono` を使いやすい形に言い換えた薄いラッパーで、目的の位相 `phase` が必然的に `.pop` であることを直接結論として取り出せるようにする。後続の証明で「ゴール状態のフェーズが何であるか」を都度証明し直す手間を省く。
+
 ```lean
 theorem reaches_from_pop_phase {M : OneTurnNPDA T State Stack}
     {input input' : List T} {p q : State} {phase : TurnPhase}
@@ -1572,6 +1716,8 @@ theorem reaches_from_pop_phase {M : OneTurnNPDA T State Stack}
     phase = .pop := reaches_pop_mono h rfl
 
 ```
+
+`PushRun` は先頭から構成されるが、後で「実行列を一歩ずつ機械の `Reaches` から復元する」際には末尾に一歩を継ぎ足す形の帰納法(`pushRun_of_reaches` の `tail` ケース)が自然に現れる。この補題はその継ぎ足しを `PushRun` の構成子として正当化するもので、`PushRun.head` を末尾側から使うための橋渡しである。
 
 ```lean
 theorem PushRun.snoc {M : OneTurnNPDA T State Stack}
@@ -1594,6 +1740,8 @@ theorem PushRun.snoc {M : OneTurnNPDA T State Stack}
           (ih hstack hr hsource htarget hstate)
 
 ```
+
+`PushRun.reaches` の逆方向。機械の実際の `Reaches`(push 局面から push 局面まで)が与えられれば、それに対応する抽象的な `PushRun` を必ず一意な語とともに復元できる。逆変換全体は「機械の実行を分解して構造的な形に落とし、その構造から文法規則を読み出す」という戦略を取るので、この復元がなければ `Bridge` を実行から作ることができない。
 
 ```lean
 theorem pushRun_of_reaches {M : OneTurnNPDA T State Stack}
@@ -1637,6 +1785,8 @@ theorem pushRun_of_reaches {M : OneTurnNPDA T State Stack}
 
 ```
 
+`pushRun_of_reaches` の pop フェーズ版。ここでも `reaches_pop_mono` によって、pop 局面から到達する局面が必ず pop 局面のままであることが場合分けの網羅性を保証している。
+
 ```lean
 theorem popRun_of_reaches {M : OneTurnNPDA T State Stack}
     {input input' : List T} {p q : State} {stack stack' : List Stack}
@@ -1667,6 +1817,8 @@ theorem popRun_of_reaches {M : OneTurnNPDA T State Stack}
 
 ```
 
+one-turn 機械の実行は push フェーズから pop フェーズへちょうど一度だけ折り返る。`TurnSplit` はその折り返し点を明示的に取り出した分解で、push 側の `PushRun`・折り返しの一手(`turnRule`)・pop 側の `PopRun` の三つ組として実行全体を再構成する。この分解が `Bridge` の四つの構成子(特に `pair`)を一意に選び出すための足場になる。
+
 ```lean
 inductive TurnSplit (M : OneTurnNPDA T State Stack)
     (input input' : List T) (p : State) (stack : List Stack)
@@ -1686,6 +1838,8 @@ inductive TurnSplit (M : OneTurnNPDA T State Stack)
       TurnSplit M input input' p stack q stack'
 
 ```
+
+`TurnSplit` の存在を実際に構成する。push 局面から pop 局面への実行を、最初に push から pop へ切り替わる一歩を境目として`PushRun`(境目まで)と `PopRun`(境目から先)に分割する。`reaches_pop_mono` によって一度 pop に入ったら push には戻らないことが保証されているため、この境目は一意に定まる。
 
 ```lean
 theorem split_reaches {M : OneTurnNPDA T State Stack}
@@ -1752,6 +1906,8 @@ theorem split_reaches {M : OneTurnNPDA T State Stack}
   exact aux h rfl rfl
 ```
 
+Bridge 文法の各生成規則(`GrammarRuleMeaning`)は push 局面の規則が積む個数によって「単一(neutral)」と「二個(branch)」の二種類に分かれ、ちょうど `Bridge.leftNeutral`/`Bridge.pair` に対応する。この補題は仮定 `hmax`(規則の push 個数が高々二個、正規化された機械が満たす性質)のもとで、push 局面の規則の押し込み個数が実際にこの二択しかありえないことを場合分けとして確定する。
+
 ```lean
 private theorem push_rule_cases (M : OneTurnNPDA T State Stack)
     (hmax : ∀ r ∈ M.rules, r.push.length ≤ 2)
@@ -1777,6 +1933,8 @@ private theorem push_rule_cases (M : OneTurnNPDA T State Stack)
               omega
 ```
 
+`push_rule_cases` の pop 側の対応物。`pop_phase_nongrowing` から、pop 局面へ入る規則の push 個数は 0 個(消費のみ)か 1 個(中立)のいずれかしかないことを確定する。この二択が `Bridge.turn`(0 個)と `Bridge.rightNeutral`(1 個)を区別する基準になる。
+
 ```lean
 private theorem pop_rule_cases (M : OneTurnNPDA T State Stack)
     (r : PushdownRule T (State × TurnPhase) Stack) (hr : r ∈ M.rules)
@@ -1794,6 +1952,8 @@ private theorem pop_rule_cases (M : OneTurnNPDA T State Stack)
           omega
 ```
 
+push から pop へ直接折り返る規則(`TurnSplit` の `turnRule`)については、`pop_rule_cases` の二択のうち push 個数 0 個の方はありえないことを示す。もし押し込む記号が 0 個なら push フェーズの非縮小性(`push_phase_nonshrinking`)と矛盾するため、折り返り規則は必ずちょうど一個をプッシュする――これが `Bridge.turn` の `hpush : r.push = [z]` という仮定の根拠である。
+
 ```lean
 private theorem turn_rule_single (M : OneTurnNPDA T State Stack)
     (r : PushdownRule T (State × TurnPhase) Stack) (hr : r ∈ M.rules)
@@ -1804,6 +1964,8 @@ private theorem turn_rule_single (M : OneTurnNPDA T State Stack)
     simp [hempty] at hmin
   · exact ⟨y, hy⟩
 ```
+
+逆変換の要となる定理。`TurnSplit` が与える push/pop の二分割から、実際に `Bridge` の四構成子のどれか一つを機械的に選び出して構築する。`push_rule_cases`/`pop_rule_cases`/`turn_rule_single` によって各規則が持つ押し込み個数の可能性が絞られているため、証明は「押し込み個数が 0・1・2 のどれであったか」に応じた有限の場合分けとして進み、それぞれが `Bridge.turn`/`leftNeutral`/`rightNeutral`/`pair` に対応する。同時に、共通のスタック接尾辞(`startSuffix`/`endSuffix`)が実行の前後で変化しないことも `length_mono` 系の補題を使って確認する。
 
 ```lean
 private theorem bridge_of_phase_runs (M : OneTurnNPDA T State Stack)
@@ -1924,6 +2086,8 @@ private theorem bridge_of_phase_runs (M : OneTurnNPDA T State Stack)
                   hrightTarget hneutral
 ```
 
+これまでの `split_reaches` と `bridge_of_phase_runs` を合成し、逆変換の最終形を与える。「機械が共通の接尾辞 `suffix` を保ったまま `x` から `z` へ到達する任意の実行」から、`Bridge` の意味論的な構成が必ず一つ存在することを言う。これで実行から `Bridge` への変換(逆方向)が完成し、あとは `Bridge` から Bridge 文法の生成木への対応づけ(次節)を残すのみとなる。
+
 ```lean
 private theorem bridge_of_reaches (M : OneTurnNPDA T State Stack)
     (hmax : ∀ r ∈ M.rules, r.push.length ≤ 2)
@@ -1950,10 +2114,14 @@ private theorem bridge_of_reaches (M : OneTurnNPDA T State Stack)
 `LinearRuleSpec` から規則だけを射影して有限集合を作る。これにより、規則が線形である
 証明と、後で規則から意味を復元する証明が同じ証拠を共有する。
 
+生成規則の列挙とその線形性の証明はここでも実装の詳細なので `Internal` に隠す。
+
 ```lean
 namespace Internal
 
 ```
+
+`GrammarRuleMeaning` の各構成子は右辺を `terminalSymbols input.toList` のような形で書くので、その部分に非終端記号が含まれないことを繰り返し確認する必要がある。この補題はその事実を一度証明しておく素朴な補助定理である。
 
 ```lean
 @[simp] theorem countP_terminalSymbols {N : Type} (word : List T) :
@@ -1967,6 +2135,8 @@ namespace Internal
 
 ```
 
+`countP_terminalSymbols` を、`Symbol.terminal` との合成関数として数える形で言い換えたもの。`GrammarRuleMeaning.linear` の `simp` 呼び出しで、規則右辺の非終端記号数がちょうど 0 であることを示すために両方の形が必要になる。
+
 ```lean
 @[simp] theorem countP_terminal_comp {N : Type} (word : List T) :
     word.countP
@@ -1977,6 +2147,8 @@ namespace Internal
       simp [Function.comp_def, symbolIsNonterminal]
 
 ```
+
+機械の正規化された規則(`M.normalize.rules`)の形ごとに、対応する Bridge 文法の生成規則とその「意味」を同時に与える帰納的述語。`root` は受理直前の最後の pop 規則から開始非終端 `start` への規則を、`turn`/`leftNeutral`/`rightNeutral`/`pair` はそれぞれ `Bridge` の四構成子に一対一で対応する生成規則を与える。正規化された機械では push 局面の押し込み個数が高々二個・pop 局面が高々一個という制約があるため、これで生成規則のすべての形を尽くしていることが後の `linearRuleKind_of_mem` ならぬ `grammarRuleMeaning_of_mem` の完全性の根拠になる。
 
 ```lean
 inductive GrammarRuleMeaning (M : OneTurnNPDA T State Stack) :
@@ -2055,6 +2227,8 @@ inductive GrammarRuleMeaning (M : OneTurnNPDA T State Stack) :
 
 ```
 
+`GrammarRuleMeaning` の各構成子が実際に線形規則(右辺の非終端記号数が高々一)を生成することを確認する。`root` と `turn` は非終端記号を持たないか一つだけ、`leftNeutral`/`rightNeutral`/`pair` は非終端記号がちょうど一つという形になっており、`countP_terminalSymbols` 等を使って `simp` で押し切れる。この補題が `toLinearGrammar` の `linear` フィールドの根拠となる。
+
 ```lean
 theorem GrammarRuleMeaning.linear
     {M : OneTurnNPDA T State Stack}
@@ -2067,6 +2241,8 @@ theorem GrammarRuleMeaning.linear
 
 ```
 
+規則そのものと、それがどの `GrammarRuleMeaning` 構成子に由来するかという証拠を一つの構造体にまとめる。こうしておくことで、規則の集合を作る関数(`turnGrammarRules` 以下)は「規則」と「その意味」を同時に生成でき、後で `List.map LinearRuleSpec.rule` によって規則だけを、あるいは `.meaning` によって線形性の証明だけを取り出せる。この設計により、規則が線形であることの証明を規則ごとに再構築する必要がなくなる。
+
 ```lean
 structure LinearRuleSpec (M : OneTurnNPDA T State Stack) where
   rule : ContextFreeRule T
@@ -2074,6 +2250,8 @@ structure LinearRuleSpec (M : OneTurnNPDA T State Stack) where
   meaning : GrammarRuleMeaning M rule
 
 ```
+
+正規化された機械の規則を総当たりで走査し、push から pop へ直接折り返る(押し込み一個の)規則ごとに `GrammarRuleMeaning.turn` の生成規則を一つずつ作る。`.attach` で規則の集合所属証明を保持したまま走査するのは、`.meaning := .turn ... hr` がその所属証明 `hr` を要求するためである。
 
 ```lean
 def turnGrammarRules (M : OneTurnNPDA T State Stack) :
@@ -2092,6 +2270,8 @@ def turnGrammarRules (M : OneTurnNPDA T State Stack) :
     | _ => []
 
 ```
+
+push 局面の中立規則(押し込み一個)ごとに、`bridgeEndpoints` が与える有限個の右端点候補すべてについて `GrammarRuleMeaning.leftNeutral` の生成規則を作る。右端点は生成規則を作る時点ではまだ機械の実行から決まっていないので、`bridgeEndpoints` の有限集合上を総当たりすることで、正しい端点がどれであっても対応する規則が必ず含まれるようにしている。
 
 ```lean
 def leftGrammarRules (M : OneTurnNPDA T State Stack) :
@@ -2113,6 +2293,8 @@ def leftGrammarRules (M : OneTurnNPDA T State Stack) :
 
 ```
 
+`leftGrammarRules` の対称形で、pop 局面の中立規則ごとに左端点の候補を総当たりして `GrammarRuleMeaning.rightNeutral` の生成規則を作る。
+
 ```lean
 def rightGrammarRules (M : OneTurnNPDA T State Stack) :
     List (LinearRuleSpec M) :=
@@ -2132,6 +2314,8 @@ def rightGrammarRules (M : OneTurnNPDA T State Stack) :
     | _ => []
 
 ```
+
+増加規則(push 個数二個)と減少規則(pop で押し込み無し)の組み合わせごとに `GrammarRuleMeaning.pair` の生成規則を作る。`leftGrammarRules`/`rightGrammarRules` と異なり、こちらは端点の候補を総当たりする必要がない――`Bridge.pair` の内側の端点 `(right.source.1, right.pop)` は左右の規則そのものから決まるため、二重の `flatMap` で規則の対を尽くすだけで十分である。
 
 ```lean
 def pairGrammarRules (M : OneTurnNPDA T State Stack) :
@@ -2160,6 +2344,8 @@ def pairGrammarRules (M : OneTurnNPDA T State Stack) :
 
 ```
 
+`Bridge` の四構成子(`turn`/`leftNeutral`/`rightNeutral`/`pair`)に対応する規則群を単純に連結し、開始記号を含まない「橋」だけの生成規則の集合とする。
+
 ```lean
 def bridgeGrammarRules (M : OneTurnNPDA T State Stack) :
     List (LinearRuleSpec M) :=
@@ -2167,6 +2353,8 @@ def bridgeGrammarRules (M : OneTurnNPDA T State Stack) :
     pairGrammarRules M
 
 ```
+
+受理直前の最後の pop 規則(`done` 状態へ入る規則)ごとに、開始記号 `start` から `boot`/`bottom` を起点とする橋を生成する規則を一つ作る。これが文法全体の唯一の入口であり、機械の受理と文法の生成をつなぐ最初の一手になる。
 
 ```lean
 def rootGrammarRules (M : OneTurnNPDA T State Stack) :
@@ -2188,12 +2376,16 @@ def rootGrammarRules (M : OneTurnNPDA T State Stack) :
 
 ```
 
+開始規則(`rootGrammarRules`)と橋規則(`bridgeGrammarRules`)を合わせて、意味の証拠つきの生成規則すべてを一つのリストにまとめる。以降の `toLinearGrammar` はこのリストから規則だけを取り出し、`grammarRuleMeaning_of_mem`/`grammarRule_mem_of_meaning` は逆にこのリストを通じて規則と意味を往復させる。
+
 ```lean
 def toLinearGrammarSpecs (M : OneTurnNPDA T State Stack) :
     List (LinearRuleSpec M) :=
   rootGrammarRules M ++ bridgeGrammarRules M
 
 ```
+
+意味の証拠を捨てて規則だけを射影したもの。公開される `toLinearGrammar` の `cfg.rules` フィールドはこのリストを有限集合に変換して構成される。
 
 ```lean
 def toLinearGrammarRules (M : OneTurnNPDA T State Stack) :
@@ -2203,6 +2395,8 @@ def toLinearGrammarRules (M : OneTurnNPDA T State Stack) :
 
 end Internal
 ```
+
+これが逆変換の主構成であり、`Internal` に隠したすべての列挙関数を束ねて実際の `LinearGrammar` の値を作る公開 API である。非終端記号型は `BridgeNT (NormalState T State Stack) (NPDA.FinalStack Stack)`(正規化後の状態とスタック記号の対)となり、開始記号は `.start`、規則集合は `toLinearGrammarSpecs` の射影を有限集合化したもの。線形性の証明は各規則をその由来(`spec.meaning`)まで遡り、`GrammarRuleMeaning.linear` に還元するだけで得られる。
 
 ```lean
 /-- The finite bridge grammar generated from the normalized one-turn machine. -/
@@ -2225,6 +2419,8 @@ public noncomputable def toLinearGrammar (M : OneTurnNPDA T State Stack) :
   exact spec.meaning.linear
 ```
 
+`toLinearGrammar` の規則集合に属する規則は、必ずどれかの `Internal.LinearRuleSpec` に由来する。この補題はその由来を取り戻し、規則の集合的な定義を、意味を持つ帰納的構成子(`GrammarRuleMeaning`)の言葉に翻訳する。逆変換の証明(`Bridge.linearGenerates` など)はこの補題を通じて「規則が集合に属する」という事実を「規則がどのパターンから来たか」という具体的な情報に変換する。
+
 ```lean
 private theorem grammarRuleMeaning_of_mem (M : OneTurnNPDA T State Stack)
     {r : ContextFreeRule T
@@ -2238,6 +2434,8 @@ private theorem grammarRuleMeaning_of_mem (M : OneTurnNPDA T State Stack)
   obtain ⟨spec, _, rfl⟩ := List.mem_map.mp hr
   exact spec.meaning
 ```
+
+`grammarRuleMeaning_of_mem` の逆方向。`GrammarRuleMeaning` の構成子が一つ与えられれば、それが実際に `toLinearGrammar` の規則集合に属することを、対応する列挙関数(`rootGrammarRules`/`turnGrammarRules`/`leftGrammarRules`/`rightGrammarRules`/`pairGrammarRules`)の中にその規則が現れる位置まで具体的にたどって示す。`Bridge` の各構成子から生成木を作る `Bridge.linearGenerates` は、まさにこの補題を使って「意味論的に正しい規則」が「文法の規則集合の要素である」ことを保証する。
 
 ```lean
 private theorem grammarRule_mem_of_meaning (M : OneTurnNPDA T State Stack)
@@ -2398,6 +2596,8 @@ with every unread continuation. -/
 
 ```
 
+`Bridge` の両端は任意の状態・スタック記号の組ではなく、機械が実際に使う有限集合(`baseSupport`/`bridgeStackSupport`)の要素であることを確認する。この事実がなければ、`leftGrammarRules`/`rightGrammarRules` が `bridgeEndpoints` という有限集合の中だけを探索して正しい端点を見つけられる保証がない――つまり生成規則の列挙が「漏れなく」行われていることの根拠になる。
+
 ```lean
 @[grind .] theorem Bridge.start_supported {M : OneTurnNPDA T State Stack}
     {p q : State} {x z : Stack} {word : List T}
@@ -2427,6 +2627,8 @@ with every unread continuation. -/
 
 ```
 
+`Bridge.start_supported` の右端点版。左右どちらの端点についてもこの有界性が必要なのは、`Bridge.linearGenerates` が `inner.start_supported`/`inner.end_supported` を使って内側の橋の端点を `bridgeEndpoint_mem` に渡し、対応する生成規則が確かに存在することを示すためである。
+
 ```lean
 @[grind .] theorem Bridge.end_supported {M : OneTurnNPDA T State Stack}
     {p q : State} {x z : Stack} {word : List T}
@@ -2455,6 +2657,8 @@ with every unread continuation. -/
         exact List.mem_flatMap.mpr ⟨_, hleft, by simp [hleftPush]⟩
 ```
 
+`baseSupport`/`bridgeStackSupport` に属する状態とスタック記号の組は、必ず `bridgeEndpoints` の直積リストの要素になっていることを確認する。`Bridge.start_supported`/`end_supported` が与える所属証明をこの補題に渡すことで、`Bridge.linearGenerates` の `leftNeutral`/`rightNeutral` ケースが `leftGrammarRules`/`rightGrammarRules` の総当たりの中に実際に対応する規則を見つけられる。
+
 ```lean
 private theorem bridgeEndpoint_mem (M : OneTurnNPDA T State Stack)
     {q : State} {z : Stack} (hq : q ∈ Internal.baseSupport M)
@@ -2465,11 +2669,15 @@ private theorem bridgeEndpoint_mem (M : OneTurnNPDA T State Stack)
   exact ⟨q, hq, by simp [hz]⟩
 ```
 
+以降の逆方向の証明(`linearGenerates_bridge_aux`)は、Bridge 文法の生成規則の右辺を「終端記号列」「終端・非終端・終端の三分割」といった形に一意に分解する必要がある。その基礎となる純粋なリスト補題を三つ並べる。まず、終端記号だけからなる列への変換 `terminalSymbols` が単射であること――同じ語からしか同じ記号列は作れない。
+
 ```lean
 private theorem terminalSymbols_injective {N : Type} :
     Function.Injective (terminalSymbols (T := T) (N := N)) := by
   exact List.map_injective_iff.mpr fun _ _ h => by simpa using h
 ```
+
+「終端語 `pre`・非終端記号 `A`・終端語 `suffix`」という形の記号列表現が一意であること、すなわちこの三分割から `pre`・`A`・`suffix` を一意に復元できることを示す。線形規則(非終端記号が高々一つ)の右辺はまさにこの形をしているので、`linearGenerates_bridge_aux` はこの一意性を使って生成木の `branch` ケースから `pre`・`B`・`suffix` を正しく取り出す。
 
 ```lean
 private theorem terminal_nonterminal_injective {N : Type}
@@ -2506,6 +2714,8 @@ private theorem terminal_nonterminal_injective {N : Type}
           exact ⟨congrArg (a :: ·) hpre, hA, hsuffix⟩
 ```
 
+純粋な終端記号列は、非終端記号を一つ含む形とは決して等しくならない。この排他性が `linearGenerates_bridge_aux` の各ケースで、規則の由来(`GrammarRuleMeaning` のどの構成子か)と生成木の形(`leaf` か `branch` か)の組み合わせのうち矛盾するものを`elim` で即座に排除するために使われる。
+
 ```lean
 private theorem terminalSymbols_ne_nonterminal {N : Type}
     (word pre suffix : List T) (A : N) :
@@ -2517,6 +2727,8 @@ private theorem terminalSymbols_ne_nonterminal {N : Type}
     simp
   simp [terminalSymbols] at hmem
 ```
+
+ここまでの補助補題(`grammarRule_mem_of_meaning`、`bridgeEndpoint_mem`、`Bridge.start_supported`/`end_supported`)をすべて組み合わせて、逆変換の意味論的な半分を完成させる。`Bridge` の四構成子それぞれについて、対応する `GrammarRuleMeaning` の規則が文法の規則集合に実在すること、内側の橋については帰納法の仮定 `ih` を子の生成木として使えることを示し、`LinearGenerates.leaf`/`branch` を組み立てる。
 
 ```lean
 /-- Every semantic bridge has the corresponding production tree in the finite
@@ -2606,6 +2818,8 @@ theorem Bridge.linearGenerates {M : OneTurnNPDA T State Stack}
               left.input right.input left.pop y z right.pop hleft' hright'))
           rfl ih
 ```
+
+`Bridge.linearGenerates` の逆方向。Bridge 非終端記号 `bridge p x q z` を根とする生成木が与えられたとき、それが実際にどの規則から来たかを `grammarRuleMeaning_of_mem` で分類し、`terminalSymbols_ne_nonterminal`/`terminal_nonterminal_injective` を使って `LinearGenerates.leaf`/`branch` の形と各 `GrammarRuleMeaning` 構成子の形との整合性を突き合わせる。`root` 由来の規則が `bridge` 非終端記号を左辺に持つことはありえないので、その場合は矛盾として即座に排除される。この補題が確立して初めて、生成木という「文法側の証拠」を機械の実行区間という「操作的な証拠」に戻せる。
 
 ```lean
 private theorem linearGenerates_bridge_aux {M : OneTurnNPDA T State Stack}
@@ -2813,6 +3027,8 @@ private theorem linearGenerates_start_iff_bridge
         rfl hbridge.linearGenerates
 ```
 
+`linearGenerates_start_iff_bridge` が文法側の言葉(`start` 非終端記号からの生成)を Bridge の意味論に翻訳したのに対し、この補題は機械側の言葉(`boot`/`push`/`bottom` から `done`/`pop`/空スタックへの受理実行)を同じ Bridge の意味論に翻訳する。受理実行の最後の一歩(`done` へ入る規則)を切り出し、それより前の部分を `bridge_of_reaches` に渡すことで Bridge を復元する。両補題が同じ `Bridge` を経由することで、次の主定理はこの二つを単に繋げるだけで済む。
+
 ```lean
 private theorem reaches_done_iff_bridge
     (M : OneTurnNPDA T State Stack) (word : List T) :
@@ -2894,6 +3110,8 @@ private theorem reaches_done_iff_bridge
     exact hspan'.trans hlast'
 ```
 
+これが逆変換の主定理であり、モジュールの二本目の柱をなす。`linearGenerates_iff` で生成木と文法の言語を、`linearGenerates_start_iff_bridge`/`reaches_done_iff_bridge` で生成木と受理実行を、最後に `normalize_accepts_iff_reaches_done`/`normalize_language`(正規化変換が言語を保存すること)で受理実行と機械の言語を、それぞれ橋渡しする一本の `calc` 連鎖として組み立てる。`toOneTurnNPDA_language`(順方向)とこの定理(逆方向)が揃って初めて、線形文法と one-turn NPDA が同じ言語クラスを定めるという最終的な特徴づけ(`isLinear_iff_exists_oneTurnNPDA`)が得られる。
+
 ```lean
 /-- The finite bridge grammar generates exactly the language of the original
 one-turn NPDA. -/
@@ -2921,6 +3139,8 @@ one-turn NPDA. -/
     _ ↔ word ∈ M.language := by rw [M.normalize_language]
 ```
 
+`toLinearGrammar` を証人として、`toLinearGrammar_language` をそのまま添えるだけの薄いラッパー。この形にしておくことで「線形言語であること」の定義(`Language.IsLinear`、存在量化された証人)に直接合致し、次の `Language.isLinear_iff_exists_oneTurnNPDA` で状態型・スタック型を隠した特徴づけへとまとめ上げられる。
+
 ```lean
 /-- Every language accepted by a finite-local one-turn NPDA is linear. -/
 @[important, grind .] public theorem language_isLinear
@@ -2936,14 +3156,16 @@ end Mathling.Automata.OneTurnNPDA
 有限局所 one-turn NPDA が受理する言語とちょうど一致する。状態型とスタック型は言語
 クラスの定理では存在量化され、特定の符号化を公開 API に固定しない。
 
-```lean
+直前の `Mathling.Automata.OneTurnNPDA` 名前空間から、最終定理を置く `Language` 名前空間へ移る区切りとして、空の Lean フェンスを挟む。
 
-```
+言語クラスとしての特徴づけは `Language` の下に置くので、まずその名前空間を開く。
 
 ```lean
 namespace Language
 
 ```
+
+`OneTurnNPDA` と `LinearGrammar`/`LinearPDAState` などを修飾なしで参照するために両方の名前空間を開く。ここに置く最終定理は、`toOneTurnNPDA_language`(順方向)と `toLinearGrammar_language`(逆方向)という二つの相互変換を組み合わせ、状態型・スタック型を存在量化することで「線形文法とは何か」を機械の言葉で言い換える。この存在量化により、公開 API は `LinearPDAState`/`LinearStack` や `BridgeNT`/`NormalState` といった特定の符号化に依存しない。
 
 ```lean
 open Mathling.Automata Mathling.Grammar

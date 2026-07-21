@@ -36,10 +36,14 @@ namespace Mathling.Grammar
 
 ```
 
+`ChomskyNormalGrammar` 名前空間は、規則形状の証拠を担う最終文法型の API をまとめる場所である。ここから先の宣言は、変換パイプラインの出口となる型そのものと、その言語・文脈自由性への忘却写像を扱う。
+
 ```lean
 namespace ChomskyNormalGrammar
 
 ```
+
+Chomsky 標準形文法が生成する言語を、内部に保持する `ContextFreeGrammar` の言語として定義する。本体を露出しているのは、pumping 補題や標準形に関する公開証明が、この定義を文脈自由言語と同一視できるようにするためである。
 
 ```lean
 variable {T : Type*}
@@ -53,6 +57,8 @@ with the underlying context-free language. -/
 @[expose] public def language (g : ChomskyNormalGrammar T) : Language T := g.cfg.language
 ```
 
+型としての `ChomskyNormalGrammar` は、規則形状の証拠を除けば文脈自由文法にすぎない。この事実を公開定理として明示することで、下流の消費者は Chomsky 標準形の言語がそのまま文脈自由言語のクラスに属することを、変換の詳細を知らずに利用できる。
+
 ```lean
 /-- A Chomsky-normal grammar is a context-free grammar with an additional
 rule-shape certificate. -/
@@ -63,15 +69,21 @@ rule-shape certificate. -/
   ⟨g.cfg, rfl⟩
 ```
 
+Chomsky 標準形の証拠を捨てて下層の `ContextFreeGrammar` を取り出す忘却写像。標準形特有の API と一般の文脈自由文法向け補題の橋渡しとして働く。
+
 ```lean
 /-- Forget the Chomsky-normality evidence. -/
 public def toContextFreeGrammar (g : ChomskyNormalGrammar T) : ContextFreeGrammar T := g.cfg
 ```
 
+忘却写像が言語を変えないことを示す。`rfl` で閉じることから、`toContextFreeGrammar` が単なる定義展開であり、追加の証明義務を持ち込まないことが分かる。
+
 ```lean
 @[grind =, simp] theorem toContextFreeGrammar_language (g : ChomskyNormalGrammar T) :
     g.toContextFreeGrammar.language = g.language := rfl
 ```
+
+実行可能な変換が具体的な `LinearOrder` を提供する場面ではそちらが優先されるが、証明のみを目的として任意の Chomsky 標準形文法を扱いたい消費者のために、低優先度の `DecidableEq` インスタンスを古典論理から用意しておく。これがないと、決定可能性を要求する補題を任意の CNF 文法に適用できない。
 
 ```lean
 /-- Proof-only compatibility for consumers of an arbitrary CNF grammar.
@@ -83,10 +95,14 @@ public noncomputable instance (priority := low) cnfNonterminalDecidableEq
 end ChomskyNormalGrammar
 ```
 
+以降、変換パイプライン本体を `ContextFreeGrammar` 名前空間に置く。ここから fresh start・ε 除去・unit 除去・終端記号分離・二分化の各段階が、この名前空間の下に積み上げられていく。
+
 ```lean
 namespace ContextFreeGrammar
 
 ```
+
+変換パイプラインの第一段階である fresh start で使う非終端記号型。新しい開始記号 `start` と、元の非終端記号を包む `old` の二択で構成し、元の文法のどの非終端記号も新しい開始記号と衝突しないことを型レベルで保証する。
 
 ```lean
 @[grind cases] public inductive FreshStartNT (N : Type*) where
@@ -95,11 +111,15 @@ namespace ContextFreeGrammar
 deriving DecidableEq, Repr
 ```
 
+`start` を必ず最小元とする鍵への埋め込み。以降の `LinearOrder` インスタンスはこの鍵を経由した引き戻しで構成するため、順序の実体はここで一度だけ定義すればよい。
+
 ```lean
 public def FreshStartNT.orderKey : FreshStartNT N → Unit ⊕ₗ N
   | .start => Sum.inlₗ ()
   | .old A => Sum.inrₗ A
 ```
+
+`orderKey` の単射性から `FreshStartNT` 上の線形順序を引き戻す。この順序がなければ、後続段階が非終端記号の有限集合上で要求する `Finset.powerset` や決定可能な比較が使えない。
 
 ```lean
 public instance [LinearOrder N] : LinearOrder (FreshStartNT N) :=
@@ -107,6 +127,8 @@ public instance [LinearOrder N] : LinearOrder (FreshStartNT N) :=
     intro x y h
     cases x <;> cases y <;> simp_all [FreshStartNT.orderKey])
 ```
+
+同様に、終端記号と非終端記号の直和である `Symbol` にも線形順序を与える。この順序は規則の右辺同士を比較する際の土台になる。
 
 ```lean
 public instance [LinearOrder T] [LinearOrder N] : LinearOrder (Symbol T N) :=
@@ -116,6 +138,8 @@ public instance [LinearOrder T] [LinearOrder N] : LinearOrder (Symbol T N) :=
       | .nonterminal A => Sum.inrₗ A)
     (by intro x y h; cases x <;> cases y <;> simp_all)
 ```
+
+規則そのものを `(入力, 出力)` の辞書式順序へ引き戻して線形順序化する。これにより規則の有限集合を `Finset` として扱え、変換の各段階で規則集合の等価性判定や重複除去が決定可能になる。
 
 ```lean
 public instance [LinearOrder T] [LinearOrder N] :
@@ -139,6 +163,8 @@ public def freshStartRule {T N : Type*} (S : N) :
   { input := .start, output := [Symbol.nonterminal (.old S)] }
 ```
 
+`freshStart` 文法全体の規則集合を組み立てる。新しい開始規則 `freshStartRule` を追加し、元の規則はすべて非終端記号を `FreshStartNT.old` で包み直して引き継ぐ。この二段構えが、以降の等式変形 (`mem_freshStart_rules`) の場合分けの元になる。
+
 ```lean
 public def freshStartRules (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
@@ -146,6 +172,8 @@ public def freshStartRules (g : ContextFreeGrammar T)
   insert (freshStartRule g.initial)
     (g.rules.image fun r => ContextFreeRule.mapNonterminal FreshStartNT.old r)
 ```
+
+パイプラインの最初の変換段階そのものを文法として組み立てる。初期記号を `FreshStartNT.start` に差し替え、`freshStartRules` を規則集合として採用することで、以降の全段階が「元の初期記号は右辺に現れない」という不変条件を仮定できるようになる。
 
 ```lean
 /-- Add a fresh start symbol before public Chomsky-normal-form conversion.
@@ -161,12 +189,16 @@ stable across importing modules. -/
     rules := freshStartRules g }
 ```
 
+定義の展開だけで従う自明な等式だが、以降の証明で `freshStart g` の初期記号を書き換えるたびに参照する基本補題として明示的に名前を付けておく。
+
 ```lean
 @[grind =, simp] private theorem freshStart_initial (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (freshStart g).initial = FreshStartNT.start := rfl
 
 ```
+
+`freshStartRules` の帰納的定義（挿入と像）を、外延的な選言に書き直す。「新しい開始規則そのもの」か「元規則を `old` で包んだもの」かの二択として規則の所属を特徴づけ、以降の証明はこの外延的な形を通してのみ規則集合にアクセスする。
 
 ```lean
 @[grind .] theorem mem_freshStart_rules (g : ContextFreeGrammar T)
@@ -184,6 +216,8 @@ stable across importing modules. -/
 
 ```
 
+`FreshStartNT.old` で包んだ記号列には、決して新しい開始記号 `start` が現れないという補助事実。次の `freshStart_initial_not_output` の帰納法の核心部分をここで先に切り出しておく。
+
 ```lean
 @[grind .] theorem oldSymbols_not_start {T N : Type*}
     (xs : List (Symbol T N)) :
@@ -195,6 +229,8 @@ stable across importing modules. -/
       cases x <;> simp_all
 
 ```
+
+`freshStart` 文法のどの規則の右辺にも、初期記号 `FreshStartNT.start` が現れないことを示す。これは fresh-start 段階が確立する最初の構造不変条件であり、以降のすべての段階（`removeEpsilon`・`removeUnit`・`isolateTerminals`・`binarize`）はこの性質を仮定として受け取り、自身の出力についても同じ性質を保存する形で証明を積み重ねていく。
 
 ```lean
 @[grind .] public theorem freshStart_initial_not_output (g : ContextFreeGrammar T)
@@ -225,11 +261,15 @@ public def eraseFreshStart (S : N) : FreshStartNT N → N
 
 ```
 
+`eraseFreshStart` の二つの分岐がそれぞれ期待通りに簡約されることを、`start` の場合について明示しておく基本補題。
+
 ```lean
 @[grind =, simp] private theorem eraseFreshStart_start (S : N) :
     eraseFreshStart S (FreshStartNT.start : FreshStartNT N) = S := rfl
 
 ```
+
+`old` で包んでから `eraseFreshStart` で戻すと恒等写像になることを記号レベルで示す。`freshStart_forward_step` と `freshStart_reverse_step` の往復シミュレーションが、この可逆性に依存している。
 
 ```lean
 @[grind =, simp] private theorem eraseFreshStart_old_symbol {T N : Type*} (S : N)
@@ -240,6 +280,8 @@ public def eraseFreshStart (S : N) : FreshStartNT N → N
 
 ```
 
+`eraseFreshStart` を初期記号のちょうどその点で評価すると、新しい開始記号が確かに元の初期記号 `S` へ戻ることを明示する。
+
 ```lean
 @[grind =, simp] private theorem eraseFreshStart_start_symbol {T N : Type*} (S : N) :
     Symbol.mapNonterminal (eraseFreshStart S)
@@ -247,6 +289,8 @@ public def eraseFreshStart (S : N) : FreshStartNT N → N
         (Symbol.nonterminal S : Symbol T N) := rfl
 
 ```
+
+終端記号は `eraseFreshStart` の対象外であり素通りすることを確認する、記号ごとの場合分けを埋める補題。
 
 ```lean
 @[grind =, simp] private theorem eraseFreshStart_terminal_symbol {T N : Type*}
@@ -257,12 +301,16 @@ public def eraseFreshStart (S : N) : FreshStartNT N → N
 
 ```
 
+対称に、`old` による埋め込み側でも終端記号がそのまま保たれることを確認する。往復変換のどちらの向きでも終端記号だけは不変であるという性質を両側から固めておく。
+
 ```lean
 @[grind =, simp] private theorem freshStart_old_terminal_symbol {T N : Type*} (a : T) :
     Symbol.mapNonterminal FreshStartNT.old (Symbol.terminal a : Symbol T N) =
       (Symbol.terminal a : Symbol T (FreshStartNT N)) := rfl
 
 ```
+
+`g` の一手の書き換えを `freshStart g` の一手の書き換えへ持ち上げる。元の規則を `FreshStartNT.old` で包んだものが `freshStartRules` に確かに含まれることを `mem_freshStart_rules` の右側の選言枝で示すことで、書き換え関係そのものを移送する。
 
 ```lean
 @[grind .] theorem freshStart_forward_step (g : ContextFreeGrammar T)
@@ -283,6 +331,8 @@ public def eraseFreshStart (S : N) : FreshStartNT N → N
 
 ```
 
+$`A \to A`$ という自己書き換え規則の一歩は、実は何も変えないことを示す補助事実。`freshStart` が追加する開始規則 $`S_0 \to S`$ が偶然この形になる場合は起こらないが、逆シミュレーションの一般的な補題として独立に用意しておく。
+
 ```lean
 @[grind .] theorem rewrite_self_eq {T N : Type*} {A : N}
     {u v : List (Symbol T N)}
@@ -292,6 +342,8 @@ public def eraseFreshStart (S : N) : FreshStartNT N → N
   simp
 
 ```
+
+`freshStart g` の一手の書き換えを、`eraseFreshStart` を介して元の文法 `g` の（0 手または 1 手の）導出へ戻す。新しい開始規則が使われた場合は `rewrite_self_eq` により何もしていないことになり、元規則由来の場合は `eraseFreshStart_old_symbol` の可逆性で素直に移送できる。この二分岐が `freshStart_forward_step` と対になる逆方向シミュレーションの核心である。
 
 ```lean
 @[grind .] theorem freshStart_reverse_step (g : ContextFreeGrammar T)
@@ -399,6 +451,8 @@ public def Nullable (g : ContextFreeGrammar T) (A : g.NT) : Prop :=
   g.Derives [Symbol.nonterminal A] []
 ```
 
+意味論的な `Nullable` 述語はそれ自体では決定可能ではないため、実行可能な近似が必要になる。`rhsNullableIn` は、与えられた有限集合 `S` を「すでに nullable と分かっている非終端記号」の候補とみなし、右辺の記号がすべてその集合に含まれる非終端記号であるかを判定する。終端記号が一つでも混じれば直ちに `false` になる。
+
 ```lean
 /-- Whether every symbol in a right-hand side is a nonterminal already known
 to be nullable. -/
@@ -409,6 +463,8 @@ public def rhsNullableIn [DecidableEq N] (S : Finset N) :
   | .nonterminal A :: xs => decide (A ∈ S) && rhsNullableIn S xs
 ```
 
+`nullableClosed` は、候補集合 `S` がそれ自身の下で一貫しているか、すなわち `S` の外にある非終端記号を `rhsNullableIn S` で空にできる規則が存在しないかを判定する。存在すれば `S` はまだ不動点に到達していない。
+
 ```lean
 /-- A finite set is closed under nullable productions. -/
 public def nullableClosed (g : ContextFreeGrammar T) [DecidableEq T]
@@ -416,6 +472,8 @@ public def nullableClosed (g : ContextFreeGrammar T) [DecidableEq T]
   decide (g.rules.filter (fun r =>
     rhsNullableIn S r.output = true ∧ r.input ∉ S) = ∅)
 ```
+
+`activeNonterminals g` の冪集合を全探索し、`nullableClosed` を満たす部分集合のうち $`A`$ を含まないものが存在しない非終端記号だけを集める、という形で最小不動点を執行可能に特徴づける。効率は良くないが有限であることが構成から明らかであり、後段の証明（`mem_nullableSet_iff`）でこの構成が意味論的な `Nullable` と一致することを別途示す。
 
 ```lean
 /-- The least nullable-closed subset of the grammar's finite support.
@@ -428,6 +486,8 @@ public def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
   let closed := support.powerset.filter fun S => nullableClosed g S = true
   support.filter fun A => closed.filter (fun S => A ∉ S) = ∅
 ```
+
+`nullableClosed` の Boolean な定義を、規則についての通常の全称命題へ書き換える。以降の閉包性に関する証明はこの外延的な特徴づけを通してのみ `nullableClosed` にアクセスし、`Finset.filter` の内部構造を直接扱わずに済む。
 
 ```lean
 @[grind .] theorem nullableClosed_eq_true (g : ContextFreeGrammar T)
@@ -443,6 +503,8 @@ public def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
     exact hbad.2 (h r hr hbad.1)
 
 ```
+
+閉包性の健全性の半分：`nullableClosed` を満たす任意の集合 `S` は、実際に空語を導出できるすべての非終端記号を含む。証明は導出木 (`DerivationFormTree`) に対する相互再帰で、右辺のどの位置の非終端記号も `S` に属することを木の形に沿って示す。
 
 ```lean
 @[grind .] theorem nullable_mem_of_closed (g : ContextFreeGrammar T)
@@ -473,6 +535,8 @@ public def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
   simpa [rhsNullableIn] using hall
 
 ```
+
+閉包性の健全性のもう半分：`S` の各要素が実際に nullable であると分かっていれば、`rhsNullableIn S` を満たす任意の右辺は空列へ導出できる。逐次的に各記号を空へ潰していくだけの単純な帰納法だが、`nullableSet` が意味論的に正しいことを示す最終補題で両方向から必要になる。
 
 ```lean
 @[grind .] theorem derives_nil_of_rhsNullableIn (g : ContextFreeGrammar T)
@@ -513,6 +577,8 @@ public def nullableSet (g : ContextFreeGrammar T) [DecidableEq T]
     rw [← hinput]
     exact rule_input_mem_activeNonterminals g hr
 ```
+
+いよいよ本命の一致定理。意味論的に nullable な非終端記号すべての集合 `semantic` を古典論理で構成し、それが `nullableClosed` であることと `nullableSet` の最小性の両方を使って、`nullableSet g` への所属と `Nullable g` が同値であることを示す。
 
 ```lean
 /-- The executable nullable-set computation agrees with semantic nullability. -/
@@ -571,6 +637,8 @@ public def hasEmptyWord (g : ContextFreeGrammar T)
 
 ```
 
+`hasEmptyWord` が実際に「空語が言語に属するか」という意味論的な問いと一致することを、`mem_nullableSet_iff` と `Nullable` の定義展開だけで示す。この同値が、実行可能な判定手続きと形式言語論的な性質を結びつける最初の橋渡しになる。
+
 ```lean
 @[grind =, simp] public theorem hasEmptyWord_eq_true_iff (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
@@ -578,6 +646,8 @@ public def hasEmptyWord (g : ContextFreeGrammar T)
   rw [hasEmptyWord, decide_eq_true_eq, mem_nullableSet_iff]
   rfl
 ```
+
+`nullableVariants` は、右辺の各非終端記号について「残す」か「nullable なら削る」かを両方列挙し、部分列全体を有限集合として返す。終端記号は常に保持され、記号の相対順序も保たれるという点が、以降の導出保存性の証明で繰り返し使われる不変条件になる。
 
 ```lean
 public def nullableVariants (g : ContextFreeGrammar T)
@@ -594,6 +664,8 @@ public def nullableVariants (g : ContextFreeGrammar T)
       else kept
 ```
 
+何も削らない「変種」、すなわち元の記号列自身が必ず `nullableVariants` の中に含まれることを確認する。ε 除去段階が元の規則をそのままコピーする枝を正当化する基礎事実である。
+
 ```lean
 @[grind .] theorem self_mem_nullableVariants (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -609,6 +681,8 @@ public def nullableVariants (g : ContextFreeGrammar T)
           split <;> simp [ih]
 
 ```
+
+`nullableVariants` に含まれるどの部分列も、元の記号列から実際に導出できることを示す。「残す」枝は恒等的に、「削る」枝は該当非終端記号が nullable であることを `mem_nullableSet_iff` 経由で使って空へ潰すことで正当化する。この補題が ε 除去後の規則の健全性（`removeEpsilon_reverse_step`）を支える。
 
 ```lean
 @[grind .] theorem derives_of_mem_nullableVariants (g : ContextFreeGrammar T)
@@ -644,6 +718,8 @@ public def nullableVariants (g : ContextFreeGrammar T)
             simpa using (ih hys).append_left [Symbol.nonterminal A]
 
 ```
+
+`nullableVariants` がリストの結合と両立すること、すなわち連結された記号列の変種はちょうど両半分の変種同士の連結として分解できることを示す。これにより、規則右辺の中の部分列（文脈 `p`・削除対象・文脈 `q`）を独立に扱えるようになり、後の逆シミュレーション (`removeEpsilon_simulation`) で導出の途中に現れる `p ++ r.output ++ q` の形を自在に分解・再構成できる。
 
 ```lean
 @[grind .] theorem mem_nullableVariants_append (g : ContextFreeGrammar T)
@@ -755,6 +831,8 @@ variant の所属補題を確立した後、非初期の空右辺を除外した
             · exact List.mem_cons_of_mem _ (ih htail hx)
 ```
 
+ε 除去段階で新しく生成される規則集合の定義。各元規則の右辺について `nullableVariants` を全列挙し、空でない結果だけを採用したうえで、初期記号が nullable な場合に限り初期記号専用の空規則を一つだけ例外的に加える。この「非初期記号の空規則を作らない」設計が、以降のパイプライン全体で保たれる ε-規則不在の不変条件の出発点になる。
+
 ```lean
 public def removeEpsilonRules
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
@@ -768,6 +846,8 @@ public def removeEpsilonRules
     { input := g.initial, output := [] }
   nonempty ∪ if g.initial ∈ nullableSet g then {emptyRule} else ∅
 ```
+
+`removeEpsilonRules` を用いて実際に ε 除去後の文法を組み立てる。非終端記号型と初期記号は変えず、規則集合だけを差し替えることで、公開 API の文法型を段階間で共通にしたまま変換を連鎖できるようにする。
 
 ```lean
 /-- Remove nullable symbols while preserving the public grammar interface.
@@ -784,12 +864,16 @@ definitionally with the subsequent unit-rule and terminal-isolation stages. -/
     rules := removeEpsilonRules g }
 ```
 
+`removeEpsilon` が初期記号を変えないという定義上自明な事実を、後続証明が参照しやすいように名前付きの補題として固定する。
+
 ```lean
 @[grind =, simp] private theorem removeEpsilon_initial (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
     (removeEpsilon g).initial = g.initial := rfl
 
 ```
+
+`removeEpsilonRules` の `biUnion`／`filter`／条件分岐による定義を、「元規則のある非空 variant」または「初期記号が nullable なときの空規則」という外延的な選言に書き直す。以降の証明はすべてこの特徴づけを通して規則の所属を扱う。
 
 ```lean
 @[grind .] theorem mem_removeEpsilon_rules
@@ -818,6 +902,8 @@ definitionally with the subsequent unit-rule and terminal-isolation stages. -/
 
 ```
 
+`removeEpsilonRules` の構成から、非初期記号を入力とする空規則が決して生成されないことを取り出す。これは最終的な Chomsky 標準形が要求する「初期記号以外の $`\varepsilon`$ 規則を持たない」という性質の第一段階の証拠になる。
+
 ```lean
 @[grind .] public theorem removeEpsilon_no_noninitial_empty (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
@@ -832,6 +918,8 @@ definitionally with the subsequent unit-rule and terminal-isolation stages. -/
   · rfl
 
 ```
+
+fresh-start 段階が確立した「初期記号は右辺に現れない」という不変条件を、ε 除去段階を通しても保存することを示す。`nullableVariants` が元の記号列の部分列しか生成しない（`mem_of_mem_nullableVariants`）ことを使い、新しい規則の右辺に現れる記号は必ず元規則の右辺由来であると遡って議論する。
 
 ```lean
 @[grind .] public theorem removeEpsilon_initial_not_output (g : ContextFreeGrammar T)
@@ -849,6 +937,8 @@ definitionally with the subsequent unit-rule and terminal-isolation stages. -/
   · exact List.not_mem_nil hmem
 
 ```
+
+ε 除去後の文法における一手の書き換えは、必ず元の文法 `g` における（1 手または 0 手の）導出に対応することを示す。「非空 variant」枝は元規則の一歩＋残りの記号を空へ潰す `nullableVariants` の導出の合成として、「初期記号の空規則」枝は自明な空導出として処理する。
 
 ```lean
 @[grind .] theorem removeEpsilon_reverse_step (g : ContextFreeGrammar T)
@@ -904,12 +994,16 @@ definitionally with the subsequent unit-rule and terminal-isolation stages. -/
   exact hroot ▸ hyield ▸ h
 ```
 
+`ErasesNullable` は、記号列 `v` が `u` からいくつかの nullable 非終端記号を削って得られる関係を、`nullableVariants` の所属として言い換えたものである。以降の順向きシミュレーションでこの関係を明示的な名前で参照するために定義する。
+
 ```lean
 public def ErasesNullable (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
     (u v : List (Symbol T g.NT)) : Prop :=
   v ∈ nullableVariants g u
 ```
+
+元の規則 `r` の右辺のうち空でない任意の variant `rhs'` について、ε 除去後の文法がその variant を使った一歩の書き換えを実際に持つことを示す。`removeEpsilon_simulation` の帰納法の中で、削除しなかった枝を実際の一歩へ変換するために使う中心的な補題。
 
 ```lean
 @[grind .] theorem removeEpsilon_produces_variant (g : ContextFreeGrammar T)
@@ -931,6 +1025,8 @@ public def ErasesNullable (g : ContextFreeGrammar T)
 
 ```
 
+初期記号が意味論的に nullable であるとき、`removeEpsilonRules` が例外的に加えた空規則を使って、ε 除去後の文法でも初期記号から空語を一手で導出できることを示す。`removeEpsilon_simulation` が空語の場合を扱う際に使われる。
+
 ```lean
 @[grind .] theorem removeEpsilon_start_empty (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -944,6 +1040,8 @@ public def ErasesNullable (g : ContextFreeGrammar T)
   rw [mem_removeEpsilon_rules]
   exact Or.inr ⟨h, rfl⟩
 ```
+
+順向きシミュレーションの本体。元の文法 `g` における任意の導出 `u ⟶* s` に対して、`u` のある variant `u'` から `removeEpsilon g` が同じ終着点 `s` へ導出できることを、導出の各一歩ごとに `mem_nullableVariants_append` で規則右辺を分解しながら帰納的に構成する。空になった変種と非空な変種の両方を扱う必要があるため、`by_cases` で場合分けする。
 
 ```lean
 @[grind .] theorem removeEpsilon_simulation (g : ContextFreeGrammar T)
@@ -1036,6 +1134,8 @@ public def ErasesNullable (g : ContextFreeGrammar T)
 
 ```
 
+`removeEpsilon_simulation` が返す variant `u'` は、空語の場合には `nullableVariants g [Symbol.nonterminal g.initial]` に属するかまたは初期記号自身に等しいかのどちらかである。`derives_from_empty_eq` を使い、空から始まる導出は空のままであることから、この二択を尽くして元言語から ε 除去後言語への包含を仕上げる。
+
 ```lean
 @[grind .] theorem removeEpsilon_language_forward (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
@@ -1061,6 +1161,8 @@ public def ErasesNullable (g : ContextFreeGrammar T)
 
 ```
 
+順方向 (`removeEpsilon_language_forward`) と逆方向 (`removeEpsilon_language_reverse`) の包含を反対称律で合わせ、ε 除去段階が言語を厳密に保存することを結論する。パイプライン全体の言語等式 `calc` 連鎖の二段目を担う。
+
 ```lean
 @[grind .] theorem removeEpsilon_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
@@ -1069,6 +1171,10 @@ public def ErasesNullable (g : ContextFreeGrammar T)
     (removeEpsilon_language_forward g)
 ```
 
+## Unit 規則の除去
+
+ε 除去段階は「非終端記号一つだけの右辺」（$`A \to B`$ の形の unit 規則）を作り得るし、元の文法にも最初から含まれ得る。この段階では、unit 規則を反射推移閉包で辿った到達関係を計算し、その終点にある非 unit 規則を出発点まで引き上げることで、unit 規則を持たない文法へ変換する。
+
 ```lean
 /-! ## Elimination of unit productions -/
 
@@ -1076,12 +1182,16 @@ public def IsUnitRule {T N : Type*} (r : ContextFreeRule T N) : Prop :=
   ∃ B, r.output = [Symbol.nonterminal B]
 ```
 
+Boolean 版の unit 規則判定。`activeNonterminals` の有限集合上で決定可能な演算を組み立てるために、命題 `IsUnitRule` とは別に実行可能な述語を用意する。
+
 ```lean
 public def isUnitRule (r : ContextFreeRule T N) : Bool :=
   match r.output with
   | [.nonterminal _] => true
   | _ => false
 ```
+
+Boolean 版と命題版の unit 規則判定が一致することを、右辺の長さで場合分けして確認する。
 
 ```lean
 @[grind .] theorem isUnitRule_eq_true (r : ContextFreeRule T N) :
@@ -1096,16 +1206,22 @@ public def isUnitRule (r : ContextFreeRule T N) : Bool :=
       | cons y ys => simp [isUnitRule, IsUnitRule]
 ```
 
+`UnitStep g A B` は「$`A \to B`$ という unit 規則が文法に存在する」ことを表す一段階の関係であり、これから構成する反射推移閉包の基本単位になる。
+
 ```lean
 public def UnitStep (g : ContextFreeGrammar T) (A B : g.NT) : Prop :=
   ({ input := A, output := [Symbol.nonterminal B] } :
     ContextFreeRule T g.NT) ∈ g.rules
 ```
 
+`UnitStep` の反射推移閉包として unit 到達関係 `UnitReach` を定義する。$`A`$ から $`B`$ へ unit 規則だけを何回も辿って到達できることを表し、これが除去後文法の規則をどこまで「透過」してよいかの意味論的な仕様になる。
+
 ```lean
 public abbrev UnitReach (g : ContextFreeGrammar T) :=
   Relation.ReflTransGen (UnitStep g)
 ```
+
+閉包計算のための一段階版判定。候補集合 `S` の中の記号から unit 規則一本で `S` の外へ「脱出」できてしまう規則があるかどうかを判定する。
 
 ```lean
 public def unitRuleEscapes [DecidableEq N] (S : Finset N)
@@ -1115,11 +1231,15 @@ public def unitRuleEscapes [DecidableEq N] (S : Finset N)
   | _ => false
 ```
 
+`unitClosed` は、`nullableClosed` と対をなす形で、候補集合 `S` から unit 規則を辿って外へ脱出できないことを判定する。`unitRuleEscapes` を満たす規則が一つも存在しなければ `S` は閉じている。
+
 ```lean
 public def unitClosed (g : ContextFreeGrammar T) [DecidableEq T]
     [DecidableEq g.NT] (S : Finset g.NT) : Bool :=
   decide (g.rules.filter (fun r => unitRuleEscapes S r = true) = ∅)
 ```
+
+`nullableSet` と同じ冪集合探索の戦略で、`A` から始めて `unitClosed` を満たす最小の部分集合を執行可能に構成する。これが意味論的な `UnitReach g A` の実行可能な近似になる。
 
 ```lean
 /-- The executable reflexive-transitive unit reachability set from `A`. -/
@@ -1130,6 +1250,8 @@ public def unitReachSet (g : ContextFreeGrammar T) [DecidableEq T]
     A ∈ S ∧ unitClosed g S = true
   support.filter fun B => closed.filter (fun S => B ∉ S) = ∅
 ```
+
+`unitClosed` の Boolean な定義を、`UnitStep` に関する通常の全称命題へ書き換える。以降の閉包性の証明は、この外延的な形を経由してのみ `unitClosed` を扱う。
 
 ```lean
 @[grind .] theorem unitClosed_eq_true (g : ContextFreeGrammar T)
@@ -1150,6 +1272,8 @@ public def unitReachSet (g : ContextFreeGrammar T) [DecidableEq T]
       exact hescapes.2 (h hescapes.1 hr)
 ```
 
+`nullable_mem_of_closed` の unit 版：`unitClosed` を満たす集合 `S` は、`A` から始めて unit 規則だけで到達できる非終端記号をすべて含む。反射推移閉包に対する構造的帰納法で証明する。
+
 ```lean
 @[grind .] theorem unitReach_mem_of_closed (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] {S : Finset g.NT} {A B : g.NT}
@@ -1160,6 +1284,8 @@ public def unitReachSet (g : ContextFreeGrammar T) [DecidableEq T]
   | tail h hstep ih =>
       exact (unitClosed_eq_true g).mp hclosed ih hstep
 ```
+
+`mem_nullableSet_iff` と対をなす、この節の到達点となる一致定理。`A` から到達可能な非終端記号すべての集合を古典論理で構成し、それが最小の閉集合であることを使って `unitReachSet g A` への所属と意味論的な `UnitReach g A` が同値であることを示す。以降の `removeUnit` は、ここで確立した実行可能な到達判定の上に構築される。
 
 ```lean
 /-- Computed unit reachability agrees with reflexive-transitive closure on the
@@ -1231,6 +1357,8 @@ public abbrev removeUnit
             ContextFreeRule T g.NT) }
 ```
 
+`removeUnit` の帰納的な `biUnion`／`filter`／`image` による定義を、「到達可能な非終端記号のペア `(A, B)` と、`B` を入力に持つ非 unit 規則」という外延的な選言に書き直す。以降の証明はこの特徴づけを通してのみ規則の所属にアクセスする。
+
 ```lean
 @[grind .] theorem mem_removeUnit_rules_iff (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -1265,6 +1393,8 @@ public abbrev removeUnit
           ⟨hold, hinput, by simpa [← isUnitRule_eq_true] using hnonunit⟩, rfl⟩⟩
 ```
 
+`removeUnit` の規則はすべて非 unit 規則から生成されるという構成上の性質を、`mem_removeUnit_rules_iff` の特徴づけから直接取り出す。これが最終的な Chomsky 標準形が要求する「unit 規則を持たない」という性質の証拠になる。
+
 ```lean
 @[grind .] public theorem removeUnit_no_unit (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
@@ -1277,6 +1407,8 @@ public abbrev removeUnit
     (mem_removeUnit_rules_iff g r).mp hr
   simpa [IsUnitRule] using hnonunit
 ```
+
+fresh-start 段階から受け継いだ「初期記号は右辺に現れない」という不変条件を、unit 除去段階でも保存する。新しい規則の右辺は必ず元規則の右辺そのものであるため、仮定を直接転用できる。
 
 ```lean
 @[grind .] public theorem removeUnit_initial_not_output (g : ContextFreeGrammar T)
@@ -1292,6 +1424,8 @@ public abbrev removeUnit
   exact h oldRule hold
 
 ```
+
+`mem_removeUnit_rules_iff` の構成的な向き：到達関係 `UnitReach g A B` と、`B` を入力に持つ非 unit 規則 `r` から、引き上げられた規則 `A → r.output` が確かに `removeUnit g` に属することを示す。以降のシミュレーション補題（`removeUnit_lift_step`）がこの構成側を実際に使う。
 
 ```lean
 @[grind .] theorem removeUnit_rule_mem (g : ContextFreeGrammar T)
@@ -1315,6 +1449,8 @@ public abbrev removeUnit
       ⟨hr, hinput, by simpa [← isUnitRule_eq_true] using hnonunit⟩, rfl⟩
 ```
 
+`UnitSymbolLift` は、元の文法における記号 `x` と unit 除去後の文法における記号 `x'` の対応関係を記号ごとに定める。終端記号は等しくなければならず、非終端記号同士は unit 到達関係で結ばれていればよい。この緩い対応関係が、unit 規則を「経由済み」として吸収したシミュレーションを可能にする。
+
 ```lean
 public def UnitSymbolLift (g : ContextFreeGrammar T) [DecidableEq g.NT] :
     Symbol T g.NT → Symbol T g.NT → Prop
@@ -1324,11 +1460,15 @@ public def UnitSymbolLift (g : ContextFreeGrammar T) [DecidableEq g.NT] :
   | _, _ => False
 ```
 
+`UnitSymbolLift` を記号列全体へ `List.Forall₂` で持ち上げたものが `UnitLift` である。導出中の記号列同士をこの関係で結びながら、unit 除去後の文法での導出を構成していく。
+
 ```lean
 public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
     (u v : List (Symbol T g.NT)) : Prop :=
   List.Forall₂ (UnitSymbolLift g) u v
 ```
+
+活性な非終端記号だけからなる記号列は、常に自分自身と `UnitLift` の関係にある（unit 到達の反射性による）。シミュレーションの開始点として、初期記号の列がこの自明な持ち上げを満たすことを保証する。
 
 ```lean
 @[grind .] theorem unitLift_refl_of_active (g : ContextFreeGrammar T)
@@ -1350,6 +1490,8 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
         exact hactive A (List.mem_cons_of_mem x hA)
 
 ```
+
+任意の規則の右辺は活性な非終端記号だけからなる（`rule_rhs_mem_activeNonterminals`）ため、`unitLift_refl_of_active` を適用して、規則を適用した直後の記号列が常に自分自身と持ち上げ関係にあることを得る。
 
 ```lean
 @[grind .] theorem unitLift_rule_output (g : ContextFreeGrammar T)
@@ -1385,6 +1527,8 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
             List.Forall₂.cons hy hp', hx', hq'⟩
 
 ```
+
+局所シミュレーションの核心。元の一歩の書き換え `g.Produces u v` を、持ち上げられた記号列 `u'` の側で模倣する。書き換えられた非終端記号が unit 規則から来ていた場合は、`UnitReach` を一歩延ばすだけで実際には何も書き換えず持ち上げ関係を更新し、非 unit 規則の場合は `removeUnit_rule_mem` で引き上げた規則を使って実際に一歩進める。
 
 ```lean
 @[grind .] theorem removeUnit_lift_step (g : ContextFreeGrammar T)
@@ -1448,6 +1592,8 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
 
 ```
 
+`removeUnit_lift_step` を導出全体（反射推移閉包）へ持ち上げる。元の導出の各一歩を先頭から順に処理し、持ち上げ関係を保ったまま unit 除去後の文法での導出を積み上げていく。
+
 ```lean
 @[grind .] theorem removeUnit_simulation (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -1464,6 +1610,8 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
       exact ⟨v', hmiddle.trans hv', hlift'⟩
 
 ```
+
+導出の終着点が完全に終端記号だけの列であるとき、それと持ち上げ関係にある記号列はその終端記号列自身と一致するしかない（`UnitSymbolLift` は非終端記号を終端記号へは対応させないため）。導出の終端における持ち上げ関係を確定させ、シミュレーション結果を実際の言語所属へ変換する準備をする。
 
 ```lean
 @[grind .] theorem unitLift_terminalSymbols_eq (g : ContextFreeGrammar T)
@@ -1488,6 +1636,8 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
           | nonterminal A => simp [UnitSymbolLift] at hx
 
 ```
+
+`removeUnit_simulation` を初期記号の自明な持ち上げ（`initial_mem_activeNonterminals` による）に適用し、`unitLift_terminalSymbols_eq` で終端記号列の一致を確定させることで、元言語の語が unit 除去後の言語にも属することを結論する。
 
 ```lean
 @[grind .] theorem removeUnit_language_forward (g : ContextFreeGrammar T)
@@ -1523,6 +1673,8 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
 
 ```
 
+除去後の一手の書き換えを元の文法での（複数手の）導出へ展開する。`mem_removeUnit_rules_iff` で規則の由来を取り出し、`derives_unitReach` で unit 到達の部分を辿ってから、最後に非 unit 規則で実際に書き換える、という二段階の導出として再構成する。
+
 ```lean
 @[grind .] theorem removeUnit_reverse_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -1544,6 +1696,8 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
         ContextFreeRule.rewrites_of_exists_parts oldRule p q⟩
   exact hchain.trans_produces hlast
 ```
+
+`removeUnit_reverse_step` を導出全体へ持ち上げ、除去後の言語の任意の語が元の言語にも属することを示す。恒等写像 `mapSym := id` を使う一般化補題 `derives_lift_of_produces` を再利用している。
 
 ```lean
 @[grind .] theorem removeUnit_language_reverse (g : ContextFreeGrammar T)
@@ -1570,6 +1724,8 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
   exact hroot ▸ hyield ▸ h
 ```
 
+順方向と逆方向の包含を合わせ、unit 除去段階が言語を厳密に保存することを結論する。パイプライン全体の言語等式 `calc` 連鎖の三段目にあたる。
+
 ```lean
 @[grind .] theorem removeUnit_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
@@ -1580,6 +1736,10 @@ public def UnitLift (g : ContextFreeGrammar T) [DecidableEq g.NT]
 end ContextFreeGrammar
 
 ```
+
+## 終端記号の分離
+
+Chomsky 標準形は、二個以上の記号を持つ右辺には終端記号を許さない。この段階では、長さ 2 以上の右辺に現れる終端記号を専用の非終端記号 `IsolateNT.terminal a` に置き換え、その非終端記号がちょうどその終端記号一つだけを生成する規則を追加で用意する。補助非終端記号型 `N` に対する元の非終端記号は `IsolateNT.old` で包む。
 
 ```lean
 namespace ContextFreeGrammar
@@ -1601,6 +1761,8 @@ construction is available when the terminal alphabet also lives in `Type`. -/
 deriving DecidableEq, Repr
 ```
 
+`FreshStartNT`・`BinaryNT` と同じ手法で、線形順序のための鍵を先に定義する。ここでは元の非終端記号と終端記号のどちらかへの単射として鍵を与える。
+
 ```lean
 public def IsolateNT.orderKey :
     IsolateNT T N → N ⊕ₗ T
@@ -1608,12 +1770,16 @@ public def IsolateNT.orderKey :
   | .terminal a => Sum.inrₗ a
 ```
 
+`orderKey` の単射性から `IsolateNT` 上の線形順序を引き戻す。二分化段階まで含めた最終的な非終端記号型がすべて `LinearOrder` を持つよう、各中間段階でこのパターンを繰り返す。
+
 ```lean
 public instance [LinearOrder T] [LinearOrder N] : LinearOrder (IsolateNT T N) :=
   LinearOrder.lift' IsolateNT.orderKey (by
     intro x y h
     cases x <;> cases y <;> simp_all [IsolateNT.orderKey])
 ```
+
+長さ 2 以上の右辺だけに適用する記号変換。終端記号は専用非終端記号 `IsolateNT.terminal` へ、非終端記号は `IsolateNT.old` へとそれぞれ埋め込み、長さは変えない。
 
 ```lean
 public def isolateOutput {T N : Type*} :
@@ -1625,11 +1791,15 @@ public def isolateOutput {T N : Type*} :
       .nonterminal (.old A) :: isolateOutput xs
 ```
 
+記号が終端記号であればその値を、非終端記号であれば `none` を返す部分関数。長い右辺に現れる終端記号だけを集めて専用規則を生成する際の抽出に使う。
+
 ```lean
 public def symbolTerminal {T N : Type*} : Symbol T N → Option T
   | .terminal a => some a
   | .nonterminal _ => none
 ```
+
+規則一本を終端記号分離後の形へ変換する。右辺が長ければ `isolateOutput` で終端記号を専用非終端記号へ置換し、短ければ（長さ 0 か 1 なら）非終端記号を `IsolateNT.old` で包むだけで済ませる。この二分岐が、以降のすべての証明で場合分けの基準になる。
 
 ```lean
 public def isolatedRule (r : ContextFreeRule T N) :
@@ -1640,11 +1810,15 @@ public def isolatedRule (r : ContextFreeRule T N) :
     ContextFreeRule.mapNonterminal IsolateNT.old r
 ```
 
+専用非終端記号 `IsolateNT.terminal a` がちょうど終端記号 `a` 一つだけを生成する規則。`isolatedRule` が長い右辺の中で終端記号をこの非終端記号へ置き換えた分だけ、この規則で元の終端記号を復元できるようにする。
+
 ```lean
 public def terminalIsolationRule (a : T) :
     ContextFreeRule T (IsolateNT T N) :=
   { input := .terminal a, output := [.terminal a] }
 ```
+
+`isolatedRule` による全規則の変換像と、長い右辺に登場する各終端記号ごとの `terminalIsolationRule` を合わせて、終端記号分離段階の規則集合全体を組み立てる。
 
 ```lean
 public def isolationRules
@@ -1656,6 +1830,8 @@ public def isolationRules
         (r.output.filterMap symbolTerminal).toFinset.image terminalIsolationRule
       else ∅
 ```
+
+`isolationRules` を規則集合として採用し、初期記号を `IsolateNT.old g.initial` に埋め込んだ終端記号分離後の文法を組み立てる。
 
 ```lean
 public abbrev isolateTerminals
@@ -1701,6 +1877,8 @@ public abbrev isolateTerminals
 
 ```
 
+`symbolTerminal` によるフィルタが、右辺に実際に現れる終端記号をちょうど捉えることを確認する。`isolate_terminal_rule_mem` が `terminalIsolationRule a` の生成条件を満たすことを示す際に使う。
+
 ```lean
 @[grind .] theorem terminal_mem_filterMap {N : Type*}
     {a : T} {xs : List (Symbol T N)} :
@@ -1720,6 +1898,8 @@ public abbrev isolateTerminals
 
 ```
 
+長い右辺を持つ規則が `isolatedRule` によって変換されると、その像が確かに `isolateTerminals g` の規則集合に含まれることを、`mem_isolateTerminals_rules_iff` の左枝を使って示す。
+
 ```lean
 @[grind .] theorem isolate_old_rule_mem (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -1734,6 +1914,8 @@ public abbrev isolateTerminals
   exact ⟨r, hr, by simp [isolatedRule, hlong]⟩
 
 ```
+
+長い右辺の中に終端記号 `a` が現れる規則があれば、対応する `terminalIsolationRule a` が `isolateTerminals g` の規則集合に含まれることを、`mem_isolateTerminals_rules_iff` の右枝を使って示す。
 
 ```lean
 @[grind .] theorem isolate_terminal_rule_mem (g : ContextFreeGrammar T)
@@ -1751,6 +1933,8 @@ public abbrev isolateTerminals
 
 ```
 
+`isolate_old_rule_mem`・`isolate_terminal_rule_mem` と対をなす、短い右辺（長さ 0 か 1）を持つ規則についての所属補題。この場合 `isolatedRule` は単に非終端記号を `IsolateNT.old` で包むだけなので、それがそのまま規則集合に含まれることを示す。
+
 ```lean
 @[grind .] theorem isolate_short_rule_mem (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -1763,6 +1947,8 @@ public abbrev isolateTerminals
   exact ⟨r, hr, by simp [isolatedRule, hshort]⟩
 
 ```
+
+長い右辺 `r.output` を終端記号分離後の文法で導出しなおすと、`isolateOutput r.output`（専用非終端記号への置換形）から、元の非終端記号だけを `IsolateNT.old` で包んだ形へ到達できることを示す。各終端記号の位置で `terminalIsolationRule` を一回ずつ適用していく帰納法で、これが `isolateTerminals_forward_step` の長い規則の場合の核心部分になる。
 
 ```lean
 @[grind .] theorem derives_isolateOutput (g : ContextFreeGrammar T)
@@ -1799,6 +1985,8 @@ public abbrev isolateTerminals
   exact go r.output fun _ => id
 
 ```
+
+元の文法の一手の書き換えを、終端記号分離後の文法での導出へ持ち上げる。長い右辺のときは `isolate_old_rule_mem` で変換済み規則を一歩使ってから `derives_isolateOutput` で終端記号を復元し、短い右辺のときは規則をそのまま `IsolateNT.old` で包んで一歩進める。
 
 ```lean
 @[grind .] theorem isolateTerminals_forward_step
@@ -1855,6 +2043,8 @@ public abbrev isolateTerminals
   simpa [Symbol.mapNonterminal, Function.comp_def] using h
 ```
 
+逆方向のシミュレーションのために、終端記号分離後の記号を元の記号へ戻す写像を定義する。`IsolateNT.old A` は非終端記号 `A` へ、終端記号と `IsolateNT.terminal a` はどちらも終端記号 `a` へ展開する——専用非終端記号を導入する前の姿を復元する操作である。
+
 ```lean
 public def expandSymbol : Symbol T (IsolateNT T N) → List (Symbol T N)
   | .terminal a => [.terminal a]
@@ -1862,11 +2052,15 @@ public def expandSymbol : Symbol T (IsolateNT T N) → List (Symbol T N)
   | .nonterminal (.terminal a) => [.terminal a]
 ```
 
+`expandSymbol` を `List.flatMap` で記号列全体に持ち上げる。以降の逆シミュレーションはすべて、この展開を通して規則の一手を比較する。
+
 ```lean
 public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
     List (Symbol T N) :=
   xs.flatMap expandSymbol
 ```
+
+`isolateOutput` で終端記号を専用非終端記号へ置き換えた記号列を `expandForm` で展開すると、元の記号列にちょうど戻ることを示す。長い規則の逆シミュレーションで、変換後の右辺を元の右辺と同一視するために使う。
 
 ```lean
 @[grind =, simp] theorem expand_isolateOutput (xs : List (Symbol T N)) :
@@ -1879,6 +2073,8 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
         rw [ih]
 
 ```
+
+短い規則の場合、記号列を単に `IsolateNT.old` で包んだだけなので、`expandForm` で展開すればやはり元の記号列に戻ることを示す。長い規則の場合の `expand_isolateOutput` と対になる、短い規則向けの復元補題。
 
 ```lean
 @[grind =, simp] private theorem expand_map_old
@@ -1893,6 +2089,8 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
         rw [ih]
 
 ```
+
+終端記号分離後の文法における一手の書き換えを、展開写像を通して元の文法での一手の書き換えへ戻す。規則の由来を三通り（長い規則・短い規則・終端専用規則）に場合分けし、それぞれ `expand_isolateOutput`・`expand_map_old`・`expandSymbol` の定義展開で展開後の等式を確認してから、元の規則一本で書き換える。
 
 ```lean
 @[grind .] theorem isolateTerminals_reverse_step
@@ -1958,6 +2156,8 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
 
 ```
 
+`isolateTerminals_reverse_step` を導出全体（反射推移閉包）へ持ち上げ、終端記号分離後の任意の導出が展開後には元の文法の導出になることを示す。
+
 ```lean
 @[grind .] theorem isolateTerminals_reverse_derives
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
@@ -1971,6 +2171,8 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
       exact (isolateTerminals_reverse_step g hstep).trans ih
 
 ```
+
+完全に終端記号だけからなる列は、終端記号分離後の型 `IsolateNT T N` 上で表現しても展開すればもとの終端記号列に戻ることを確認する。導出結果を実際の言語所属の言明へ変換する最後の橋渡しになる。
 
 ```lean
 @[grind .] theorem expand_terminalSymbols (w : List T) :
@@ -2011,6 +2213,8 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
 
 ```
 
+順方向と逆方向の包含を合わせ、終端記号分離段階が言語を厳密に保存することを結論する。`calc` 連鎖の四段目にあたる。
+
 ```lean
 @[grind .] theorem isolateTerminals_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT] :
@@ -2018,6 +2222,10 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
   le_antisymm (isolateTerminals_language_reverse g)
     (isolateTerminals_language_forward g)
 ```
+
+## 二分化
+
+最後の段階として、三個以上の記号を持つ右辺を、非終端記号二個ずつの連鎖規則へ分解する。`BinaryNT` は、元の非終端記号を包む `old` と、二分化の途中経過（「残りどこまでを一つの非終端記号として持つか」）を表す `tail head suffix` の二択からなる。`tail A [X, Y, ..., Z]` は、規則 `A → X Y ... Z` の右辺の未処理の残り `[X, Y, ..., Z]` を表す一時的な非終端記号である。
 
 ```lean
 /-! ## Binarization of long nonterminal right-hand sides -/
@@ -2030,11 +2238,15 @@ public def expandForm (xs : List (Symbol T (IsolateNT T N))) :
 deriving DecidableEq, Repr
 ```
 
+`BinaryNT` 上の線形順序のための鍵。`tail` 側は `(head, suffix)` の辞書式順序へ埋め込む。
+
 ```lean
 public def BinaryNT.orderKey : BinaryNT N → N ⊕ₗ (N ×ₗ List N)
   | .old A => Sum.inlₗ A
   | .tail A suffix => Sum.inrₗ (toLex (A, suffix))
 ```
+
+パイプライン最後の非終端記号型にも、これまでと同じ手法で線形順序を引き戻す。
 
 ```lean
 public instance [LinearOrder N] : LinearOrder (BinaryNT N) :=
@@ -2043,11 +2255,15 @@ public instance [LinearOrder N] : LinearOrder (BinaryNT N) :=
     cases x <;> cases y <;> simp_all [BinaryNT.orderKey])
 ```
 
+記号が非終端記号であればその値を取り出す部分関数。二分化は非終端記号だけからなる右辺を前提とするため、この判定で「終端記号が混じった長い右辺」を弾く。
+
 ```lean
 public def symbolAsNonterminal : Symbol T N → Option N
   | .terminal _ => none
   | .nonterminal A => some A
 ```
+
+記号列全体が非終端記号だけからなる場合に、その非終端記号のリストを取り出す。`Option` のモナド的な `do` 記法で、途中に終端記号が一つでもあれば全体が `none` になる。終端記号分離段階を経た後の文法では、長さ 2 以上の右辺は必ずこの関数で `some` になることが保証される（`isolateTerminals_long_rhs_all_nonterminals`）。
 
 ```lean
 public def symbolsAsNonterminals : List (Symbol T N) → Option (List N)
@@ -2058,17 +2274,23 @@ public def symbolsAsNonterminals : List (Symbol T N) → Option (List N)
       pure (A :: As)
 ```
 
+非終端記号のリストを、`BinaryNT.old` で包んだ記号列へ変換する補助関数。二分化後の規則の右辺を組み立てる際に繰り返し使う。
+
 ```lean
 public def binarySymbols (ns : List N) :
     List (Symbol T (BinaryNT N)) :=
   ns.map (Symbol.nonterminal ∘ BinaryNT.old)
 ```
 
+規則 `A → X Y Z ...` の分解過程で、まだ二項化されていない残りの記号列 `suffix` を表す一時的な非終端記号 `BinaryNT.tail A suffix` への記号としての埋め込み。
+
 ```lean
 public def tailSymbol (A : N) (suffix : List N) :
     Symbol T (BinaryNT N) :=
   Symbol.nonterminal (BinaryNT.tail A suffix)
 ```
+
+長さ 3 以上の残り `X :: Y :: Z :: rest` を連鎖状の二項規則へ分解する再帰関数。各段で `tail A (X :: Y :: ...)  →  old X, tail A (Y :: ...)` という規則を生成し、残りが 2 個になったところで最後の二項規則 `tail A [X, Y] → old X, old Y` を生成して停止する。これが、任意の長さの右辺を高々二個ずつの規則列へ変換する Chomsky 二分化の核心部分である。
 
 ```lean
 public def binarizeTailRules [DecidableEq T] [DecidableEq N] (A : N) :
@@ -2085,6 +2307,8 @@ public def binarizeTailRules [DecidableEq T] [DecidableEq N] (A : N) :
   | _ => ∅
 ```
 
+規則 `A → X Y Z ...rest` の最初の一段だけを組み立てる。元の入力記号 `BinaryNT.old A` から `old X, tail A (Y::Z::rest)` への規則を作り、残りは `binarizeTailRules` に委ねて連鎖を続ける。長さが 3 未満の右辺には適用されない（そちらは `binarize` 本体が別枝で処理する）。
+
 ```lean
 public def binarizeLongRules [DecidableEq T] [DecidableEq N] (A : N) :
     List N → Finset (ContextFreeRule T (BinaryNT N))
@@ -2096,6 +2320,8 @@ public def binarizeLongRules [DecidableEq T] [DecidableEq N] (A : N) :
         (binarizeTailRules A (Y :: Z :: rest))
   | _ => ∅
 ```
+
+二分化段階全体の規則集合を組み立てる。右辺の長さと形に応じて五通りに場合分けする：空・単一記号・非終端記号二個はそのまま `BinaryNT.old` で包んでコピーし、終端記号を含む長さ 2 の右辺は（この段階に来る前提では起こらないはずなので）空集合とし、長さ 3 以上は `symbolsAsNonterminals` で非終端記号のリストへ変換できたときに限り `binarizeLongRules` で連鎖分解する。
 
 ```lean
 public abbrev binarize (g : ContextFreeGrammar T)
@@ -2114,6 +2340,8 @@ public abbrev binarize (g : ContextFreeGrammar T)
             | some ns => binarizeLongRules r.input ns
             | none => ∅ }
 ```
+
+`binarize` の `biUnion` を伴う定義から `Finset.mem_biUnion` を一段外すだけで、規則の所属を「ある元規則から生成される」という形へ書き換える。以降の証明はこの形を通して二分化後の規則にアクセスする。
 
 ```lean
 @[grind .] theorem mem_binarize_rules_iff (g : ContextFreeGrammar T)
@@ -2180,6 +2408,8 @@ public abbrev binarize (g : ContextFreeGrammar T)
 
 ```
 
+`binarizeTailRules A (X :: Y :: rest)` によって生成された連鎖規則がすべて実際の文法 `binarize g` に含まれていれば（`⊆` 仮定）、`tail A (X :: Y :: rest)` から `X, Y, ..., rest` に対応する二項化済み記号列へ、連鎖を辿って実際に導出できることを帰納法で示す。`binarize_old_rule_derives` が長い規則の場合の中心的な補助として使う。
+
 ```lean
 @[grind .] theorem binarizeTail_derives
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
@@ -2235,6 +2465,8 @@ public abbrev binarize (g : ContextFreeGrammar T)
       exact hfirst.single.trans htail'
 ```
 
+`allNonterminals`（すべての記号が非終端記号であるという命題）が成り立てば、`symbolsAsNonterminals` は決して `none` を返さないことを示す。終端記号分離段階を経た文法では長さ 2 以上の右辺がこの前提を満たすため、二分化段階で `symbolsAsNonterminals` の失敗ケースが実際には起こらないことをここで正当化する。
+
 ```lean
 @[grind .] theorem symbolsAsNonterminals_some_of_all
     (xs : List (Symbol T N)) (h : allNonterminals xs) :
@@ -2253,6 +2485,8 @@ public abbrev binarize (g : ContextFreeGrammar T)
 
 ```
 
+`symbolsAsNonterminals` の逆演算的な性質：非終端記号のリストを `Symbol.nonterminal` で埋め込んだ列に対しては、常にそのリスト自身が復元されることを示す。`binarize_old_rule_derives` で `symbolsAsNonterminals_eq_some` により得た記号列を再度この関数にかけ直す場面で使う。
+
 ```lean
 @[grind =, simp] private theorem symbolsAsNonterminals_map_nonterminal
     (ns : List N) :
@@ -2263,6 +2497,8 @@ public abbrev binarize (g : ContextFreeGrammar T)
       simp [symbolsAsNonterminals, symbolAsNonterminal, ih]
 
 ```
+
+二分化段階の順方向シミュレーションの中核。長さ 3 以上で非終端記号だけの右辺を持つ規則については `binarizeTail_derives` を使って連鎖規則を辿り、それ以外（長さ 2 以下、または非終端記号二個）の短い規則については単に `BinaryNT.old` で包んだ元規則を一歩使うだけで、いずれの場合も `binarize g` が元の一手の書き換えを模倣できることを示す。
 
 ```lean
 @[grind .] theorem binarize_old_rule_derives (g : ContextFreeGrammar T)
@@ -2427,6 +2663,8 @@ public abbrev binarize (g : ContextFreeGrammar T)
 
 ```
 
+`binarize_forward_step` を導出全体へ持ち上げ、元の言語の任意の語が二分化後の言語にも属することを示す。ここで要求される `hall` 仮定（長さ 2 以上の右辺は非終端記号だけ）は、終端記号分離段階が保証する性質（`isolateTerminals_long_rhs_all_nonterminals`）そのものであり、段階間の橋渡しになる。
+
 ```lean
 @[grind .] theorem binarize_language_forward (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -2442,6 +2680,8 @@ public abbrev binarize (g : ContextFreeGrammar T)
   convert h using 1 <;> simp [Symbol.mapNonterminal]
 ```
 
+逆シミュレーションのために、二分化後の記号を元の記号列へ展開する写像。`old A` は非終端記号 `A` 一つへ、`tail _ suffix` は残りの非終端記号列 `suffix` そのものへ展開する——連鎖規則を辿り切ったときに元の右辺全体が復元されるようにする。
+
 ```lean
 public def expandBinarySymbol :
     Symbol T (BinaryNT N) → List (Symbol T N)
@@ -2450,11 +2690,15 @@ public def expandBinarySymbol :
   | .nonterminal (.tail _ suffix) => suffix.map Symbol.nonterminal
 ```
 
+`expandBinarySymbol` を記号列全体へ持ち上げる。以降の逆シミュレーションはこの展開を通して二分化後の一手を比較する。
+
 ```lean
 public def expandBinaryForm
     (xs : List (Symbol T (BinaryNT N))) : List (Symbol T N) :=
   xs.flatMap expandBinarySymbol
 ```
+
+`expandBinaryForm` がリストの結合と可換であることを確認する、以降の証明で頻用する基本補題。
 
 ```lean
 @[grind =, simp] private theorem expandBinaryForm_append
@@ -2464,6 +2708,8 @@ public def expandBinaryForm
   simp [expandBinaryForm]
 
 ```
+
+`BinaryNT.old` で単純に包んだだけの記号列を展開すると、元の記号列にちょうど戻ることを確認する。二分化されなかった短い規則の逆シミュレーションで使う。
 
 ```lean
 @[grind =, simp] private theorem expandBinaryForm_map_old
@@ -2489,6 +2735,8 @@ public def expandBinaryForm
 
 ```
 
+短い規則（`BinaryNT.old` で単純に包んだだけの規則）については、展開すれば元の記号列にそのまま戻ることを確認する。長い規則の連鎖展開と対になる、短い規則向けの復元補題。
+
 ```lean
 @[grind =, simp] private theorem expandBinaryForm_old_singleton
     (A : N) :
@@ -2497,6 +2745,8 @@ public def expandBinaryForm
         [Symbol.nonterminal (T := T) A] := rfl
 
 ```
+
+`old A` 一つだけの記号列は、展開すれば非終端記号 `A` 一つの列にちょうど一致することを確認する定義展開だけの補題。初期記号の展開を扱う `binarize_language_reverse` で使う。
 
 ```lean
 @[grind =, simp] private theorem expandBinaryForm_terminalSymbols
@@ -2513,6 +2763,8 @@ public def expandBinaryForm
       exact congrArg (Symbol.terminal a :: ·) ih
 
 ```
+
+終端記号だけからなる列は、`BinaryNT` を経由して表現しても展開すれば元の終端記号列に戻ることを確認する。導出の終着点を実際の言語所属の言明へ変換する際に使う。
 
 ```lean
 @[grind .] theorem expand_binarizeTailRule_eq [DecidableEq T] [DecidableEq N]
@@ -2538,6 +2790,8 @@ public def expandBinaryForm
 
 
 ```
+
+`binarizeTailRules` が生成する連鎖規則のどれについても、その入力を展開したものと出力を展開したものが等しいことを示す。これは連鎖の途中経過であっても、展開すれば常に「まだ処理していない残りの記号列」に一致するという不変条件であり、`binarize_rule_reverse` の長い規則の場合の帰納法を支える。
 
 ```lean
 @[grind .] theorem binarize_copied_rule_reverse (g : ContextFreeGrammar T)
@@ -2641,6 +2895,8 @@ public def expandBinaryForm
 
 ```
 
+`binarize_rule_reverse` を実際の一手の書き換えに適用し、展開写像を通せば二分化後の一手が元の文法の（複数手の）導出になることを結論する。
+
 ```lean
 @[grind .] theorem binarize_reverse_step (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -2656,6 +2912,8 @@ public def expandBinaryForm
       (List.flatMap expandBinarySymbol q)
 ```
 
+`binarize_reverse_step` を導出全体（反射推移閉包）へ持ち上げる。
+
 ```lean
 @[grind .] theorem binarize_derives_reverse (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -2668,6 +2926,8 @@ public def expandBinaryForm
       exact ih.trans (binarize_reverse_step g hstep)
 
 ```
+
+初期記号と終端記号列の展開が自明であることを使い、`binarize_derives_reverse` から二分化後の言語が元の言語に含まれることを結論する。
 
 ```lean
 @[grind .] theorem binarize_language_reverse (g : ContextFreeGrammar T)
@@ -2683,6 +2943,8 @@ public def expandBinaryForm
     expandBinaryForm_terminalSymbols] at hsim
   exact hsim
 ```
+
+いよいよ Chomsky 形状そのものの検証に入る。`binarizeTailRules` が生成する連鎖規則はすべて、非終端記号ちょうど二個の右辺を持つことを示す——連鎖の途中経過であっても、二分化がその名の通り「二項」規則しか作らないことの根拠になる。
 
 ```lean
 @[grind .] theorem binarizeTailRules_binary [DecidableEq T] [DecidableEq N]
@@ -2735,6 +2997,8 @@ public def expandBinaryForm
               · exact binarizeTailRules_binary A Y Z rest rule hrule
 
 ```
+
+いよいよ二分化段階の最終目標。すべての規則が「初期記号の空規則」「終端一個の規則」「非終端二個の規則」のいずれかである、という Chomsky 標準形の定義そのものを検証する。元規則の由来と生成された規則の種類で場合分けし、`hε`・`hunit`・`_hall` という前段までに確立した三つの不変条件を仮定として受け取ることで証明を閉じる。
 
 ```lean
 @[grind .] public theorem binarize_is_chomsky (g : ContextFreeGrammar T)
@@ -2797,6 +3061,8 @@ public def expandBinaryForm
                   exact Or.inr (Or.inr ⟨B, C, houtput⟩)
 ```
 
+以降は初期記号の非再導入という不変条件の準備。連鎖規則の右辺に `old B` の形で現れる非終端記号は、必ず処理中の残りリスト `X :: Y :: rest` の要素であることを示す。埋め込まれた非終端記号が範囲外から紛れ込まないことの保証になる。
+
 ```lean
 @[grind .] theorem old_mem_binarizeTail_output [DecidableEq T] [DecidableEq N]
     (A : N) :
@@ -2821,6 +3087,8 @@ public def expandBinaryForm
       · exact List.mem_cons_of_mem X (ih Y Z rule hrule hmem)
 
 ```
+
+`old_mem_binarizeTail_output` を、規則生成の入口である `binarizeLongRules` の場合まで拡張する。生成された規則の右辺に現れる `old B` は必ず元の非終端記号リスト `ns` の要素であることを保証する。
 
 ```lean
 @[grind .] theorem old_mem_binarizeLong_output [DecidableEq T] [DecidableEq N]
@@ -2866,6 +3134,8 @@ public def expandBinaryForm
       exact hx
 
 ```
+
+パイプライン全体を通じて保存されてきた「初期記号は右辺に現れない」という不変条件を、二分化段階でも保存することを示す最終補題。短い規則から生成された規則の右辺に `BinaryNT.old g.initial` が現れれば、それは元規則の右辺に `g.initial` が現れることを意味し、仮定に矛盾する。長い規則の場合は `old_mem_binarizeLong_output` を経由して同様の議論をする。
 
 ```lean
 @[grind .] public theorem binarize_initial_not_output (g : ContextFreeGrammar T)
@@ -2922,6 +3192,8 @@ public def expandBinaryForm
 
 ```
 
+「初期記号は右辺に現れない」という不変条件から、unit 到達関係は初期記号へ「後戻り」できないことを導く：もし $`B`$ が初期記号で $`A`$ から unit 規則だけで到達できるなら、その最後の一歩の規則の右辺に初期記号が現れることになり矛盾する（到達がそもそも 0 歩であった場合を除く）。これが `removeUnit` 段階での非初期空規則不在の証明に使われる。
+
 ```lean
 @[grind .] theorem unitReach_to_initial_eq (g : ContextFreeGrammar T)
     (hnot : ∀ r ∈ g.rules,
@@ -2937,6 +3209,8 @@ public def expandBinaryForm
     simp [hB]
 
 ```
+
+`removeEpsilon_no_noninitial_empty` の性質が unit 除去段階を通しても保存されることを、`unitReach_to_initial_eq` を使って完成させる。引き上げ元の規則が非初期の空右辺を持たないことと、unit 到達が初期記号から出発しない限り初期記号へは戻らないことを組み合わせる。
 
 ```lean
 @[grind .] public theorem removeUnit_no_noninitial_empty (g : ContextFreeGrammar T)
@@ -2961,6 +3235,8 @@ public def expandBinaryForm
 
 ```
 
+終端記号分離段階向けの側条件の準備に移る。`isolateOutput` が生成する記号列の中に `IsolateNT.old A` が現れれば、それは元の記号列に非終端記号 `A` が現れていたことを意味する——専用非終端記号への埋め込みが情報を保持していることの確認。
+
 ```lean
 @[grind .] theorem old_mem_isolateOutput
     {A : N} {xs : List (Symbol T N)}
@@ -2984,6 +3260,8 @@ public def expandBinaryForm
 
 ```
 
+`isolateOutput` の出力は常に非終端記号だけからなることを示す——終端記号がすべて専用非終端記号に置き換わっているため。これが、二分化段階が要求する `allNonterminals`（長さ 2 以上の右辺は非終端記号だけ）という前提を満たすことの直接の根拠になる（`isolateTerminals_long_rhs_all_nonterminals` で使われる）。
+
 ```lean
 @[grind .] theorem isolateOutput_allNonterminals
     (xs : List (Symbol T N)) :
@@ -3001,6 +3279,8 @@ public def expandBinaryForm
       · exact ih htail
 
 ```
+
+`isolateOutput` は記号の種類を置き換えるだけで、記号列の長さを変えないことを確認する。右辺の長さに関する場合分け（2 個以上か否か）が変換の前後で一致することを保証する基本補題。
 
 ```lean
 @[grind =, simp] theorem isolateOutput_length
@@ -3033,6 +3313,8 @@ public def expandBinaryForm
 
 ```
 
+短い規則の場合の `old_mem_isolateOutput` に相当する補題：単純に `IsolateNT.old` で包んだだけの記号列に `old A` が現れれば、元の記号列に `A` が現れていたことを意味する。
+
 ```lean
 @[grind .] public theorem isolateTerminals_initial_not_output
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT]
@@ -3053,6 +3335,8 @@ public def expandBinaryForm
   · simp [terminalIsolationRule] at hmem
 
 ```
+
+パイプライン全体で保存されてきた「初期記号は右辺に現れない」を、終端記号分離段階でも保つ。長い規則・短い規則のどちらの生成方法でも、右辺に現れる初期記号は元規則の右辺由来であることに帰着させ、終端専用規則には初期記号が現れようがないことも合わせて処理する。
 
 ```lean
 @[grind .] public theorem isolateTerminals_no_noninitial_empty
@@ -3078,6 +3362,8 @@ public def expandBinaryForm
   · simp [terminalIsolationRule] at hout
 
 ```
+
+「非初期記号の空規則を作らない」という不変条件も、終端記号分離段階で保存されることを示す。長い規則は `isolateOutput` が長さを変えないため空右辺になり得ず、短い規則は元規則が空だった場合に帰着し、終端専用規則はそもそも右辺が空でないため対象外になる。
 
 ```lean
 @[grind .] public theorem isolateTerminals_no_unit
@@ -3121,6 +3407,8 @@ public def expandBinaryForm
 
 ```
 
+二分化段階が必要とする最後の側条件：終端記号分離後の文法では、長さ 2 以上の右辺は必ず非終端記号だけからなる。長い規則は `isolateOutput_allNonterminals` に、短い規則は矛盾（長さ 2 以上のはずがない）に、終端専用規則は右辺の長さが 1 であることに帰着させて示す。この性質が `binarize_language_forward` の `hall` 仮定として実際に満たされることを保証する。
+
 ```lean
 @[grind .] public theorem isolateTerminals_long_rhs_all_nonterminals
     (g : ContextFreeGrammar T) [DecidableEq T] [DecidableEq g.NT] :
@@ -3142,6 +3430,8 @@ public def expandBinaryForm
 
 ```
 
+`isolateTerminals_long_rhs_all_nonterminals` を実際の前提として渡し、順方向・逆方向の包含を合わせて二分化段階が言語を厳密に保存することを結論する。パイプライン全体の言語等式 `calc` 連鎖の最後の一段を担う。
+
 ```lean
 @[grind .] theorem binarize_language (g : ContextFreeGrammar T)
     [DecidableEq T] [DecidableEq g.NT]
@@ -3156,7 +3446,16 @@ public def expandBinaryForm
 
 ## Chomsky 標準形変換の合成
 
-各中間変換と不変条件を順に合成して `ChomskyNormalGrammar` を構成する。必要な線形順序の instance を公開し、最終文法の言語が入力文法と等しいことを API 定理としてまとめる。
+各中間変換と不変条件を順に合成して `ChomskyNormalGrammar` を構成する。必要な線形順序の instance を公開し、最終文法の言語が入力文法と等しいことを API 定理としてまとめる。全体のパイプラインは次の五段階からなる。
+
+```mermaid
+flowchart LR
+    G["g : ContextFreeGrammar"] -->|freshStart| G1["g₁ : FreshStartNT"]
+    G1 -->|removeEpsilon| G2["g₂"]
+    G2 -->|removeUnit| G3["g₃"]
+    G3 -->|isolateTerminals| G4["g₄ : IsolateNT"]
+    G4 -->|binarize| G5["g₅ : BinaryNT (Chomsky 標準形)"]
+```
 
 ```lean
 /-- Package the public Chomsky-normal-form conversion result.
@@ -3202,6 +3501,8 @@ stable across importing modules. -/
         binarize_initial_not_output g₄ hnot₄ }
 ```
 
+各段階が生成する非終端記号型は入れ子構造になっており（`BinaryNT (IsolateNT T (g₃.NT))` など）、決定可能な等価性の instance を毎回 `infer_instance` で明示的に張り替える必要がある。この定理は、実行可能な非終端記号型に対しても線形順序が自動的に手に入ることを示し、パイプラインが生成する文法を `Finset.sort` などの順序依存の操作にそのまま渡せるようにする。
+
 ```lean
 /-- The generated nonterminal type of the computable Chomsky conversion
 inherits a computable linear order. -/
@@ -3229,6 +3530,8 @@ inherits a computable linear order. -/
   change LinearOrder (BinaryNT g₄.NT)
   infer_instance
 ```
+
+パイプライン全体の正しさをまとめる、この節の最終目標。各段階の言語等式（`freshStart_language`・`removeEpsilon_language`・`removeUnit_language`・`isolateTerminals_language`・`binarize_language`）を `calc` で逆順に連鎖させることで、`toChomskyNormalGrammar g` の言語が入力文法 `g` の言語にちょうど一致することを証明する。この等式が、変換の各段階が個別に確立してきた不変条件と言語保存を、一つの公開 API 定理として統合する。
 
 ```lean
 @[important, grind =, simp] public theorem toChomskyNormalGrammar_language {T : Type}

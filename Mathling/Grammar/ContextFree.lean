@@ -12,6 +12,8 @@
 
 文脈自由文法の有限台を抽出し、導出を構造化した証拠木へ変換する補助理論を提供する。有限性の計算可能な境界と、通常の書換え導出と木構造意味論の往復が、後続のオートマトン変換の基盤になる。
 
+`rhsNonterminals` は文中に現れる非終端記号を出現順に取り出す走査関数であり、以降で構成する有限台や証拠木の基礎となる。これが非終端記号だけを順序を保って正しく収集することが、次に定義する `ContextFreeRule.nonterminals` や `activeNonterminals` の正しさの前提になる。
+
 ```lean
 
 /-!
@@ -34,6 +36,8 @@ public def rhsNonterminals {T N : Type*} : List (Symbol T N) → List N
 
 ```
 
+`ContextFreeRule.nonterminals` は `rhsNonterminals` を用いて、規則の左辺 `input` と右辺に現れる非終端記号をまとめて列挙する。これにより「その規則が言及する非終端記号」が一つの値として取り出せるようになり、次節の文法全体の有限台の定義が、規則ごとのこの列挙の単純な合併として書ける。
+
 ```lean
 namespace ContextFreeRule
 
@@ -41,6 +45,8 @@ namespace ContextFreeRule
 public def nonterminals {T N : Type*} (r : ContextFreeRule T N) : List N :=
   r.input :: rhsNonterminals r.output
 ```
+
+`Rewrites.mapNonterminal` は、非終端記号の名前替え `f` が一歩の書き換え関係と可換であることを示す：規則 `r` による書き換えを `f` で写した結果は、写された規則 `ContextFreeRule.mapNonterminal f r` による書き換えと一致する。この可換性がなければ、非終端記号を付け替える文法変換（正規形変換など）が書き換え関係を保つことを変換のたびに個別に証明し直す必要が生じる。
 
 ```lean
 /-- Renaming nonterminals preserves a one-rule rewrite. -/
@@ -66,10 +72,14 @@ end ContextFreeRule
 
 `rhsNonterminals` は文中に現れる非終端記号を出現順に取り出す走査であり、`ContextFreeRule.nonterminals` はそれに規則の左辺 `input` を先頭として加えたものである。これらを部品として、次節では文法全体が実際に参照する非終端記号の有限集合を構成する。
 
+以下、`ContextFreeGrammar` 名前空間の中で文法全体の有限台を定義する。
+
 ```lean
 namespace ContextFreeGrammar
 
 ```
+
+`activeNonterminals g` は、初期記号と全規則の入出力に現れる非終端記号を合わせた有限集合であり、文法 `g` が実際に「言及する」非終端記号だけを過不足なく捉える。この集合が有限であること自体が、後続の正規形変換で非終端記号の一覧を計算的に扱うための土台になる。もし文法の台が無限であり得るなら、こうした変換アルゴリズムはそもそも構成できない。
 
 ```lean
 variable {T N : Type*}
@@ -81,6 +91,8 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
 
 ```
 
+`initial_mem_activeNonterminals` は、初期記号が定義から自明にこの有限集合へ含まれることを確認する、最も基本的な所属補題である。
+
 ```lean
 @[grind ., simp] public theorem initial_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT] :
@@ -89,6 +101,8 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
   simp [activeNonterminals]
 
 ```
+
+`rule_input_mem_activeNonterminals` は、文法の各規則の左辺非終端記号が `activeNonterminals` に属することを示す。規則を有限個列挙するだけでは、その左辺が「文法の台」に含まれることは定義から自動的には従わないため、この補題が両者を結びつける。
 
 ```lean
 @[grind =>] public theorem rule_input_mem_activeNonterminals (g : ContextFreeGrammar T)
@@ -102,6 +116,8 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
   exact ⟨r, hr, by simp [ContextFreeRule.nonterminals]⟩
 
 ```
+
+次の `rule_rhs_mem_activeNonterminals` の証明に使う補助として、まず `rhsNonterminals` の構造的な性質を確立する：ある非終端記号が文中に（`Symbol.nonterminal` として）出現するなら、`rhsNonterminals` による走査でも必ずその記号が取り出されることを示す。
 
 ```lean
 @[grind .] private theorem mem_rhsNonterminals_of_nonterminal_mem
@@ -121,6 +137,8 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
           · exact List.mem_cons.mpr (Or.inr (ih htail))
 
 ```
+
+`rule_rhs_mem_activeNonterminals` は、規則の右辺に現れる非終端記号もまた `activeNonterminals` に属することを、直前の補助補題を使って示す。`rule_input_mem_activeNonterminals` と合わせて、規則の左右両辺のすべての非終端記号がこの有限集合に収まることが保証される。
 
 ```lean
 @[grind =>] public theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
@@ -142,7 +160,7 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
 
 `activeNonterminals g` は初期記号と全規則の入出力に現れる非終端記号を合わせた有限集合であり、文法 `g` が実際に参照する非終端記号だけを過不足なく捉える。`initial_mem_activeNonterminals`・`rule_input_mem_activeNonterminals`・`rule_rhs_mem_activeNonterminals` はそれぞれ、初期記号・各規則の左辺・各規則の右辺に現れる非終端記号がこの集合に属することを保証し、内部の `mem_rhsNonterminals_of_nonterminal_mem` はそのうち右辺に関するものを `rhsNonterminals` の構造的な性質として支える。
 
-次に、終端記号列だけからなる文に関する基本的な性質を確立する。
+次に、終端記号列だけからなる文に関する基本的な性質を確立する。`terminalSymbols_injective` は、終端記号だけへの埋め込み `terminalSymbols` が単射であることを示す。これは、書き換え結果を語として一意に読み取るための前提であり、次の `derives_terminals_eq` で「導出しても語が変わらない」ことを示す際に使われる。
 
 ```lean
 /-- Terminal embedding is injective. -/
@@ -162,6 +180,8 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
           exact congrArg (a :: ·) (ih htail)
 ```
 
+`no_rewrites_terminals` は、終端記号だけからなる文が文脈自由規則によって一切書き換えられないことを示す。非終端記号を持たない文にはもう展開の余地がない、という直感を形式化しており、次の `derives_terminals_eq` で「導出列の最初の一歩」を排除する場合分けに使われる。
+
 ```lean
 /-- A context-free rule cannot rewrite a terminal-only sentential form. -/
 @[grind .] public theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
@@ -174,6 +194,8 @@ public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Fi
       cases h with
       | cons _ htail => exact ih htail
 ```
+
+`derives_terminals_eq` は、終端記号列同士の導出が実は同じ語を保つことを示す：導出が空でなければ最初の一歩が `no_rewrites_terminals` により矛盾するため導出は反射的でしかあり得ず、`terminalSymbols_injective` により語が一致する。この事実は、後の証拠木の構成（`derivationFormTree_terminals`）で「これ以上導出が進まない」終端状態を扱う際の基盤になる。
 
 ```lean
 /-- A derivation between terminal-only forms does not change the word. -/
@@ -230,6 +252,8 @@ termination_by xs.length
 
 ```
 
+`derivationFormTree_split_append` は `derivationFormTree_append` の逆方向であり、連接された文 `xs ++ ys` への証拠木が与えられたとき、それを `xs` への証拠木と `ys` への証拠木、およびそれぞれが生成する語 `u`・`v`（`w = u ++ v`）へ一意に分解する。この分解が、次節で一歩の書き換え `Produces` を証拠木へ翻訳する際に、書き換えられた部分だけを取り出す道具として使われる。
+
 ```lean
 @[grind .] private theorem derivationFormTree_split_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {w : List T}
@@ -264,6 +288,8 @@ termination_by xs
 
 ```
 
+`derivationFormTree_of_produces` は、一歩の生成 `Produces u v` と `v` への証拠木から `u` への証拠木を構成する。`hstep.exists_parts` で書き換え箇所の前後 `p`・`q` を取り出し、`derivationFormTree_split_append` で証拠木をその境目ごとに分解し、書き換えられた非終端記号の位置を規則適用ノード（`DerivationSymbolTree.nonterminal`）に置き換えてから `derivationFormTree_append` で貼り戻す。この一段階の変換が、次の `derivationFormTree_of_derives` で導出列全体を畳み込むための帰納法の核となる。
+
 ```lean
 @[grind .] private theorem derivationFormTree_of_produces
     (g : ContextFreeGrammar T)
@@ -284,6 +310,8 @@ termination_by xs
       (DerivationFormTree.cons (DerivationSymbolTree.nonterminal r hr hout) hq)
 
 ```
+
+`derivationFormTree_of_derives` は、任意の終端記号列への導出 `Derives` から証拠木を構成する、この節の目標である。`Derives` が反射推移閉包であることを使い、`Relation.ReflTransGen.head_induction_on` で先頭の一歩ずつ `derivationFormTree_of_produces` を適用していくことで、導出列全体に対応する証拠木を組み立てる。
 
 ```lean
 @[grind .] public theorem derivationFormTree_of_derives
@@ -312,6 +340,8 @@ termination_by xs
   have h₂ := ht.append_left (terminalSymbols u)
   simpa [terminalSymbols, List.map_append, List.append_assoc] using h₁.trans h₂
 ```
+
+`derives_lift_of_produces` は、生成規則ごとの対応（`g₁` の一歩の生成を `g₂` の導出でシミュレートできるという仮定 `hstep`）を、`g₁` の任意の導出全体のシミュレーションへ持ち上げる。`Derives` の反射推移閉包上の帰納法により、`refl` の場合は自明に、`tail` の場合は直前までのシミュレーションと最後の一歩のシミュレーションを推移性でつなぐ。正規形変換などで「規則ごとに言語保存を示せば文法全体の言語保存が従う」という議論を、この補題一つに集約できる。
 
 ```lean
 /-- Lift a simulation of source production steps to complete derivations. -/

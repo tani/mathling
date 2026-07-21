@@ -25,10 +25,18 @@ namespace Mathling.Grammar
 
 ```
 
+以下、`LeftLinearGrammar` の基本語彙（生成言語・文脈自由性・線形文法への忘却）をまとめる。
+これらは反転構成の前提となる最小限の道具立てであり、反転そのものにはまだ触れない。
+
 ```lean
 namespace LeftLinearGrammar
 
 ```
+
+左線形文法が生成する言語を、その下敷きとなる文脈自由文法の言語として定義する。
+`body` を `@[expose]` で公開するのは、後段の反転定理が右線形文法側の反転言語との
+等式として `language` を書き換えられるようにするためで、この可約性がなければ
+橋渡し定理の証明で `language` の定義展開に手が届かない。
 
 ```lean
 variable {T : Type*}
@@ -42,6 +50,10 @@ reversed language of the associated right-linear grammar. -/
 @[expose] public def language (g : LeftLinearGrammar T) : Language T := g.cfg.language
 ```
 
+左線形性は文脈自由規則の形状に対する追加の制約に過ぎないので、その制約を捨てれば
+文脈自由性は自明に得られる。この事実は本ファイルの反転構成が最終的に正則性へ
+つながる際、途中でも文脈自由文法としての一般的な結果を再利用できることを保証する。
+
 ```lean
 /-- Every left-linear grammar is context-free after forgetting its rule-shape
 certificate. -/
@@ -52,6 +64,11 @@ certificate. -/
   ⟨g.cfg, rfl⟩
 ```
 
+左線形性の三ケース（空右辺・終端一個・非終端が先頭に来る二記号右辺）は、いずれも
+一般の線形性述語（非終端の出現数が高々一つ）を満たす特殊例である。`toLinear` は
+その包摂関係を文法レベルの射として具体化し、線形文法に対する既存の結果を
+左線形文法にも流用できるようにする橋渡し役を担う。
+
 ```lean
 /-- Forget that a left-linear grammar is left-linear. -/
 public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
@@ -61,6 +78,11 @@ public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
       simp [ContextFreeRule.IsLinear, ContextFreeRule.nonterminalCount,
         symbolIsNonterminal, h]
 ```
+
+`toLinear` を経由しても生成言語は変わらないことを確認する。これは単なる恒等式
+（`rfl`）だが、`toLinear` が意味論を保存する忘却写像であることを保証しており、
+以後どちらの文法観点からでも同じ `language` を指して議論できるという不変条件を
+下支えする。
 
 ```lean
 @[important, grind =, simp] public theorem toLinear_language (g : LeftLinearGrammar T) :
@@ -82,6 +104,11 @@ end LeftLinearGrammar
   simp [ContextFreeRule.reverse, h]
 ```
 
+終端記号一個だけの右辺は左右対称なので反転しても不変である。これは左線形規則の
+「終端一個」ケースと右線形規則の対応ケースを橋渡しする際、右辺の中身については
+何も証明する必要がないことを意味し、後続の `reverseRightLinear` / `reverseLeftLinear`
+の場合分けを単純化する。
+
 ```lean
 /-- Reversing a rule with singleton output leaves the output unchanged. -/
 @[grind .] private theorem ContextFreeRule.reverse_output_singleton {T N : Type*}
@@ -89,6 +116,11 @@ end LeftLinearGrammar
     r.reverse.output = [Symbol.terminal a] := by
   simp [ContextFreeRule.reverse, h]
 ```
+
+二記号右辺こそが左線形と右線形の違いが実際に現れる箇所である。非終端が先頭に来る
+左線形の形（非終端・終端の順）は、反転すると終端・非終端の順になり右線形の形へ
+移る。この順序交換こそが `reverseRightLinear` / `reverseLeftLinear` で場合分けの
+最後の枝を埋める核心的な補題である。
 
 ```lean
 /-- Reversing a rule with two-symbol output swaps the two symbols. -/
@@ -108,6 +140,11 @@ namespace LeftLinearGrammar
 
 ```
 
+直前の三補題（空・単一終端・二記号の各ケース）を場合分けの根拠として使い、
+左線形規則の集合をまるごと右線形規則の集合へ写す。ここで規則の集合を `Finset.map`
+で押し出すことにより、生成される文脈自由文法のレベルでは何も壊さずに規則の形状
+述語だけを左線形から右線形に付け替えられる。
+
 ```lean
 variable {T : Type*}
 
@@ -125,12 +162,23 @@ public def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T w
     · exact Or.inr (Or.inr ⟨a, A, ContextFreeRule.reverse_output_pair h⟩)
 ```
 
+`reverseRightLinear` は規則を反転するだけで、生成される言語もちょうど反転される
+ことをここで確認する。この等式が次の `language_isRegular` で正則性を右線形文法
+側へ移送する際の唯一の橋であり、これがなければ反転された文法の正則性から元の
+文法の正則性を取り戻せない。
+
 ```lean
 /-- Reversing productions reverses the generated language. -/
 @[grind =, simp] theorem reverseRightLinear_language (g : LeftLinearGrammar T) :
     g.reverseRightLinear.language = g.language.reverse := by
   simp [reverseRightLinear, RightLinearGrammar.language, LeftLinearGrammar.language]
 ```
+
+非終端記号が有限個であれば、反転してできた右線形文法にも同じ有限性が（`Fintype`
+インスタンスの付け替えを通して）伝わり、右線形文法に対する既存の正則性定理を
+適用できる。あとは `reverseRightLinear_language` で得た反転の等式と、正則性が
+言語の反転で保たれるという事実を合わせれば、左線形文法自身の正則性が導かれる。
+これが本ファイルの主定理（末尾の同値定理）を支える最終ステップである。
 
 ```lean
 /-- A left-linear grammar with finitely many nonterminals generates a regular language. -/
@@ -157,6 +205,11 @@ namespace RightLinearGrammar
 
 ```
 
+先の `reverseRightLinear` の鏡像に当たる構成である。右線形規則の三ケースを
+同じ三補題で反転し、右線形文法から左線形文法を作る。この向きの構成がなければ、
+末尾の同値定理で「正則 → 左線形文法が存在する」という向きの witness を右線形
+文法の既存結果から作り出す手段がない。
+
 ```lean
 variable {T : Type*}
 
@@ -173,6 +226,10 @@ public def reverseLeftLinear (g : RightLinearGrammar T) : LeftLinearGrammar T wh
     · exact Or.inr (Or.inl ⟨a, ContextFreeRule.reverse_output_singleton h⟩)
     · exact Or.inr (Or.inr ⟨B, a, ContextFreeRule.reverse_output_pair h⟩)
 ```
+
+反転の involution 性から期待される通り、`reverseLeftLinear` も生成言語をちょうど
+反転する。この等式が末尾の同値定理で「右線形 witness の反転した言語」を「元の
+言語」へ戻す最後の書き換えステップとして使われる。
 
 ```lean
 /-- Reversing productions reverses the generated language. -/

@@ -24,6 +24,12 @@ namespace Mathling.Automata
 
 ```
 
+## NFA から有限局所 NPDA への埋め込み
+
+有限な入力 alphabet と状態集合のもとで、`localPushdownRules` は NFA の遷移辺を有限列として列挙する。各規則は唯一の `PUnit` マーカーを pop して同じマーカーを push するため、スタックは実質的に変化しない。したがって変換後も探索の分岐は元の NFA の遷移関係だけで決まる。
+
+有限NFAの遷移辺をひとつのpush/pop規則へ機械的に翻訳する。各規則はスタックマーカー`PUnit`を一つpopし同じマーカーを一つpushするため、スタック操作は事後的に何の情報も運ばない——つまりこの規則列は「スタックなしのNPDA」を模倣するためだけに存在する。ここで生成された規則リストが、以下の `toNPDA`／`toDPDA` の遷移構造そのものになる。
+
 ```lean
 namespace NFA
 
@@ -40,6 +46,8 @@ public noncomputable def localPushdownRules [Fintype α] [Fintype σ]
         push := [PUnit.unit] }
 ```
 
+`localPushdownRules` で得た規則列を NPDA 構造体に詰め、開始・受理状態集合とスタック初期値 `[PUnit.unit]` を設定する。スタックマーカーを常に一枚に保つことで、以降の証明はスタックの深さを気にせず経路の存在だけに帰着できる。
+
 ```lean
 /-- Regard a finite NFA as a finite-local NPDA whose sole stack marker is
 preserved by every transition. -/
@@ -52,6 +60,8 @@ public noncomputable def toNPDA [Fintype α] [Fintype σ]
       accept := (Finset.univ.filter fun q => q ∈ M.accept).toList
       initialStack := [PUnit.unit] }
 ```
+
+正しさは NFA の `Path` と局所 NPDA の `Reaches` を相互変換して示す。まずこの一方向: NFA の `Path` を `toNPDA` 上の `Reaches` へ単調に持ち上げる。帰納法の各ステップでは、`localPushdownRules` により生成された対応する規則が存在することを `classical simp` で示すだけでよく、スタックは常に `[PUnit.unit]` のまま消費規則を辿れることを保証する。次の `toNPDA_reaches_path` と対になり、`toNPDA_language` の両方向の証明を支える。
 
 ```lean
 private theorem path_toNPDA_reaches [Fintype α] [Fintype σ]
@@ -68,6 +78,8 @@ private theorem path_toNPDA_reaches [Fintype α] [Fintype σ]
         simp [toNPDA, localPushdownRules, hedge]
       · rfl
 ```
+
+逆変換では、すべての規則が consuming 規則であり、マーカーを保存することも同時に回収する。スタックが常に単一マーカーのまま `Reaches` した経路は、対応する NFA の `Path` へ折り返せる。`NPDA.Step` の `epsilon` 規則が `localPushdownRules` には現れない（`input` は常に `some` であり、`Option` の `none` 反証で即座に排除される）ことが鍵であり、これにより NPDA の経路が NFA の経路と一対一に対応することが保証される。
 
 ```lean
 private theorem toNPDA_reaches_path [Fintype α] [Fintype σ]
@@ -98,6 +110,8 @@ private theorem toNPDA_reaches_path [Fintype α] [Fintype σ]
           exact (Option.some_ne_none _ input_eq).elim
 ```
 
+`path_toNPDA_reaches` と `toNPDA_reaches_path` を組み合わせ、`toNPDA` が元の NFA の受理言語をそのまま保つことを結論する主定理。`@[important]` が付き、この埋め込みが正則言語から文脈自由言語（NPDA 受理言語）への構成的な包含関係を与える橋渡しであることを示す。
+
 ```lean
 /-- The finite-local NPDA embedding accepts exactly the NFA language. -/
 @[important, grind =, simp] public theorem toNPDA_language [Fintype α] [Fintype σ]
@@ -119,13 +133,9 @@ private theorem toNPDA_reaches_path [Fintype α] [Fintype σ]
 end NFA
 ```
 
-## NFA から有限局所 NPDA への埋め込み
+## DFA から決定性 DPDA への埋め込み
 
-有限な入力 alphabet と状態集合のもとで、`localPushdownRules` は NFA の遷移辺を有限列として列挙する。各規則は唯一の `PUnit` マーカーを pop して同じマーカーを push するため、スタックは実質的に変化しない。したがって変換後も探索の分岐は元の NFA の遷移関係だけで決まる。
-
-正しさは NFA の `Path` と局所 NPDA の `Reaches` を相互変換して示す。逆変換では、すべての規則が consuming 規則であり、マーカーを保存することも同時に回収する。DFA の変換はこの NFA 埋め込みを再利用し、規則の一意性を元の遷移関数の単値性から証明する。
-
-続いて、DFA を決定性版の DPDA へ同様に埋め込む。この場合は NFA の場合に帰着させることで証明を再利用する。
+続いて、DFA を決定性版の DPDA へ同様に埋め込む。この場合は NFA の場合に帰着させることで証明を再利用する。`toDPDA` は DFA の遷移関数を `localPushdownRules M.toNFA` で生成される規則に基づき構成し、決定性 (`deterministic`) を証明する。決定性の証明は「同じ `source` と `input` を持つ二つの規則は同じ `target` を持つ」ことを `DFA.toNFA_step` の単一性 (`Set.mem_singleton_iff`) から導く点が核心であり、これがなければ一般の PDA 規則から作った `toDPDA` が実際に決定性オートマトンとして well-formed であることが保証できない。
 
 ```lean
 namespace DFA
@@ -159,6 +169,8 @@ public noncomputable def toDPDA [Fintype α] [Fintype σ]
   subst p'
   rfl
 ```
+
+`toDPDA` の `toNPDA` が（開始状態リストの表現を除いて）NFA 側の `toNPDA M.toNFA` と定義上一致することを `hmachine` で示し、既に証明済みの `NFA.toNPDA_language` と `DFA.toNFA_correct` を合成して結論する。これにより Finite.lean の埋め込み系列全体——NFA→NPDA、DFA→DPDA——が受理言語を保存する一貫した変換であることが確定する。
 
 ```lean
 /-- The stack-free local DPDA accepts exactly the DFA language. -/

@@ -33,15 +33,21 @@ namespace Mathling.Automata
 
 ```
 
+状態除去アルゴリズムはこの後の補題群を通じて `NFA` 名前空間の内部に閉じる。以降の宣言はすべて非公開 (`private`) であり、公開されるのは最終的な `toRegex` と `toRegex_language` だけである。
+
 ```lean
 namespace NFA
 
 ```
 
+正規表現側の演算子名 (`union`, `concat`, `star`, `epsilon`, `symbol` など) を裸の識別子として使うため、`RegularExpression` 名前空間を開く。
+
 ```lean
 open RegularExpression
 
 ```
+
+`RestrictedPath M allowed p q word` は、`p` から `q` への `word` を読む NFA の経路のうち、途中に現れる状態がすべて `allowed` に属するものだけを表す。`allowed` を空集合から始めて一状態ずつ増やしていく（状態除去法の核心）ための補助的な帰納述語であり、以降のすべての補題はこの述語の性質として述べられる。
 
 ```lean
 variable {α σ : Type*}
@@ -58,6 +64,8 @@ variable {α σ : Type*}
 
 ```
 
+`allowed` による制約は「経路が存在するかどうか」自体には影響しない——制約を忘れれば普通の `Path` が得られる、という一方向の埋め込みを与える。これにより、最終的に `RestrictedPath` で構成した正規表現の言語が本物の NFA の受理語を含むことを示せる。
+
 ```lean
 @[grind .] private theorem RestrictedPath.toPath
     {M : NFA α σ} {allowed : Set σ} {p q : σ} {word : List α}
@@ -69,6 +77,8 @@ variable {α σ : Type*}
       exact ⟨.cons _ _ _ _ _ edge path⟩
 ```
 
+逆方向: 任意の NFA の `Path` は、制約集合を状態全体 `Set.univ` にとれば必ず `RestrictedPath` として実現できる。`toRegex` の最終定理は、状態集合全体を許可した `eliminate` がもとの NFA と同じ言語を持つことを示す必要があるため、この極限ケースへの持ち上げが不可欠になる。
+
 ```lean
 private theorem RestrictedPath.ofPath_univ
     {M : NFA α σ} {p q : σ} {word : List α}
@@ -78,6 +88,8 @@ private theorem RestrictedPath.ofPath_univ
   | cons mid p q a word edge rest ih =>
       exact .cons edge ih (Or.inr (Set.mem_univ mid))
 ```
+
+許可集合を大きくしても、既に成り立っていた `RestrictedPath` は成り立ち続ける（単調性）。これは状態除去法で許可集合を一状態ずつ増やしていく際、「まだ除去していない状態だけを通る経路」を「今除去した状態を通ってよい経路」へ横滑りさせるために使う基本補題であり、後続の `restrictedPath_insert_iff` の両方向でともに利用される。
 
 ```lean
 @[grind .] private theorem RestrictedPath.mono
@@ -90,6 +102,8 @@ private theorem RestrictedPath.ofPath_univ
       exact .cons edge ih (internal.imp_right fun h => hSU h)
 
 ```
+
+同じ許可集合のもとでの二つの `RestrictedPath` を、中間状態 `mid` が許可集合に属している限り連結できる。状態除去の式 $`R_{S\cup\{k\}}(p,q)=R_S(p,q)+R_S(p,k)\,R_S(k,k)^*\,R_S(k,q)`$ の右辺（入口・自己 loop・出口の連結）を構成的に組み立てるための土台であり、直後の `restrictedPath_insert_iff` の逆方向で三つの `RestrictedPath` を貼り合わせるのに使われる。
 
 ```lean
 @[grind .] private theorem RestrictedPath.append
@@ -111,6 +125,8 @@ private theorem RestrictedPath.ofPath_univ
         simpa [hnext] using hmid
       · exact internal.resolve_left hword |> Or.inr
 ```
+
+状態除去法そのものを述語のレベルで実証する中心定理。新しく状態 `k` を許可集合に加えたときの `RestrictedPath` を、「`k` を全く通らない経路」と「`k` への入口 `pre`・`k` 上の自己 loop 列 `loops`・`k` からの出口 `suffix` に分解できる経路」の直和として特徴づける。順方向は `Path` の帰納法で `k` を最初に通る場所ごとに場合分けし、逆方向は `RestrictedPath.append` を繰り返し使って三つの断片を貼り戻す。この同値が成り立たなければ、以下の正規表現側の `eliminate` 漸化式が言語として正しいことを主張できない。
 
 ```lean
 /-- The state-elimination decomposition at one newly allowed state. -/
@@ -176,12 +192,16 @@ private theorem RestrictedPath.ofPath_univ
 遷移を集め、`baseRegex` は反射 epsilon 経路を加える。`eliminate` は上の漸化式を状態列に
 沿って反復する。
 
+有限本の正規表現を一つの和にまとめる補助関数。`toRegex` は「開始状態から受理状態への `eliminate` 結果」を全ペアぶん `unionAll` で束ねるので、ここが有限個の場合分けを一つの正規表現に潰す唯一の場所になる。
+
 ```lean
 private def unionAll : List (RegularExpression α) → RegularExpression α
   | [] => empty
   | r :: rs => union r (unionAll rs)
 
 ```
+
+`unionAll` の言語が要素の言語の和集合（存在量化）に一致することを述べる。`edgeRegex`・`toRegex` のどちらも `unionAll` で組んだ式の言語的な意味を扱うため、以降のほぼすべての言語同値の証明はこの補題を経由する。
 
 ```lean
 @[grind =, simp] private theorem mem_language_unionAll
@@ -200,12 +220,16 @@ private def unionAll : List (RegularExpression α) → RegularExpression α
         · exact Or.inr ⟨s, hs, hword⟩
 ```
 
+状態除去の漸化式の基底部分のうち「一文字で `p` から `q` へ直接遷移する」部分を正規表現化する。alphabet を有限として列挙し、`q ∈ M.step p a` を満たす記号 `a` すべてについて `symbol a` の和をとる。これが空語を含まないちょうど長さ 1 の言語になることが、次の `baseRegex` で epsilon 経路と正しく切り分けるために必要になる。
+
 ```lean
 private noncomputable def edgeRegex [Fintype α]
     (M : NFA α σ) (p q : σ) : RegularExpression α := by
   classical
   exact unionAll ((Finset.univ.filter fun a => q ∈ M.step p a).toList.map symbol)
 ```
+
+`edgeRegex` の言語が「`p` から `q` へ一文字 `a` で遷移できる」という NFA の遷移関係とちょうど一致することを述べる。以降 `baseRegex` や `eliminate` の正しさの証明はこの言語的意味づけを土台にする。
 
 ```lean
 @[grind =] private theorem mem_language_edgeRegex [Fintype α]
@@ -223,12 +247,16 @@ private noncomputable def edgeRegex [Fintype α]
     exact ⟨symbol a, ⟨a, edge, rfl⟩, Set.mem_singleton [a]⟩
 ```
 
+状態除去漸化式の基底ケース（許可集合が空のとき）そのもの。`p = q` なら反射的な空語経路を `epsilon` で表し、そうでなければ一文字遷移だけを `edgeRegex` で表す。この if 分岐が正しいのは、許可集合が空だと `RestrictedPath` の経路は長さ 0 か長さ 1 しかありえないためであり、`mem_language_baseRegex` がその事実を証明する。
+
 ```lean
 private noncomputable def baseRegex [Fintype α]
     (M : NFA α σ) (p q : σ) : RegularExpression α := by
   classical
   exact union (if p = q then epsilon else empty) (edgeRegex M p q)
 ```
+
+`baseRegex` の言語が「許可集合を空にした `RestrictedPath`」とちょうど一致することを述べ、状態除去帰納法 (`eliminate`) の基底段 (`states = []`) の正しさを保証する。
 
 ```lean
 @[grind =] private theorem mem_language_baseRegex [Fintype α]
@@ -265,6 +293,8 @@ private noncomputable def baseRegex [Fintype α]
         exact Or.inr ((mem_language_edgeRegex M p _ [a]).mpr ⟨a, edge, rfl⟩)
 ```
 
+状態除去アルゴリズムの中心となる再帰定義。`states` に列挙された状態を一つずつ「除去」しながら、冒頭の漸化式 $`R_{S\cup\{k\}}(p,q)=R_S(p,q)+R_S(p,k)\,R_S(k,k)^*\,R_S(k,q)`$ をそのまま正規表現の演算 (`union`, `concat`, `star`) へ翻訳する。基底は `baseRegex`、状態を一つ増やすたびに `k` を経由する部分を `star` で束ねる。
+
 ```lean
 private noncomputable def eliminate [Fintype α]
     (M : NFA α σ) : List σ → σ → σ → RegularExpression α
@@ -275,6 +305,8 @@ private noncomputable def eliminate [Fintype α]
           (star (eliminate M states k k)))
           (eliminate M states k q))
 ```
+
+`eliminate` の再帰定義が実際にこの漸化式の意味を持つことを、`restrictedPath_insert_iff` を使って状態リストに関する帰納法で証明する。これが `RestrictedPath` の組合せ論的な性質を正規表現の言語同値へ変換する要となる補題であり、最終的な `toRegex_language` はこの補題を状態全体に適用するだけで得られる。
 
 ```lean
 @[grind =] private theorem mem_language_eliminate [Fintype α]
@@ -321,6 +353,8 @@ public noncomputable def toRegex [Fintype α] [Fintype σ]
   let accepts : List σ := (Finset.univ.filter fun q => q ∈ M.accept).toList
   exact unionAll (starts.flatMap fun p => accepts.map fun q => eliminate M states p q)
 ```
+
+`toRegex` の正しさは、NFA の `accepts_iff_exists_path`（開始状態から受理状態への `Path` として受理を特徴づける）と、`mem_language_eliminate` を `states` 全体に適用したもの（`RestrictedPath.toPath`／`RestrictedPath.ofPath_univ` で `RestrictedPath` と生の `Path` を行き来する）を組み合わせて示す。`@[important]` が付いたこの定理が、本モジュール冒頭で述べた「NFA を正規表現へ変換する状態除去法」の公開契約そのものである。
 
 ```lean
 /-- State elimination preserves the accepted language. -/

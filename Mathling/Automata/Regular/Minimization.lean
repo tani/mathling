@@ -29,6 +29,8 @@ public abbrev Language.minimalDFA (L : Language α) :
     DFA α (Set.range L.leftQuotient) := L.toDFA
 ```
 
+`Language.minimalDFA` は `Language.toDFA` の別名にすぎないため、この定理は実質的に `Language.accepts_toDFA` を書き写すだけで得られる。しかし公開契約としては重要で、これがなければ「商 DFA を構成した」という主張が、実際に元の言語 `L` を受理するという保証と結び付かない。以降の `minimalDFA_card_le` はこの事実を前提に、状態数の最小性という定量的な主張へ進む。
+
 ```lean
 /-- The canonical quotient DFA accepts its defining language. -/
 @[important, grind =, simp] public theorem Language.minimalDFA_accepts (L : Language α) :
