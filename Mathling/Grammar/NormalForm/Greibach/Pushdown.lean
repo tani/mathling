@@ -28,7 +28,8 @@ generates it. Forward: every context-free grammar has a language-preserving
 Greibach-normal presentation (`ContextFreeGrammar.Classical.toGreibachNormalGrammar`).
 Backward: forgetting Greibach-normality evidence returns a plain context-free
 grammar for the same language. -/
-@[important, grind =] theorem isContextFree_iff_exists_greibachNormalGrammar {T : Type} {L : Language T} :
+@[important, grind =] theorem isContextFree_iff_exists_greibachNormalGrammar
+    {T : Type} {L : Language T} :
     L.IsContextFree ↔ ∃ g : GreibachNormalGrammar T, g.language = L := by
   constructor
   · rintro ⟨g, rfl⟩

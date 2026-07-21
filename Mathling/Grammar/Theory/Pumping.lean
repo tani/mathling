@@ -65,7 +65,7 @@ def height {g : ChomskyNormalGrammar T} {A : g.cfg.NT} :
       omega
 
 /-- A binary parse tree of height `h` has at most `2^(h-1)` leaves. -/
-@[grind] theorem yield_length_le {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
+@[grind .] theorem yield_length_le {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) : (yield t).length ≤ 2 ^ (height t - 1) := by
   induction t with
   | leaf => simp [yield, height]
@@ -93,7 +93,7 @@ def height {g : ChomskyNormalGrammar T} {A : g.cfg.NT} :
           omega
 
 /-- A parse tree witnesses a grammar derivation of its yield. -/
-@[grind] theorem yield_derives {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
+@[grind .] theorem yield_derives {g : ChomskyNormalGrammar T} {A : g.cfg.NT}
     (t : ParseTree g A) :
     g.cfg.Derives [Symbol.nonterminal A] (terminalSymbols (yield t)) := by
   induction t with
@@ -197,7 +197,7 @@ def IsProper {g : ChomskyNormalGrammar T} {A X : g.cfg.NT} :
       omega
 
 /-- A proper context contributes at least one terminal outside its hole. -/
-@[grind] theorem proper_yield_pos {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
+@[grind .] theorem proper_yield_pos {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
     (c : ParseCtx g A X) (hc : IsProper c) :
     1 ≤ (preYield c ++ postYield c).length := by
   cases c with
@@ -245,7 +245,7 @@ def compose {g : ChomskyNormalGrammar T} {A X Y : g.cfg.NT} :
   | right A B C X h l c ih => simp [compose, postYield, ih]
 
 /-- Plugging a context cannot decrease the height of its argument. -/
-@[grind] theorem height_le_plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
+@[grind .] theorem height_le_plug {g : ChomskyNormalGrammar T} {A X : g.cfg.NT}
     (c : ParseCtx g A X) (t : ParseTree g X) :
     ParseTree.height t ≤ ParseTree.height (plug c t) := by
   induction c with
@@ -270,7 +270,7 @@ end ParseCtx
 
 ```lean
 /-- Every height between one and a tree's height occurs at some subtree. -/
-@[grind] theorem ParseTree.exists_subtree_height_eq
+@[grind .] theorem ParseTree.exists_subtree_height_eq
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {k : Nat}
     (t : ParseTree g A) (hk : 1 ≤ k) (hk' : k ≤ t.height) :
     ∃ (X : g.cfg.NT) (c : ParseCtx g A X) (s : ParseTree g X),
@@ -361,7 +361,7 @@ theorem root_mem_active
 grind_pattern root_mem_active =>
   ParseTree.height t, A ∈ ContextFreeGrammar.activeNonterminals g.cfg
 
-@[grind] theorem vars_mem_active
+@[grind .] theorem vars_mem_active
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {t : ParseTree g A}
     (b : Spine g t) :
     ∀ X ∈ vars b, X ∈ ContextFreeGrammar.activeNonterminals g.cfg := by
@@ -387,7 +387,7 @@ grind_pattern root_mem_active =>
       · exact ih X hX
 
 /-- An entry on a branch determines a subtree and the context above it. -/
-@[grind] theorem exists_context_of_mem
+@[grind .] theorem exists_context_of_mem
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {t : ParseTree g A}
     (b : Spine g t) {X : g.cfg.NT} (hX : X ∈ vars b) :
     ∃ (c : ParseCtx g A X) (s : ParseTree g X), c.plug s = t := by
@@ -419,7 +419,7 @@ spine 上の重複ラベルを二つの一穴文脈に分解し、同じ非終�
 
 ```lean
 /-- A repeated variable on a branch gives a nontrivial self-context. -/
-@[grind] theorem exists_repeat_of_not_nodup
+@[grind .] theorem exists_repeat_of_not_nodup
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {t : ParseTree g A}
     (b : Spine g t) (hdup : ¬ (vars b).Nodup) :
     ∃ (X : g.cfg.NT) (cin : ParseCtx g X X) (s : ParseTree g X)
@@ -452,7 +452,7 @@ end Spine
 
 /-- A sufficiently tall parse tree contains a repeated variable on a bounded
 suffix of a root-to-leaf branch. -/
-@[grind] theorem ParseTree.exists_pump
+@[grind .] theorem ParseTree.exists_pump
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} (t : ParseTree g A)
     (hm : (ContextFreeGrammar.activeNonterminals g.cfg).card < t.height) :
     ∃ (X : g.cfg.NT) (cout : ParseCtx g A X)
@@ -507,7 +507,7 @@ mutual
         CnfFormResult g (x :: xs) (u ++ v)
 end
 
-@[grind] private theorem cnfNonterminalResult
+@[grind .] private theorem cnfNonterminalResult
     (g : ChomskyNormalGrammar T)
     (r : ContextFreeRule T g.cfg.NT) (hr : r ∈ g.cfg.rules)
     {w : List T} (hc : CnfFormResult g r.output w) :
@@ -576,7 +576,7 @@ end
 Chomsky 標準形の導出結果を分類し、非空な終端語の導出から `ParseTree` を復元する。文脈の反復 `nest` が yield 上では左右の反復部分に対応することもここで証明する。
 
 ```lean
-@[grind] theorem cnfFormResult_of_derivationTree
+@[grind .] theorem cnfFormResult_of_derivationTree
     {g : ChomskyNormalGrammar T}
     {xs : List (Symbol T g.cfg.NT)} {w : List T}
     (h : ContextFreeGrammar.DerivationFormTree g.cfg xs w) :
@@ -591,7 +591,7 @@ Chomsky 標準形の導出結果を分類し、非空な終端語の導出から
     h
 
 /-- A nonempty terminal derivation in CNF has a binary parse tree. -/
-@[grind] theorem ParseTree.exists_of_derives
+@[grind .] theorem ParseTree.exists_of_derives
     {g : ChomskyNormalGrammar T} {A : g.cfg.NT} {w : List T}
     (hw : w ≠ [])
     (h : g.cfg.Derives [Symbol.nonterminal A] (terminalSymbols w)) :
@@ -611,7 +611,7 @@ def ParseCtx.nest {g : ChomskyNormalGrammar T} {X : g.cfg.NT}
   | 0 => s
   | i + 1 => c.plug (nest c s i)
 
-@[grind] private theorem append_flatten_replicate_comm (w : List T) (i : Nat) :
+@[grind .] private theorem append_flatten_replicate_comm (w : List T) (i : Nat) :
     w ++ (List.replicate i w).flatten =
       (List.replicate i w).flatten ++ w := by
   induction i with
@@ -620,7 +620,7 @@ def ParseCtx.nest {g : ChomskyNormalGrammar T} {X : g.cfg.NT}
       simp only [List.replicate_succ, List.flatten_cons]
       rw [List.append_assoc, ih, ← List.append_assoc]
 
-@[grind] private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
+@[grind .] private theorem flatten_replicate_succ_right (w : List T) (i : Nat) :
     (List.replicate (i + 1) w).flatten =
       (List.replicate i w).flatten ++ w := by
   simpa [List.replicate_succ] using append_flatten_replicate_comm w i
@@ -654,7 +654,7 @@ def ParseCtx.nest {g : ChomskyNormalGrammar T} {X : g.cfg.NT}
           simp [List.append_assoc]
 
 /-- Every context-free language satisfies the pumping lemma. -/
-@[grind, important] theorem Language.IsContextFree.pumping_lemma
+@[grind ., important] theorem Language.IsContextFree.pumping_lemma
     {T : Type} {L : Language T} (h : L.IsContextFree) :
     ∃ p ≥ 1, ∀ w ∈ L, p ≤ w.length →
       ∃ u v x y z, w = u ++ v ++ x ++ y ++ z ∧

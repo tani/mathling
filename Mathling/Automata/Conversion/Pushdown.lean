@@ -91,7 +91,7 @@ end
 
 /-- A balanced one-symbol computation induces a concrete run with arbitrary
 unread input and an arbitrary untouched stack suffix. -/
-@[grind] theorem Balanced.reaches {M : NPDA α State Stack}
+@[grind .] theorem Balanced.reaches {M : NPDA α State Stack}
     {p q : State} {top : Stack} {word : List α}
     (h : Balanced M p top q word)
     (input : List α) (suffix : List Stack) :
@@ -120,7 +120,7 @@ unread input and an arbitrary untouched stack suffix. -/
         (ihTail input suffix)
 
 /-- A balanced stack-word computation induces a concrete run. -/
-@[grind] theorem StackBalanced.reaches {M : NPDA α State Stack}
+@[grind .] theorem StackBalanced.reaches {M : NPDA α State Stack}
     {p q : State} {stack : List Stack} {word : List α}
     (h : StackBalanced M p stack q word)
     (input : List α) (suffix : List Stack) :
@@ -239,7 +239,7 @@ def FinalStackGood :
   | (_, .done, stack) => stack = []
 
 /-- Exhaustive classification of the six families of normalization rules. -/
-@[grind] theorem finalRule_cases (M : NPDA α State Stack)
+@[grind .] theorem finalRule_cases (M : NPDA α State Stack)
     {r : PushdownRule α (FinalState State) (FinalStack Stack)}
     (hr : r ∈ M.finalToEmpty.rules) :
     (∃ q ∈ M.start, r =
@@ -278,19 +278,19 @@ def FinalStackGood :
 def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   ∀ x ∈ stack, x ∈ M.stackSupport
 
-@[grind] theorem initialStack_supported (M : NPDA α State Stack) :
+@[grind .] theorem initialStack_supported (M : NPDA α State Stack) :
     M.StackSupported M.initialStack := by
   intro x hx
   exact List.mem_append_left _ hx
 
-@[grind] theorem rule_pop_mem_stackSupport (M : NPDA α State Stack)
+@[grind .] theorem rule_pop_mem_stackSupport (M : NPDA α State Stack)
     {r : PushdownRule α State Stack} (hr : r ∈ M.rules) :
     r.pop ∈ M.stackSupport := by
   apply List.mem_append_right
   apply List.mem_flatMap.mpr
   exact ⟨r, hr, by simp⟩
 
-@[grind] theorem rule_push_supported (M : NPDA α State Stack)
+@[grind .] theorem rule_push_supported (M : NPDA α State Stack)
     {r : PushdownRule α State Stack} (hr : r ∈ M.rules) :
     M.StackSupported r.push := by
   intro x hx
@@ -298,7 +298,7 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   apply List.mem_flatMap.mpr
   exact ⟨r, hr, by simp [hx]⟩
 
-@[grind] theorem Step.stack_supported {M : NPDA α State Stack}
+@[grind .] theorem Step.stack_supported {M : NPDA α State Stack}
     {c c' : ID α State Stack} (h : M.Step c c') :
     M.StackSupported c.2.2 → M.StackSupported c'.2.2 := by
   cases h with
@@ -313,14 +313,14 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       · exact M.rule_push_supported hr x hx
       · exact hs x (by simp [hx])
 
-@[grind] theorem Reaches.stack_supported {M : NPDA α State Stack}
+@[grind .] theorem Reaches.stack_supported {M : NPDA α State Stack}
     {c c' : ID α State Stack} (h : M.Reaches c c') :
     M.StackSupported c.2.2 → M.StackSupported c'.2.2 := by
   induction h with
   | refl => exact id
   | tail h step ih => exact fun hs => step.stack_supported (ih hs)
 
-@[grind] theorem bootRule_mem (M : NPDA α State Stack)
+@[grind .] theorem bootRule_mem (M : NPDA α State Stack)
     {q : State} (hq : q ∈ M.start) :
     ({ source := .boot, input := none, pop := .bottom, target := .sim q
        push := M.initialStack.map FinalStack.old ++ [.bottom] } :
@@ -328,7 +328,7 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       M.finalToEmpty.rules := by
   simp [finalToEmpty, Internal.bootRules, hq]
 
-@[grind] theorem simulationRule_mem (M : NPDA α State Stack)
+@[grind .] theorem simulationRule_mem (M : NPDA α State Stack)
     {r : PushdownRule α State Stack} (hr : r ∈ M.rules) :
     ({ source := .sim r.source, input := r.input, pop := .old r.pop
        target := .sim r.target, push := r.push.map FinalStack.old } :
@@ -338,7 +338,7 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   exact Or.inl (Or.inl (Or.inl (Or.inl (Or.inr
     (List.mem_map.mpr ⟨r, hr, rfl⟩)))))
 
-@[grind] theorem enterDrainRule_mem (M : NPDA α State Stack)
+@[grind .] theorem enterDrainRule_mem (M : NPDA α State Stack)
     {q : State} (hq : q ∈ M.accept) {x : Stack}
     (hx : x ∈ M.stackSupport) :
     ({ source := .sim q, input := none, pop := .old x
@@ -347,7 +347,7 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       M.finalToEmpty.rules := by
   simp [finalToEmpty, Internal.enterDrainRules, hq, hx]
 
-@[grind] theorem acceptBottomRule_mem (M : NPDA α State Stack)
+@[grind .] theorem acceptBottomRule_mem (M : NPDA α State Stack)
     {q : State} (hq : q ∈ M.accept) :
     ({ source := .sim q, input := none, pop := .bottom
        target := .done, push := [] } :
@@ -355,7 +355,7 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       M.finalToEmpty.rules := by
   simp [finalToEmpty, Internal.acceptBottomRules, hq]
 
-@[grind] theorem drainRule_mem (M : NPDA α State Stack)
+@[grind .] theorem drainRule_mem (M : NPDA α State Stack)
     {x : Stack} (hx : x ∈ M.stackSupport) :
     ({ source := .drain, input := none, pop := .old x
        target := .drain, push := [] } :
@@ -363,14 +363,14 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       M.finalToEmpty.rules := by
   simp [finalToEmpty, Internal.drainRules, hx]
 
-@[grind] theorem finishDrainRule_mem (M : NPDA α State Stack) :
+@[grind .] theorem finishDrainRule_mem (M : NPDA α State Stack) :
     (Internal.finishDrainRule :
       PushdownRule α (FinalState State) (FinalStack Stack)) ∈
       M.finalToEmpty.rules := by
   simp [finalToEmpty]
 
 /-- Lift one original local transition into the simulation phase. -/
-@[grind] theorem Step.finalToEmpty {M : NPDA α State Stack}
+@[grind .] theorem Step.finalToEmpty {M : NPDA α State Stack}
     {c c' : ID α State Stack} (h : M.Step c c') :
     M.finalToEmpty.Step
       (c.1, FinalState.sim c.2.1,
@@ -396,7 +396,7 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
           (M.simulationRule_mem hr) input_eq
 
 /-- Lift a complete original run into the simulation phase. -/
-@[grind] theorem Reaches.finalToEmpty {M : NPDA α State Stack}
+@[grind .] theorem Reaches.finalToEmpty {M : NPDA α State Stack}
     {c c' : ID α State Stack} (h : M.Reaches c c') :
     M.finalToEmpty.Reaches
       (c.1, FinalState.sim c.2.1,
@@ -408,7 +408,7 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   | tail h step ih => exact ih.tail step.finalToEmpty
 
 /-- Drain a supported embedded stack and finally remove the bottom marker. -/
-@[grind] theorem drain_reaches_done (M : NPDA α State Stack)
+@[grind .] theorem drain_reaches_done (M : NPDA α State Stack)
     {input : List α} {stack : List Stack} (hs : M.StackSupported stack) :
     M.finalToEmpty.Reaches
       (input, FinalState.drain,
@@ -457,7 +457,7 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
   | (input, .done, stack) =>
       stack = [] ∧ M.AcceptingPrefix word input
 
-@[grind] private theorem old_cons_parts {x : Stack} {tail : List (FinalStack Stack)}
+@[grind .] private theorem old_cons_parts {x : Stack} {tail : List (FinalStack Stack)}
     {stack : List Stack}
     (h : FinalStack.old x :: tail =
       stack.map FinalStack.old ++ [FinalStack.bottom]) :
@@ -471,7 +471,7 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
       cases hy
       exact ⟨stack, rfl, htail⟩
 
-@[grind] private theorem bottom_parts {tail : List (FinalStack Stack)}
+@[grind .] private theorem bottom_parts {tail : List (FinalStack Stack)}
     {stack : List Stack}
     (h : FinalStack.bottom :: tail =
       stack.map FinalStack.old ++ [FinalStack.bottom]) :
@@ -483,7 +483,7 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
       cases (List.cons.inj h).1
 
 /-- One normalization step preserves the semantic run invariant. -/
-@[grind] theorem finalStep_run_good (M : NPDA α State Stack)
+@[grind .] theorem finalStep_run_good (M : NPDA α State Stack)
     (word : List α) {c c' : ID α (FinalState State) (FinalStack Stack)}
     (h : M.finalToEmpty.Step c c') :
     M.FinalRunGood word c → M.FinalRunGood word c' := by
@@ -537,7 +537,7 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
         exact ⟨rfl, haccept⟩
 
 /-- The semantic invariant propagates over a complete normalized run. -/
-@[grind] theorem finalReaches_run_good (M : NPDA α State Stack)
+@[grind .] theorem finalReaches_run_good (M : NPDA α State Stack)
     (word : List α) {c c' : ID α (FinalState State) (FinalStack Stack)}
     (h : M.finalToEmpty.Reaches c c') :
     M.FinalRunGood word c → M.FinalRunGood word c' := by
@@ -547,7 +547,7 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
 
 /-- The stack-shape component of the normalization invariant propagates over
 reachable configurations. -/
-@[grind] theorem finalReaches_stack_good (M : NPDA α State Stack)
+@[grind .] theorem finalReaches_stack_good (M : NPDA α State Stack)
     {word : List α} {c' : ID α (FinalState State) (FinalStack Stack)}
     (h : M.finalToEmpty.Reaches
       (word, (FinalState.boot : FinalState State),
@@ -574,10 +574,10 @@ reachable configurations. -/
     M.finalToEmpty.language = M.language := by
   ext word
   constructor
-  · rintro ⟨start, hstart, done, hdone, stack, hreach⟩
+  · rintro ⟨start, hstart, finalState, hdone, stack, hreach⟩
     simp only [finalToEmpty, List.mem_singleton] at hstart hdone
     subst start
-    subst done
+    subst finalState
     have hreach' : M.finalToEmpty.Reaches
         (word, FinalState.boot, [FinalStack.bottom])
         ([], FinalState.done, stack) := by
@@ -632,7 +632,7 @@ reachable configurations. -/
 
 /-- Split a balanced computation at a concatenation boundary in its initial
 stack word. -/
-@[grind] theorem StackBalanced.split {M : NPDA α State Stack}
+@[grind .] theorem StackBalanced.split {M : NPDA α State Stack}
     {p q : State} {left right : List Stack} {word : List α}
     (h : StackBalanced M p (left ++ right) q word) :
     ∃ mid u v, word = u ++ v ∧
@@ -649,7 +649,7 @@ stack word. -/
 
 /-- Any concrete run that empties its complete initial stack decomposes into
 the balanced semantics used by the triple construction. -/
-@[grind] theorem stackBalanced_of_reaches_to_empty {M : NPDA α State Stack}
+@[grind .] theorem stackBalanced_of_reaches_to_empty {M : NPDA α State Stack}
     {p q : State} {stack : List Stack} {word : List α}
     (h : M.Reaches (word, p, stack) ([], q, [])) :
     StackBalanced M p stack q word :=
@@ -705,7 +705,8 @@ variable {α State Stack : Type*}
 abbrev ID (α State Stack : Type*) := List α × State × List Stack
 
 /-- One consuming or epsilon transition of an NPDA. -/
-@[grind cases] inductive Step (M : WholeStackNPDA α State Stack) : ID α State Stack → ID α State Stack → Prop
+@[grind cases] inductive Step (M : WholeStackNPDA α State Stack) :
+    ID α State Stack → ID α State Stack → Prop
   | consume {a input q stack q' stack'}
       (h : (q', stack') ∈ M.step q (some a) stack) :
       Step M (a :: input, q, stack) (input, q', stack')
@@ -738,7 +739,7 @@ def toWholeStackNPDA (M : NPDA α State Stack) : WholeStackNPDA α State Stack w
   accept := {q | q ∈ M.accept}
   initialStack := M.initialStack
 
-@[grind] theorem step_toWholeStackNPDA_iff (M : NPDA α State Stack)
+@[grind .] theorem step_toWholeStackNPDA_iff (M : NPDA α State Stack)
     {c c' : ID α State Stack} :
     M.Step c c' ↔ M.toWholeStackNPDA.Step c c' := by
   constructor
@@ -765,7 +766,7 @@ def toWholeStackNPDA (M : NPDA α State Stack) : WholeStackNPDA α State Stack w
         obtain ⟨rfl, rfl⟩ := hnext
         exact Step.epsilon r hr hinput
 
-@[grind] theorem reaches_toWholeStackNPDA_iff (M : NPDA α State Stack)
+@[grind .] theorem reaches_toWholeStackNPDA_iff (M : NPDA α State Stack)
     {c c' : ID α State Stack} :
     M.Reaches c c' ↔ M.toWholeStackNPDA.Reaches c c' := by
   constructor

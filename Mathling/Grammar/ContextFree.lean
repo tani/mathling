@@ -39,7 +39,7 @@ def nonterminals {T N : Type*} (r : ContextFreeRule T N) : List N :=
   r.input :: rhsNonterminals r.output
 
 /-- Renaming nonterminals preserves a one-rule rewrite. -/
-@[grind] theorem Rewrites.mapNonterminal {T N M : Type*}
+@[grind .] theorem Rewrites.mapNonterminal {T N M : Type*}
     {r : ContextFreeRule T N} {u v : List (Symbol T N)}
     (h : r.Rewrites u v) (f : N → M) :
     (ContextFreeRule.mapNonterminal f r).Rewrites
@@ -88,7 +88,7 @@ def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.
   right
   exact ⟨r, hr, by simp [ContextFreeRule.nonterminals]⟩
 
-@[grind] private theorem mem_rhsNonterminals_of_nonterminal_mem
+@[grind .] private theorem mem_rhsNonterminals_of_nonterminal_mem
     {xs : List (Symbol T N)} {A : N}
     (hA : Symbol.nonterminal A ∈ xs) : A ∈ rhsNonterminals xs := by
   induction xs with
@@ -114,7 +114,6 @@ def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.
     Finset.mem_biUnion]
   right
   refine ⟨r, hr, ?_⟩
-  change A ∈ (ContextFreeRule.nonterminals r).toFinset
   simp only [List.mem_toFinset, ContextFreeRule.nonterminals, List.mem_cons]
   exact Or.inr (mem_rhsNonterminals_of_nonterminal_mem hA)
 
@@ -196,7 +195,7 @@ end
 `DerivationFormTree` は文の連接に対して閉じている（`derivationFormTree_append`）。逆に、連接された文 `xs ++ ys` への証拠木は、`xs` への証拠木と `ys` への証拠木へ一意に分解できる（`derivationFormTree_split_append`）。後者は、次節で一歩の書き換えを証拠木の言葉に翻訳する際の中心的な道具になる。
 
 ```lean
-@[grind] private theorem derivationFormTree_append (g : ContextFreeGrammar T)
+@[grind .] private theorem derivationFormTree_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {u v : List T}
     (hx : DerivationFormTree g xs u) (hy : DerivationFormTree g ys v) :
     DerivationFormTree g (xs ++ ys) (u ++ v) := by
@@ -207,7 +206,7 @@ end
         DerivationFormTree.cons head (derivationFormTree_append g tail hy)
 termination_by xs.length
 
-@[grind] private theorem derivationFormTree_split_append (g : ContextFreeGrammar T)
+@[grind .] private theorem derivationFormTree_split_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {w : List T}
     (h : DerivationFormTree g (xs ++ ys) w) :
     ∃ u v, w = u ++ v ∧
@@ -230,7 +229,7 @@ termination_by xs
 ここからは通常の導出関係 `Derives` を実際に証拠木へ変換する。終端記号列のみからなる文は自明な証拠木を持ち（`derivationFormTree_terminals`）、一歩の書き換え `Produces` を挟んでも証拠木は保たれる：書き換えられた部分を `derivationFormTree_split_append` で切り出し、規則適用のノードに置き換えてから `derivationFormTree_append` で貼り戻す（`derivationFormTree_of_produces`）。これを導出列全体に沿って畳み込むことで、任意の終端導出に対する証拠木が得られる（`derivationFormTree_of_derives`）。
 
 ```lean
-@[grind] private theorem derivationFormTree_terminals (g : ContextFreeGrammar T)
+@[grind .] private theorem derivationFormTree_terminals (g : ContextFreeGrammar T)
     (w : List T) : DerivationFormTree g (terminalSymbols w) w := by
   induction w with
   | nil => exact DerivationFormTree.nil
@@ -238,7 +237,7 @@ termination_by xs
       simpa [terminalSymbols] using
         DerivationFormTree.cons (DerivationSymbolTree.terminal a) ih
 
-@[grind] private theorem derivationFormTree_of_produces
+@[grind .] private theorem derivationFormTree_of_produces
     (g : ContextFreeGrammar T)
     {u v : List (Symbol T g.NT)} {w : List T}
     (hstep : g.Produces u v) (hv : DerivationFormTree g v w) :
@@ -256,7 +255,7 @@ termination_by xs
     derivationFormTree_append g hp
       (DerivationFormTree.cons (DerivationSymbolTree.nonterminal r hr hout) hq)
 
-@[grind] theorem derivationFormTree_of_derives
+@[grind .] theorem derivationFormTree_of_derives
     (g : ContextFreeGrammar T) {xs : List (Symbol T g.NT)} {w : List T}
     (h : g.Derives xs (terminalSymbols w)) :
     DerivationFormTree g xs w := by
@@ -271,7 +270,7 @@ termination_by xs
 最後に逆方向として、先頭記号への導出と残りの文への導出を独立に行った結果を連結できること（`derives_cons_of`）を確認し、これを用いて「一歩の生成規則がターゲット文法の導出をシミュレートする」という仮定から「任意の導出全体のシミュレーションが従う」こと（`derives_lift_of_produces`）を示す。これは正規形変換などで規則ごとの対応を文法全体の言語保存へ一般化する際の共通部品として使われる。
 
 ```lean
-@[grind] theorem derives_cons_of
+@[grind .] theorem derives_cons_of
     (g : ContextFreeGrammar T)
     {x : Symbol T g.NT} {u : List T}
     {xs : List (Symbol T g.NT)} {v : List T}
@@ -283,7 +282,7 @@ termination_by xs
   simpa [terminalSymbols, List.map_append, List.append_assoc] using h₁.trans h₂
 
 /-- Lift a simulation of source production steps to complete derivations. -/
-@[grind] theorem derives_lift_of_produces
+@[grind .] theorem derives_lift_of_produces
     {g₁ : ContextFreeGrammar T} {g₂ : ContextFreeGrammar T}
     {mapSym : Symbol T g₁.NT → Symbol T g₂.NT}
     (hstep : ∀ {u v}, g₁.Produces u v →

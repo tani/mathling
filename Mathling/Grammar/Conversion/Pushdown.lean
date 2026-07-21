@@ -92,7 +92,7 @@ def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
   | .terminal a => a ∈ terminalSupport g
   | .nonterminal _ => True
 
-@[grind] theorem mem_rhsTerminals {N : Type*} {a : T}
+@[grind .] theorem mem_rhsTerminals {N : Type*} {a : T}
     {xs : List (Symbol T N)} (h : Symbol.terminal a ∈ xs) :
     a ∈ rhsTerminals xs := by
   induction xs with
@@ -108,7 +108,7 @@ def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
           · cases h
           · simpa [rhsTerminals] using ih h
 
-@[grind] theorem output_supported (g : ContextFreeGrammar T)
+@[grind .] theorem output_supported (g : ContextFreeGrammar T)
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     ∀ x ∈ r.output, Supported g x := by
   intro x hx
@@ -120,19 +120,19 @@ def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
       · simpa using hr
       · exact mem_rhsTerminals hx
 
-@[grind] theorem expansionRule_mem (g : ContextFreeGrammar T)
+@[grind .] theorem expansionRule_mem (g : ContextFreeGrammar T)
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     expansionRule r ∈ (toNPDA g).rules := by
   simp only [toNPDA, List.mem_append, List.mem_map, Finset.mem_toList]
   exact Or.inl (Or.inl ⟨r, hr, rfl⟩)
 
-@[grind] theorem terminalRule_mem (g : ContextFreeGrammar T)
+@[grind .] theorem terminalRule_mem (g : ContextFreeGrammar T)
     {a : T} (ha : a ∈ terminalSupport g) :
     terminalRule g a ∈ (toNPDA g).rules := by
   simp only [toNPDA, List.mem_append, List.mem_map]
   exact Or.inl (Or.inr ⟨a, ha, rfl⟩)
 
-@[grind] theorem finishRule_mem (g : ContextFreeGrammar T) :
+@[grind .] theorem finishRule_mem (g : ContextFreeGrammar T) :
     finishRule g ∈ (toNPDA g).rules := by
   simp [toNPDA]
 
@@ -142,7 +142,7 @@ def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
 接尾スタックを一切観測しない局所性により、子の実行を左から順に連結できる。
 
 ```lean
-@[grind] theorem formTree_reaches (g : ContextFreeGrammar T)
+@[grind .] theorem formTree_reaches (g : ContextFreeGrammar T)
     {xs : List (Symbol T g.NT)} {w : List T}
     (tree : DerivationFormTree g xs w)
     (hs : ∀ x ∈ xs, Supported g x)
@@ -186,7 +186,7 @@ def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
     have htail := ihTail hxs rest suffix
     simpa [encodeForm, List.append_assoc] using hhead.trans htail
 
-@[grind] theorem generates_reaches (g : ContextFreeGrammar T) {w : List T}
+@[grind .] theorem generates_reaches (g : ContextFreeGrammar T) {w : List T}
     (h : w ∈ g.language) :
     (toNPDA g).Reaches
       (w, .run, [.symbol (.nonterminal g.initial), .bottom])
@@ -209,7 +209,7 @@ def Supported (g : ContextFreeGrammar T) : Symbol T g.NT → Prop
 done 状態へ移れるのは文型が空になった場合だけである。
 
 ```lean
-@[grind] theorem toNPDARule_cases (g : ContextFreeGrammar T)
+@[grind .] theorem toNPDARule_cases (g : ContextFreeGrammar T)
     {r : PushdownRule T GrammarPDAState (GrammarPDAStack T g.NT)}
     (hr : r ∈ (toNPDA g).rules) :
     (∃ gr ∈ g.rules, r = expansionRule gr) ∨
@@ -234,7 +234,7 @@ def GrammarRunGood (g : ContextFreeGrammar T) (word : List T) :
         word = consumed ++ input ∧ stack = [] ∧
         g.Derives [.nonterminal g.initial] (terminalSymbols consumed)
 
-@[grind] private theorem encoded_cons_parts (g : ContextFreeGrammar T)
+@[grind .] private theorem encoded_cons_parts (g : ContextFreeGrammar T)
     {x : Symbol T g.NT} {rest : List (GrammarPDAStack T g.NT)}
     {form : List (Symbol T g.NT)}
     (h : GrammarPDAStack.symbol x :: rest =
@@ -248,7 +248,7 @@ def GrammarRunGood (g : ContextFreeGrammar T) (word : List T) :
       cases hy
       exact ⟨ys, rfl, hrest⟩
 
-@[grind] private theorem bottom_parts (g : ContextFreeGrammar T)
+@[grind .] private theorem bottom_parts (g : ContextFreeGrammar T)
     {rest : List (GrammarPDAStack T g.NT)} {form : List (Symbol T g.NT)}
     (h : GrammarPDAStack.bottom :: rest =
       encodeForm form ++ [.bottom]) :
@@ -268,7 +268,7 @@ grammarStep_good と grammarReaches_good は、GrammarRunGood が実際に不変
 適用するだけである。
 
 ```lean
-@[grind] theorem grammarStep_good (g : ContextFreeGrammar T) (word : List T)
+@[grind .] theorem grammarStep_good (g : ContextFreeGrammar T) (word : List T)
     {c c' : NPDA.ID T GrammarPDAState (GrammarPDAStack T g.NT)}
     (h : (toNPDA g).Step c c') :
     GrammarRunGood g word c → GrammarRunGood g word c' := by
@@ -310,7 +310,7 @@ grammarStep_good と grammarReaches_good は、GrammarRunGood が実際に不変
         · simp [finishRule]
         · simpa using hderives
 
-@[grind] theorem grammarReaches_good (g : ContextFreeGrammar T) (word : List T)
+@[grind .] theorem grammarReaches_good (g : ContextFreeGrammar T) (word : List T)
     {c c' : NPDA.ID T GrammarPDAState (GrammarPDAStack T g.NT)}
     (h : (toNPDA g).Reaches c c') :
     GrammarRunGood g word c → GrammarRunGood g word c' := by
@@ -330,7 +330,10 @@ toNPDA_language はこの不変量を初期配置と受理配置に適用し、�
   ext word
   constructor
   · rintro ⟨q₀, hq₀, qf, hqf, stack, hreach⟩
-    simp [toNPDA] at hq₀ hqf
+    have hq₀' : q₀ = .run := by
+      simpa only [toNPDA, List.mem_singleton] using hq₀
+    have hqf' : qf = .done := by
+      simpa only [toNPDA, List.mem_singleton] using hqf
     subst q₀
     subst qf
     have hgood : GrammarRunGood g word
@@ -444,7 +447,7 @@ ContextFreeNT は「source 状態から pop 記号を1つ取り除いて target 
 ついて集め、指定した start・bottom・done に対応する三つ組を開始記号とする文法である。
 
 ```lean
-@[grind] theorem mem_listsOfLength {choices path : List State} {n : Nat}
+@[grind .] theorem mem_listsOfLength {choices path : List State} {n : Nat}
     (hlen : path.length = n) (hall : ∀ q ∈ path, q ∈ choices) :
     path ∈ listsOfLength choices n := by
   induction n generalizing path with
@@ -456,14 +459,14 @@ ContextFreeNT は「source 状態から pop 記号を1つ取り除いて target 
       cases path with
       | nil => simp at hlen
       | cons q path =>
-          simp only [List.length_cons, Nat.add_left_cancel_iff] at hlen
+          simp only [List.length_cons] at hlen
           simp only [listsOfLength, List.mem_flatMap, List.mem_map]
           refine ⟨q, hall q (by simp), path, ?_, rfl⟩
           apply ih
           · omega
           · exact fun x hx => hall x (by simp [hx])
 
-@[grind] theorem length_eq_of_mem_listsOfLength {choices path : List State} {n : Nat}
+@[grind .] theorem length_eq_of_mem_listsOfLength {choices path : List State} {n : Nat}
     (h : path ∈ listsOfLength choices n) : path.length = n := by
   induction n generalizing path with
   | zero => simpa [listsOfLength] using h
@@ -472,13 +475,13 @@ ContextFreeNT は「source 状態から pop 記号を1つ取り除いて target 
       obtain ⟨q, hq, tail, htail, rfl⟩ := h
       simp [ih htail]
 
-@[grind] theorem rule_source_mem_stateSupport (M : NPDA T State Stack)
+@[grind .] theorem rule_source_mem_stateSupport (M : NPDA T State Stack)
     {r : PushdownRule T State Stack} (hr : r ∈ M.rules) :
     r.source ∈ M.stateSupport := by
   apply List.mem_append_right
   exact List.mem_flatMap.mpr ⟨r, hr, by simp⟩
 
-@[grind] theorem contextFreeRule_mem [DecidableEq T] [DecidableEq State]
+@[grind .] theorem contextFreeRule_mem [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
     {r : PushdownRule T State Stack} (hr : r ∈ M.rules)
     {path : List State} (hpath : path ∈ M.compatiblePaths r)
@@ -492,7 +495,7 @@ ContextFreeNT は「source 状態から pop 記号を1つ取り除いて target 
   exact List.mem_flatMap.mpr ⟨r, hr,
     List.mem_map.mpr ⟨path, hpath, rfl⟩⟩
 
-@[grind] theorem contextFreeRule_cases [DecidableEq T] [DecidableEq State]
+@[grind .] theorem contextFreeRule_cases [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
     {start done : State} {bottom : Stack}
     {gr : ContextFreeRule T (ContextFreeNT State Stack)}
@@ -515,7 +518,7 @@ balanced_of_derives は、これらを用いて文法規則についての場合
 場合分けへ読み替える。
 
 ```lean
-@[grind] theorem balanced_derives [DecidableEq T] [DecidableEq State]
+@[grind .] theorem balanced_derives [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
     {start done : State} {bottom : Stack}
     {p q : State} {top : Stack} {word : List T}
@@ -539,7 +542,7 @@ balanced_of_derives は、これらを用いて文法規則についての場合
       simp only [compatiblePaths, List.mem_filter]
       constructor
       · exact mem_listsOfLength hlen hsupported
-      · simpa [hhead]
+      · simp [hhead]
     have hrule := M.contextFreeRule_mem hr hpath
       (start := start) (bottom := bottom) (done := done)
     have hproduces : g.Produces
@@ -556,10 +559,11 @@ balanced_of_derives は、これらを用いて文法規則についての場合
       have := hchildren.append_left
         (r.input.toList.map Symbol.terminal)
       convert this using 1 <;>
-        simp [contextFreeRule, terminalSymbols, List.map_append] <;> rfl
+        simp [contextFreeRule, terminalSymbols, List.map_append]; rfl
     exact hproduces.single.trans houtput
   · intro q hq
-    exact ⟨[q], by simp, by simp, by simp, by simpa,
+    exact ⟨[q], by simp, by simp, by simp,
+      fun state hstate => (List.mem_singleton.mp hstate) ▸ hq,
       Relation.ReflTransGen.refl⟩
   · intro p mid q top stack u v head tail ihHead ihTail hq
     obtain ⟨path, hlen, hpathHead, hlast, hsupported, htail⟩ := ihTail hq
@@ -614,7 +618,7 @@ mutual
         FormMeaning M (x :: xs) (u ++ v)
 end
 
-@[grind] theorem getLastD_cons_default (x : State) (xs : List State) (a b : State) :
+@[grind .] theorem getLastD_cons_default (x : State) (xs : List State) (a b : State) :
     (x :: xs).getLastD a = (x :: xs).getLastD b := by
   induction xs generalizing x with
   | nil => simp
@@ -622,7 +626,7 @@ end
 
 /-- A meaningful segment form is exactly a balanced computation of its stack
 word along the encoded control-state path. -/
-@[grind] theorem segmentForm_stackBalanced (M : NPDA T State Stack)
+@[grind .] theorem segmentForm_stackBalanced (M : NPDA T State Stack)
     {path : List State} {stack : List Stack} {p : State} {word : List T}
     (hlen : path.length = stack.length + 1)
     (hhead : path.head? = some p)
@@ -674,7 +678,7 @@ StackBalanced な計算であることを示す。これは意味論と Balanced
 ```lean
 /-- The right-hand side of a generated production describes precisely the
 input action and pushed-stack computation of its source transition. -/
-@[grind] theorem contextFreeRule_meaning [DecidableEq State]
+@[grind .] theorem contextFreeRule_meaning [DecidableEq State]
     (M : NPDA T State Stack) (r : PushdownRule T State Stack)
     {path : List State} (hpath : path ∈ M.compatiblePaths r)
     {word : List T}
@@ -693,14 +697,14 @@ input action and pushed-stack computation of its source transition. -/
       exact ⟨word, rfl, segmentForm_stackBalanced M hlen hhead hmeaning⟩
   | some a =>
       simp only [contextFreeRule, hin, Option.toList_some, List.map_cons,
-        List.map_nil, List.nil_append] at hmeaning
+        List.map_nil] at hmeaning
       cases hmeaning with
       | cons hterminal htail =>
           cases hterminal
           exact ⟨_, rfl, segmentForm_stackBalanced M hlen hhead htail⟩
 
 /-- A derivation tree of the generated grammar denotes balanced NPDA runs. -/
-@[grind] theorem derivationFormTree_meaning [DecidableEq T] [DecidableEq State]
+@[grind .] theorem derivationFormTree_meaning [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
     {start done : State} {bottom : Stack}
     {form : List (Symbol T (ContextFreeNT State Stack))} {word : List T}
@@ -723,7 +727,7 @@ input action and pushed-stack computation of its source transition. -/
 
 /-- Every terminal derivation from a triple nonterminal reconstructs a
 balanced run of the original NPDA. -/
-@[grind] theorem balanced_of_derives [DecidableEq T] [DecidableEq State]
+@[grind .] theorem balanced_of_derives [DecidableEq T] [DecidableEq State]
     [DecidableEq Stack] (M : NPDA T State Stack)
     {start done : State} {bottom : Stack}
     {p q : State} {top : Stack} {word : List T}
@@ -749,7 +753,7 @@ push されたスタックの計算へ翻訳し、derivationFormTree_meaning は
 ```lean
 /-- The generated triple grammar and balanced-run semantics coincide whenever
 the requested target state belongs to the finite state support. -/
-@[grind] theorem mem_emptyToContextFreeGrammar_language_iff
+@[grind .] theorem mem_emptyToContextFreeGrammar_language_iff
     [DecidableEq T] [DecidableEq State] [DecidableEq Stack]
     (M : NPDA T State Stack) {start done : State} {bottom : Stack}
     (hdone : done ∈ M.stateSupport) (word : List T) :
@@ -761,17 +765,17 @@ the requested target state belongs to the finite state support. -/
 
 /-- Acceptance of the normalized machine is precisely one balanced computation
 that removes its private bottom marker. -/
-@[grind] theorem finalToEmpty_accepts_iff_balanced (M : NPDA T State Stack)
+@[grind .] theorem finalToEmpty_accepts_iff_balanced (M : NPDA T State Stack)
     (word : List T) :
     M.finalToEmpty.Accepts word ↔
       Balanced M.finalToEmpty .boot .bottom .done word := by
   constructor
-  · rintro ⟨start, hstart, done, hdone, stack, hreach⟩
+  · rintro ⟨start, hstart, finalState, hdone, stack, hreach⟩
     simp only [finalToEmpty, List.mem_singleton] at hstart hdone
     subst start
-    subst done
+    subst finalState
     have hstack : stack = [] :=
-      M.finalReaches_stack_good hreach (by simp [FinalStackGood, finalToEmpty])
+      M.finalReaches_stack_good hreach (by simp [FinalStackGood])
     subst stack
     have hbalanced := stackBalanced_of_reaches_to_empty hreach
     cases hbalanced with

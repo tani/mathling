@@ -29,7 +29,7 @@ def popMachine : NPDA Unit Bool PUnit.{1} where
   accept := [true]
   initialStack := [PUnit.unit]
 
-@[grind] theorem popMachine_accepts_empty : popMachine.Accepts [] := by
+@[grind .] theorem popMachine_accepts_empty : popMachine.Accepts [] := by
   refine ⟨false, by simp [popMachine], true, by simp [popMachine], [], ?_⟩
   apply Relation.ReflTransGen.single
   simpa [popMachine, popRule] using

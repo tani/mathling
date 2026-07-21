@@ -105,7 +105,7 @@ instance nonemptyCNFGrammarLinearOrder
   exact toChomskyNormalGrammarNTLinearOrder g
  
 
-@[grind] theorem filterEmptyRules_step
+@[grind .] theorem filterEmptyRules_step
     (c : ChomskyNormalGrammar T)
     [DecidableEq c.cfg.NT]
     {u v : List (Symbol T c.cfg.NT)}
@@ -134,7 +134,7 @@ instance nonemptyCNFGrammarLinearOrder
   · exact ⟨r, Finset.mem_filter.mpr ⟨hr, hnonempty⟩,
       ContextFreeRule.rewrites_of_exists_parts r p q⟩
 
-@[grind] theorem filterEmptyRules_derives
+@[grind .] theorem filterEmptyRules_derives
     (c : ChomskyNormalGrammar T) [DecidableEq c.cfg.NT] :
     ∀ {u v : List (Symbol T c.cfg.NT)},
       Symbol.nonterminal c.cfg.initial ∉ u →
@@ -156,7 +156,7 @@ instance nonemptyCNFGrammarLinearOrder
 空右辺規則を除外しても非空語の生成は変わらないことを示し、Chomsky 標準形文法の非空部分を切り出す。以後の Greibach 変換は空規則を持たない作業文法だけを扱う。
 
 ```lean
-@[grind] theorem filterEmptyRules_language_nonempty
+@[grind .] theorem filterEmptyRules_language_nonempty
     (c : ChomskyNormalGrammar T) [DecidableEq c.cfg.NT]
     {w : List T} (hw : w ≠ []) :
     w ∈ (filterEmptyRules c.cfg).language ↔ w ∈ c.language := by
@@ -190,7 +190,8 @@ instance nonemptyCNFGrammarLinearOrder
         | nil => rfl
         | cons x xs => simp at hpq
       subst p
-      simp at hpq
+      simp only [List.nil_append, List.cons_append, List.cons.injEq,
+        Symbol.nonterminal.injEq, List.nil_eq] at hpq
       rcases hpq with ⟨hinput, rfl⟩
       have hinput' : r.input = c.cfg.initial := hinput.symm
       simp only [List.nil_append, List.append_nil] at hv
@@ -212,7 +213,7 @@ instance nonemptyCNFGrammarLinearOrder
         (filterEmptyRules_derives c
           (c.initial_not_output r hr) hrest).2
 
-@[grind] theorem nonemptyCNF_language_nonempty
+@[grind .] theorem nonemptyCNF_language_nonempty
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {w : List T} (hw : w ≠ []) :
     w ∈ (nonemptyCNF g).grammar.language ↔ w ∈ g.language := by
@@ -235,7 +236,8 @@ def orderedSupport (g : ContextFreeGrammar T) [LinearOrder g.NT] :
 
 abbrev SupportNT (g : ContextFreeGrammar T) [LinearOrder g.NT] :=
   Fin (activeNonterminals g).card
-@[grind] theorem orderedSupport_nonempty (g : ContextFreeGrammar T)
+omit [LinearOrder T] in
+@[grind .] theorem orderedSupport_nonempty (g : ContextFreeGrammar T)
     [LinearOrder g.NT] :
     (activeNonterminals g).card > 0 := by
   exact Finset.card_pos.mpr ⟨g.initial, initial_mem_activeNonterminals g⟩
@@ -249,9 +251,10 @@ def encodeSupport (g : ContextFreeGrammar T) [LinearOrder g.NT]
 
 def decodeSupport (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (i : SupportNT g) : g.NT :=
-  (orderedSupport g)[i.val]'(by simpa [orderedSupport] using i.isLt)
+  (orderedSupport g)[i.val]'(by simp [orderedSupport])
 
-@[grind] theorem decode_encodeSupport (g : ContextFreeGrammar T)
+omit [LinearOrder T] in
+@[grind .] theorem decode_encodeSupport (g : ContextFreeGrammar T)
     [LinearOrder g.NT]
     {A : g.NT} (hA : A ∈ activeNonterminals g) :
     decodeSupport g (encodeSupport g A) = A := by
@@ -274,7 +277,8 @@ abbrev compactSupport (g : ContextFreeGrammar T)
 文法で実際に使われる非終端記号を順序付き有限集合へ圧縮し、有限添字との encode/decode を定義する。規則右辺の往復補題により、型の圧縮が記号列を失わないことを保証する。
 
 ```lean
-@[grind] theorem decode_encode_rule_output
+omit [LinearOrder T] in
+@[grind .] theorem decode_encode_rule_output
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {r : ContextFreeRule T g.NT}
     (hr : r ∈ g.rules) :
@@ -304,7 +308,7 @@ abbrev compactSupport (g : ContextFreeGrammar T)
   intro A hA
   exact rule_rhs_mem_activeNonterminals g hr hA
 
-@[grind] theorem compactSupport_forward_step (g : ContextFreeGrammar T)
+@[grind .] theorem compactSupport_forward_step (g : ContextFreeGrammar T)
     [LinearOrder g.NT]
     {u v : List (Symbol T g.NT)} (h : g.Produces u v) :
     (compactSupport g).Derives
@@ -319,7 +323,7 @@ abbrev compactSupport (g : ContextFreeGrammar T)
   · exact Mathling.Grammar.ContextFreeRule.Rewrites.mapNonterminal
       hrewrite (encodeSupport g)
 
-@[grind] theorem compactSupport_language_forward
+@[grind .] theorem compactSupport_language_forward
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     g.language ≤ (compactSupport g).language := by
   intro w hw
@@ -331,7 +335,7 @@ abbrev compactSupport (g : ContextFreeGrammar T)
   simpa [compactSupport, Symbol.mapNonterminal,
     terminalSymbols, Function.comp_def] using h
 
-@[grind] theorem compactSupport_reverse_step (g : ContextFreeGrammar T)
+@[grind .] theorem compactSupport_reverse_step (g : ContextFreeGrammar T)
     [LinearOrder g.NT]
     {u v : List (Symbol T (SupportNT g))}
     (h : (compactSupport g).Produces u v) :
@@ -355,7 +359,7 @@ abbrev compactSupport (g : ContextFreeGrammar T)
       (p.map (Symbol.mapNonterminal (decodeSupport g)))
       (q.map (Symbol.mapNonterminal (decodeSupport g)))
 
-@[grind] theorem compactSupport_language_reverse
+@[grind .] theorem compactSupport_language_reverse
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactSupport g).language ≤ g.language := by
   intro w hw
@@ -366,7 +370,7 @@ abbrev compactSupport (g : ContextFreeGrammar T)
   simpa [Symbol.mapNonterminal, Function.comp_def,
     decode_encodeSupport g (initial_mem_activeNonterminals g)] using h
 
-@[grind] theorem compactSupport_language (g : ContextFreeGrammar T)
+@[grind .] theorem compactSupport_language (g : ContextFreeGrammar T)
     [LinearOrder g.NT] :
     (compactSupport g).language = g.language :=
   le_antisymm (compactSupport_language_reverse g)
@@ -388,7 +392,7 @@ abbrev compactWork
     rules := compact.rules.image fun r =>
       ContextFreeRule.mapNonterminal (embedWork (g := g)) r }
 
-@[grind] theorem compactWork_forward_step
+@[grind .] theorem compactWork_forward_step
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {u v : List (Symbol T (compactSupport g).NT)}
     (h : (compactSupport g).Produces u v) :
@@ -411,7 +415,7 @@ abbrev compactWork
 圧縮した規則の一歩を元文法へ復号し、逆に元の導出を有限作業文法へ符号化する。双方向シミュレーションから、有限型上で操作しても言語が変わらないことを得る。
 
 ```lean
-@[grind] theorem compactWork_language_forward
+@[grind .] theorem compactWork_language_forward
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactSupport g).language ≤ (compactWork g).toCFG.language := by
   intro w hw
@@ -422,7 +426,7 @@ abbrev compactWork
   simpa [embedWork, Symbol.mapNonterminal,
     Function.comp_def] using h
 
-@[grind] theorem compactWork_reverse_step
+@[grind .] theorem compactWork_reverse_step
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {u v : List (Symbol T (GreibachWorkNT (activeNonterminals g).card))}
     (h : (compactWork g).toCFG.Produces u v) :
@@ -456,7 +460,7 @@ abbrev compactWork
       (p.map (Symbol.mapNonterminal (projectWork g)))
       (q.map (Symbol.mapNonterminal (projectWork g)))
 
-@[grind] theorem compactWork_language_reverse
+@[grind .] theorem compactWork_language_reverse
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactWork g).toCFG.language ≤ (compactSupport g).language := by
   intro w hw
@@ -467,7 +471,7 @@ abbrev compactWork
   simpa [projectWork, Symbol.mapNonterminal,
     Function.comp_def] using h
 
-@[grind] theorem compactWork_language
+@[grind .] theorem compactWork_language
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (compactWork g).toCFG.language = g.language := by
   rw [le_antisymm (compactWork_language_reverse g)
@@ -528,7 +532,7 @@ def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
       r.output = Symbol.nonterminal (.base j) ::
         Symbol.nonterminal (.base k) ::
           tail.map Symbol.nonterminal
-@[grind] theorem compactWork_rule_source
+@[grind .] theorem compactWork_rule_source
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {r : ContextFreeRule T (GreibachWorkNT (activeNonterminals g).card)}
     (hr : r ∈ (compactWork g).rules) :
@@ -536,7 +540,7 @@ def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
       r = ContextFreeRule.mapNonterminal (embedWork (g := g))
         (ContextFreeRule.mapNonterminal (encodeSupport g) old) := by
   classical
-  simp only [compactWork, compactSupport, Finset.mem_image] at hr
+  simp only [Finset.mem_image] at hr
   obtain ⟨middle, ⟨old, hold, rfl⟩, rfl⟩ := hr
   exact ⟨old, hold, rfl⟩
 
@@ -547,7 +551,7 @@ def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
 圧縮後の右辺が有効な作業記号だけから成り、基底規則には必要な tail があることを証明する。さらに、規則先頭の番号が入力番号より大きいという順序条件を定義する。
 
 ```lean
-@[grind] theorem compactWork_outputsValid
+@[grind .] theorem compactWork_outputsValid
     (c : ChomskyNormalGrammar T) [LinearOrder c.cfg.NT]
     (hnoempty : ∀ r ∈ c.cfg.rules, r.output ≠ []) :
     WorkOutputsValid (compactWork c.cfg) := by
@@ -561,7 +565,7 @@ def BaseRulesHaveTail (G : GreibachWorkGrammar T n) : Prop :=
       [.base (encodeSupport c.cfg C)], by
         simp [ContextFreeRule.mapNonterminal, embedWork, hBC]⟩
 
-@[grind] theorem compactWork_baseRulesHaveTail
+@[grind .] theorem compactWork_baseRulesHaveTail
     (c : ChomskyNormalGrammar T) [LinearOrder c.cfg.NT]
     (hnoempty : ∀ r ∈ c.cfg.rules, r.output ≠ []) :
     BaseRulesHaveTail (compactWork c.cfg) := by
@@ -591,7 +595,8 @@ def LeadingBoundAt
     startsWithTerminal r.output ∨
       ∃ j : Fin n, leadingBaseIndex r.output = some j ∧ p ≤ j.val
 
-@[grind] theorem leadingBaseIndex_append_of_some
+omit [LinearOrder T] in
+@[grind .] theorem leadingBaseIndex_append_of_some
     {rhs suffix : List (Symbol T (GreibachWorkNT n))}
     {j : Fin n} (h : leadingBaseIndex rhs = some j) :
     leadingBaseIndex (rhs ++ suffix) = some j := by
@@ -606,7 +611,8 @@ def LeadingBoundAt
           | base k =>
               simpa [leadingBaseIndex] using h
 
-@[grind] theorem startsWithTerminal_append_nonterminals
+omit [LinearOrder T] in
+@[grind .] theorem startsWithTerminal_append_nonterminals
     {rhs : List (Symbol T (GreibachWorkNT n))}
     (h : startsWithTerminal rhs)
     (tail : List (GreibachWorkNT n)) :
@@ -614,9 +620,10 @@ def LeadingBoundAt
       (rhs ++ tail.map Symbol.nonterminal) := by
   rcases h with ⟨a, rest, rfl⟩
   exact ⟨a, rest ++ tail, by
-    simp [List.map_append, List.append_assoc]⟩
+    simp [List.map_append]⟩
 
-@[grind] theorem validWorkOutput_append_nonterminals
+omit [LinearOrder T] in
+@[grind .] theorem validWorkOutput_append_nonterminals
     {rhs : List (Symbol T (GreibachWorkNT n))}
     (h : validWorkOutput rhs)
     (tail : List (GreibachWorkNT n)) :
@@ -626,7 +633,7 @@ def LeadingBoundAt
   · exact Or.inl
       (startsWithTerminal_append_nonterminals hterminal tail)
   · exact Or.inr ⟨j, rest ++ tail, by
-      simp [List.map_append, List.append_assoc]⟩
+      simp [List.map_append]⟩
 
 mutual
   inductive SymbolTree (g : ContextFreeGrammar T) :
@@ -645,7 +652,8 @@ mutual
         FormTree g (x :: xs) (u ++ v)
 end
 
-@[grind] theorem formTree_append (g : ContextFreeGrammar T)
+omit [LinearOrder T] in
+@[grind .] theorem formTree_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {u v : List T}
     (hx : FormTree g xs u) (hy : FormTree g ys v) :
     FormTree g (xs ++ ys) (u ++ v) := by
@@ -656,7 +664,8 @@ end
         FormTree.cons head (formTree_append g tail hy)
 termination_by xs.length
 
-@[grind] theorem formTree_split_append (g : ContextFreeGrammar T)
+omit [LinearOrder T] in
+@[grind .] theorem formTree_split_append (g : ContextFreeGrammar T)
     {xs ys : List (Symbol T g.NT)} {w : List T}
     (h : FormTree g (xs ++ ys) w) :
     ∃ u v, w = u ++ v ∧ FormTree g xs u ∧ FormTree g ys v := by
@@ -678,7 +687,8 @@ termination_by xs
 作業文法の sentential form に対する木構造証拠を導入し、葉の終端語と通常の `Produces`/`Derives` を接続する。局所規則変換の言語保存を木の変換として扱えるようにする。
 
 ```lean
-@[grind] theorem formTree_terminals (g : ContextFreeGrammar T)
+omit [LinearOrder T] in
+@[grind .] theorem formTree_terminals (g : ContextFreeGrammar T)
     (w : List T) : FormTree g (terminalSymbols w) w := by
   induction w with
   | nil => exact FormTree.nil
@@ -686,7 +696,8 @@ termination_by xs
       simpa [terminalSymbols] using
         FormTree.cons (SymbolTree.terminal a) ih
 
-@[grind] theorem formTree_of_produces
+omit [LinearOrder T] in
+@[grind .] theorem formTree_of_produces
     (g : ContextFreeGrammar T)
     {u v : List (Symbol T g.NT)} {w : List T}
     (hstep : g.Produces u v) (hv : FormTree g v w) :
@@ -704,14 +715,16 @@ termination_by xs
     formTree_append g hp
       (FormTree.cons (SymbolTree.nonterminal r hr hout) hq)
 
-@[grind] theorem formTree_of_derives
+omit [LinearOrder T] in
+@[grind .] theorem formTree_of_derives
     (g : ContextFreeGrammar T) {xs : List (Symbol T g.NT)} {w : List T}
     (h : g.Derives xs (terminalSymbols w)) :
     FormTree g xs w := by
   induction h using Relation.ReflTransGen.head_induction_on with
   | refl => exact formTree_terminals g w
   | head hstep hrest ih => exact formTree_of_produces g hstep ih
-@[grind] theorem derives_of_formTree
+omit [LinearOrder T] in
+@[grind .] theorem derives_of_formTree
     (g : ContextFreeGrammar T)
     {xs : List (Symbol T g.NT)} {w : List T}
     (h : FormTree g xs w) :
@@ -756,7 +769,8 @@ abbrev substituteEarlier
     GreibachWorkGrammar T n :=
   { initial := G.initial
     rules := G.rules.biUnion (substituteEarlierRule G i) }
-@[grind] theorem substituted_rule_old_derives
+omit [LinearOrder T] in
+@[grind .] theorem substituted_rule_old_derives
     (G : GreibachWorkGrammar T n) {i j : Fin n}
     {suffix : List (Symbol T (GreibachWorkNT n))}
     {target source : ContextFreeRule T (GreibachWorkNT n)}
@@ -790,7 +804,7 @@ abbrev substituteEarlier
 規則先頭の小さい番号をその生成規則で展開する `substituteEarlier` について、新規則の一歩を旧文法の複数歩へ戻す。生成規則由来か保持規則かを所属補題で分類する。
 
 ```lean
-@[grind] theorem substituteEarlier_reverse_step
+@[grind .] theorem substituteEarlier_reverse_step
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {u v : List (Symbol T (GreibachWorkNT n))}
     (h : (substituteEarlier G i).toCFG.Produces u v) :
@@ -832,24 +846,24 @@ abbrev substituteEarlier
       ⟨target, htarget,
         ContextFreeRule.rewrites_of_exists_parts target p q⟩
 
-@[grind] theorem substituteEarlier_mem_of_generated
+@[grind .] theorem substituteEarlier_mem_of_generated
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {old new : ContextFreeRule T (GreibachWorkNT n)}
     (hold : old ∈ G.rules)
     (hnew : new ∈ substituteEarlierRule G i old) :
     new ∈ (substituteEarlier G i).rules := by
   classical
-  simp only [substituteEarlier, Finset.mem_biUnion]
+  simp only [Finset.mem_biUnion]
   exact ⟨old, hold, hnew⟩
 
-@[grind] theorem substituteEarlier_old_of_input_ne
+@[grind .] theorem substituteEarlier_old_of_input_ne
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {r : ContextFreeRule T (GreibachWorkNT n)}
     (hr : r ∈ (substituteEarlier G i).rules)
     (hne : r.input ≠ .base i) :
     r ∈ G.rules := by
   classical
-  simp only [substituteEarlier, Finset.mem_biUnion] at hr
+  simp only [Finset.mem_biUnion] at hr
   obtain ⟨old, hold, hgenerated⟩ := hr
   simp only [substituteEarlierRule] at hgenerated
   split at hgenerated
@@ -868,7 +882,8 @@ abbrev substituteEarlier
   next =>
     simpa using Finset.mem_singleton.mp hgenerated ▸ hold
 
-@[grind] theorem symbolTree_nonterminal_cases
+omit [LinearOrder T] in
+@[grind .] theorem symbolTree_nonterminal_cases
     (g : ContextFreeGrammar T) {A : g.NT} {w : List T}
     (h : SymbolTree g (.nonterminal A) w) :
     ∃ r, r ∈ g.rules ∧ r.input = A ∧ FormTree g r.output w := by
@@ -876,7 +891,7 @@ abbrev substituteEarlier
   | nonterminal r hr children =>
       exact ⟨r, hr, rfl, children⟩
 
-@[grind] theorem substituteEarlier_node
+@[grind .] theorem substituteEarlier_node
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     {w : List T}
@@ -973,7 +988,7 @@ abbrev substituteEarlier
 旧文法の導出木を代入後文法の木へ変換し、逆向きシミュレーションと合わせて言語等式を得る。以後の反復処理が各段階で意味論を保存する基礎になる。
 
 ```lean
-@[grind] theorem substituteEarlier_language_reverse
+@[grind .] theorem substituteEarlier_language_reverse
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     (substituteEarlier G i).toCFG.language ≤ G.toCFG.language := by
   intro w hw
@@ -985,7 +1000,7 @@ abbrev substituteEarlier
   change G.toCFG.Derives
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   simpa only [List.map_id] using h
-@[grind] theorem substituteEarlier_formTree
+@[grind .] theorem substituteEarlier_formTree
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {xs : List (Symbol T (GreibachWorkNT n))} {w : List T}
     (h : FormTree G.toCFG xs w) :
@@ -1005,7 +1020,7 @@ abbrev substituteEarlier
       FormTree.cons ihHead ihTail)
     h
 
-@[grind] theorem substituteEarlier_language_forward
+@[grind .] theorem substituteEarlier_language_forward
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     G.toCFG.language ≤ (substituteEarlier G i).toCFG.language := by
   intro w hw
@@ -1020,7 +1035,7 @@ abbrev substituteEarlier
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   exact hderives
 
-@[grind] theorem substituteEarlier_language
+@[grind .] theorem substituteEarlier_language
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     (substituteEarlier G i).toCFG.language = G.toCFG.language :=
   le_antisymm (substituteEarlier_language_reverse G i)
@@ -1037,7 +1052,7 @@ def SubstituteGeneratedCase
       j < i ∧ source ∈ G.rules ∧ source.input = .base j ∧
       new.input = .base i ∧ new.output = source.output ++ suffix
 
-@[grind] theorem substituteGeneratedCase_of_mem
+@[grind .] theorem substituteGeneratedCase_of_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n))
     (hnew : new ∈ substituteEarlierRule G i old) :
@@ -1059,7 +1074,7 @@ def SubstituteGeneratedCase
         refine Or.inl ⟨Finset.mem_singleton.mp hnew, ?_⟩
         intro hearlier
         rcases hearlier with ⟨_, k, hk, hki⟩
-        simp [leadingBaseIndex, houtput] at hk
+        simp only [leadingBaseIndex, houtput, Option.some.injEq] at hk
         subst k
         exact hj hki
     next hother =>
@@ -1123,7 +1138,7 @@ def RecFresh
   ∀ r ∈ G.rules,
     r.input ≠ .recursive i ∧
       Symbol.nonterminal (.recursive i) ∉ r.output
-@[grind] theorem compactWork_recFresh
+@[grind .] theorem compactWork_recFresh
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (i : Fin (activeNonterminals g).card) :
     RecFresh (compactWork g) i := by
@@ -1140,23 +1155,23 @@ theorem compactWork_initial_not_recursive
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (i : Fin (activeNonterminals g).card) :
     (compactWork g).initial ≠ .recursive i := by
-  simp [compactWork]
+  simp
 
 grind_pattern compactWork_initial_not_recursive =>
   compactWork g, Fin.val i
 
 
-@[grind] theorem eliminateImmediate_mem_of_generated
+@[grind .] theorem eliminateImmediate_mem_of_generated
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {old new : ContextFreeRule T (GreibachWorkNT n)}
     (hold : old ∈ G.rules)
     (hnew : new ∈ eliminateImmediateRule i old) :
     new ∈ (eliminateImmediateLeftRecursion G i).rules := by
   classical
-  simp only [eliminateImmediateLeftRecursion, Finset.mem_biUnion]
+  simp only [Finset.mem_biUnion]
   exact ⟨old, hold, hnew⟩
 
-@[grind] theorem eliminateImmediate_left_rules_mem
+@[grind .] theorem eliminateImmediate_left_rules_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     (tail : List (Symbol T (GreibachWorkNT n)))
@@ -1178,7 +1193,7 @@ grind_pattern compactWork_initial_not_recursive =>
     rw [houtput]
     simp
 
-@[grind] theorem eliminateImmediate_nonleft_rules_mem
+@[grind .] theorem eliminateImmediate_nonleft_rules_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     (hinput : r.input = .base i)
@@ -1207,7 +1222,7 @@ grind_pattern compactWork_initial_not_recursive =>
                   exact hnoleft (by simp [leadingBaseIndex, houtput])
                 simp [hji]
 
-@[grind] theorem eliminateImmediate_companion_or_recursive_tail
+@[grind .] theorem eliminateImmediate_companion_or_recursive_tail
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (r : ContextFreeRule T (GreibachWorkNT n))
     (hr : r ∈ (eliminateImmediateLeftRecursion G i).rules)
@@ -1221,7 +1236,7 @@ grind_pattern compactWork_initial_not_recursive =>
     ∃ pfx,
       r.output = pfx ++ [Symbol.nonterminal (.recursive i)] := by
   classical
-  simp only [eliminateImmediateLeftRecursion, Finset.mem_biUnion] at hr
+  simp only [Finset.mem_biUnion] at hr
   obtain ⟨old, hold, hgenerated⟩ := hr
   have holdFresh := hfresh old hold
   simp only [eliminateImmediateRule] at hgenerated
@@ -1266,7 +1281,7 @@ grind_pattern compactWork_initial_not_recursive =>
               [Symbol.nonterminal (.recursive i)] },
           holdInput.symm, rfl, ?_⟩
         exact (eliminateImmediate_nonleft_rules_mem G i r hold
-          holdInput (by simp [leadingBaseIndex, holdOutput])).2
+          holdInput (by simp [leadingBaseIndex])).2
       · right
         exact ⟨old.output, rfl⟩
   next holdInput =>
@@ -1283,7 +1298,8 @@ grind_pattern compactWork_initial_not_recursive =>
 元の生成木へ自己再帰 suffix を繰り返し付加できる関係を定義する。空語ケースと連結ケースを分け、左再帰除去後の木を構成するための帰納的不変条件にする。
 
 ```lean
-@[grind] theorem formTree_nil_word
+omit [LinearOrder T] in
+@[grind .] theorem formTree_nil_word
     (g : ContextFreeGrammar T) {w : List T}
     (h : FormTree g [] w) : w = [] := by
   cases h
@@ -1317,11 +1333,11 @@ def CanAppendImmediateForm
           FormTree (eliminateImmediateLeftRecursion G i).toCFG tail v →
           FormTree (eliminateImmediateLeftRecursion G i).toCFG xs (w ++ v)
 
-@[grind] theorem canAppendImmediate
+@[grind .] theorem canAppendImmediate
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i) :
-    (∀ {x w} (h : SymbolTree (eliminateImmediateLeftRecursion G i).toCFG x w),
+    (∀ {x w} (_ : SymbolTree (eliminateImmediateLeftRecursion G i).toCFG x w),
       CanAppendImmediateSymbol G i x w) ∧
-    (∀ {xs w} (h : FormTree (eliminateImmediateLeftRecursion G i).toCFG xs w),
+    (∀ {xs w} (_ : FormTree (eliminateImmediateLeftRecursion G i).toCFG xs w),
       CanAppendImmediateForm G i xs w) := by
   let E := (eliminateImmediateLeftRecursion G i).toCFG
   have symbolPart :
@@ -1436,7 +1452,7 @@ def CanAppendImmediateForm
 保持規則と自己再帰規則を新文法の木へ写し、任意の元生成木を変換後の生成木へ持ち上げる。これにより言語の順向き包含を得る。
 
 ```lean
-@[grind] theorem eliminateImmediate_retained_mem
+@[grind .] theorem eliminateImmediate_retained_mem
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     (hinput : r.input ≠ .base i) :
@@ -1444,7 +1460,7 @@ def CanAppendImmediateForm
   apply eliminateImmediate_mem_of_generated G i hr
   simp [eliminateImmediateRule, hinput]
 
-@[grind] theorem eliminateImmediate_forward_node
+@[grind .] theorem eliminateImmediate_forward_node
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
     {w : List T}
@@ -1498,7 +1514,7 @@ def CanAppendImmediateForm
     exact @SymbolTree.nonterminal T E r
       (by simpa [E, GreibachWorkGrammar.toCFG] using hmem) w children
 
-@[grind] theorem eliminateImmediate_forward_formTree
+@[grind .] theorem eliminateImmediate_forward_formTree
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     {xs : List (Symbol T (GreibachWorkNT n))} {w : List T}
     (h : FormTree G.toCFG xs w) :
@@ -1517,7 +1533,7 @@ def CanAppendImmediateForm
     (fun head rest ihHead ihRest => FormTree.cons ihHead ihRest)
     h
 
-@[grind] theorem eliminateImmediate_language_forward
+@[grind .] theorem eliminateImmediate_language_forward
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i) :
     G.toCFG.language ≤
       (eliminateImmediateLeftRecursion G i).toCFG.language := by
@@ -1555,7 +1571,8 @@ def ReverseImmediateForm
         SymbolTree G.toCFG (.nonterminal (.base i)) (z ++ v))
 
 
-@[grind] theorem reverseImmediate_terminal
+omit [LinearOrder T] in
+@[grind .] theorem reverseImmediate_terminal
     (G : GreibachWorkGrammar T n) (i : Fin n) (a : T) :
     ReverseImmediateSymbol G i (.terminal a) [a] := by
   constructor
@@ -1571,7 +1588,8 @@ def ReverseImmediateForm
 fresh 記号の生成列を元文法の自己再帰列へ戻す補助補題を整備し、変換後規則を保持・基底・反復の各ケースへ分類する。失敗し得る空 tail は既存不変条件で排除する。
 
 ```lean
-@[grind] theorem reverseImmediate_nil
+omit [LinearOrder T] in
+@[grind .] theorem reverseImmediate_nil
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     ReverseImmediateForm G i [] [] := by
   constructor
@@ -1580,7 +1598,8 @@ fresh 記号の生成列を元文法の自己再帰列へ戻す補助補題を�
   · intro pfx heq _
     cases pfx <;> simp at heq
 
-@[grind] theorem reverseImmediate_cons
+omit [LinearOrder T] in
+@[grind .] theorem reverseImmediate_cons
     (G : GreibachWorkGrammar T n) (i : Fin n)
     {x : Symbol T (GreibachWorkNT n)} {u : List T}
     {xs : List (Symbol T (GreibachWorkNT n))} {v : List T}
@@ -1639,7 +1658,7 @@ def ImmediateGeneratedCase
     (new.output = tail ∨
       new.output = tail ++ [Symbol.nonterminal (.recursive i)])
 
-@[grind] theorem immediateGeneratedCase_of_mem
+@[grind .] theorem immediateGeneratedCase_of_mem
     (i : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n))
     (hnew : new ∈ eliminateImmediateRule i old) :
@@ -1650,7 +1669,8 @@ def ImmediateGeneratedCase
     | nil =>
         simp only [eliminateImmediateRule, hinput] at hnew
         rw [houtput] at hnew
-        simp at hnew
+        simp only [↓reduceDIte, List.nil_append, Finset.mem_insert,
+          Finset.mem_singleton] at hnew
         rcases hnew with rfl | rfl
         · exact Or.inl rfl
         · exact Or.inr (Or.inl ⟨hinput,
@@ -1660,7 +1680,8 @@ def ImmediateGeneratedCase
         | terminal a =>
             simp only [eliminateImmediateRule, hinput] at hnew
             rw [houtput] at hnew
-            simp at hnew
+            simp only [↓reduceDIte, List.cons_append, Finset.mem_insert,
+              Finset.mem_singleton] at hnew
             rcases hnew with rfl | rfl
             · exact Or.inl rfl
             · exact Or.inr (Or.inl ⟨hinput,
@@ -1671,7 +1692,8 @@ def ImmediateGeneratedCase
             | recursive k =>
                 simp only [eliminateImmediateRule, hinput] at hnew
                 rw [houtput] at hnew
-                simp at hnew
+                simp only [↓reduceDIte, List.cons_append, Finset.mem_insert,
+                  Finset.mem_singleton] at hnew
                 rcases hnew with rfl | rfl
                 · exact Or.inl rfl
                 · exact Or.inr (Or.inl ⟨hinput,
@@ -1682,7 +1704,8 @@ def ImmediateGeneratedCase
                 · subst j
                   simp only [eliminateImmediateRule, hinput] at hnew
                   rw [houtput] at hnew
-                  simp at hnew
+                  simp only [↓reduceDIte, Finset.mem_insert,
+                    Finset.mem_singleton] at hnew
                   rcases hnew with rfl | rfl
                   · exact Or.inr (Or.inr
                       ⟨xs, hinput, houtput, rfl, Or.inr rfl⟩)
@@ -1690,13 +1713,15 @@ def ImmediateGeneratedCase
                       ⟨xs, hinput, houtput, rfl, Or.inl rfl⟩)
                 · simp only [eliminateImmediateRule, hinput] at hnew
                   rw [houtput] at hnew
-                  simp [hji] at hnew
+                  simp only [↓reduceDIte, hji, List.cons_append,
+                    Finset.mem_insert, Finset.mem_singleton] at hnew
                   rcases hnew with rfl | rfl
                   · exact Or.inl rfl
                   · exact Or.inr (Or.inl ⟨hinput,
                       by simp [leadingBaseIndex, houtput, hji], rfl,
                       by simp [houtput]⟩)
-  · simp [eliminateImmediateRule, hinput] at hnew
+  · simp only [eliminateImmediateRule, hinput, ↓reduceDIte,
+      Finset.mem_singleton] at hnew
     subst new
     exact Or.inl rfl
 
@@ -1707,14 +1732,14 @@ def ImmediateGeneratedCase
 変換後の生成木を元文法の木へ復元し、局所分類を言語の逆包含へ持ち上げる。順向き結果と合わせて、一回の左再帰除去が言語を保存することを確定する。
 
 ```lean
-@[grind] theorem reverseImmediate_nonterminal
+@[grind .] theorem reverseImmediate_nonterminal
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (r : ContextFreeRule T (GreibachWorkNT n))
     (hr : r ∈ (eliminateImmediateLeftRecursion G i).rules)
     {w : List T} (children : ReverseImmediateForm G i r.output w) :
     ReverseImmediateSymbol G i (.nonterminal r.input) w := by
   classical
-  simp only [eliminateImmediateLeftRecursion, Finset.mem_biUnion] at hr
+  simp only [Finset.mem_biUnion] at hr
   obtain ⟨old, hold, hgenerated⟩ := hr
   have holdFresh := hfresh old hold
   rcases immediateGeneratedCase_of_mem i old r hgenerated with
@@ -1782,7 +1807,7 @@ def ImmediateGeneratedCase
         rw [hw]
         simpa [List.append_assoc] using hcontinued
 
-@[grind] theorem eliminateImmediate_reverse_formTree
+@[grind .] theorem eliminateImmediate_reverse_formTree
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     {xs : List (Symbol T (GreibachWorkNT n))} {w : List T}
     (h : FormTree (eliminateImmediateLeftRecursion G i).toCFG xs w) :
@@ -1804,7 +1829,7 @@ def ImmediateGeneratedCase
       reverseImmediate_cons G i ihHead ihTail)
     h
 
-@[grind] theorem eliminateImmediate_language_reverse
+@[grind .] theorem eliminateImmediate_language_reverse
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (hinitial : G.initial ≠ .recursive i) :
     (eliminateImmediateLeftRecursion G i).toCFG.language ≤
@@ -1824,7 +1849,7 @@ def ImmediateGeneratedCase
         exact hinitial (Symbol.nonterminal.inj h).symm)
   exact derives_of_formTree G.toCFG holdTree
 
-@[grind] theorem eliminateImmediateLeftRecursion_language
+@[grind .] theorem eliminateImmediateLeftRecursion_language
     (G : GreibachWorkGrammar T n) (i : Fin n) (hfresh : RecFresh G i)
     (hinitial : G.initial ≠ .recursive i) :
     (eliminateImmediateLeftRecursion G i).toCFG.language =
@@ -1840,13 +1865,13 @@ def ImmediateGeneratedCase
 代入と左再帰除去が既存の fresh 記号を捕獲せず、作業右辺の有効性を保つことを示す。先頭が基底記号である場合の tail 条件も後続反復へ引き継ぐ。
 
 ```lean
-@[grind] theorem substituteEarlier_preserves_recFresh
+@[grind .] theorem substituteEarlier_preserves_recFresh
     (G : GreibachWorkGrammar T n) (i k : Fin n)
     (hfresh : RecFresh G k) :
     RecFresh (substituteEarlier G i) k := by
   classical
   intro new hnew
-  simp only [substituteEarlier, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   have holdFresh := hfresh old hold
   simp only [substituteEarlierRule] at hgenerated
@@ -1863,7 +1888,7 @@ def ImmediateGeneratedCase
         constructor
         · intro h
           cases h
-        · simp only [List.mem_append, List.mem_cons, not_or]
+        · simp only [List.mem_append, not_or]
           constructor
           · exact hsourceFresh.2
           · intro hmem
@@ -1883,13 +1908,13 @@ def ImmediateGeneratedCase
     subst new
     exact holdFresh
 
-@[grind] theorem eliminateImmediate_preserves_recFresh
+@[grind .] theorem eliminateImmediate_preserves_recFresh
     (G : GreibachWorkGrammar T n) (i k : Fin n) (hik : i ≠ k)
     (hfresh : RecFresh G k) :
     RecFresh (eliminateImmediateLeftRecursion G i) k := by
   classical
   intro new hnew
-  simp only [eliminateImmediateLeftRecursion, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   have holdFresh := hfresh old hold
   rcases immediateGeneratedCase_of_mem i old new hgenerated with
@@ -1925,7 +1950,8 @@ def ImmediateGeneratedCase
           hik (GreibachWorkNT.recursive.inj
             (Symbol.nonterminal.inj h)).symm⟩
 
-@[grind] theorem validWorkOutput_tail_of_leadingBase
+omit [LinearOrder T] in
+@[grind .] theorem validWorkOutput_tail_of_leadingBase
     {rhs : List (Symbol T (GreibachWorkNT n))}
     {j : Fin n} {suffix : List (Symbol T (GreibachWorkNT n))}
     (hvalid : validWorkOutput rhs)
@@ -1940,13 +1966,13 @@ def ImmediateGeneratedCase
     cases hk
     exact ⟨tail, rfl⟩
 
-@[grind] theorem substituteEarlier_outputsValid
+@[grind .] theorem substituteEarlier_outputsValid
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G) :
     WorkOutputsValid (substituteEarlier G i) := by
   classical
   intro new hnew
-  simp only [substituteEarlier, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   rcases substituteGeneratedCase_of_mem G i old new hgenerated with
       hretained | ⟨j, suffix, source, _hinput, houtput, _hji,
@@ -1959,14 +1985,14 @@ def ImmediateGeneratedCase
     exact validWorkOutput_append_nonterminals
       (hvalid source hsource) tail
 
-@[grind] theorem eliminateImmediate_outputsValid
+@[grind .] theorem eliminateImmediate_outputsValid
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
     WorkOutputsValid (eliminateImmediateLeftRecursion G i) := by
   classical
   intro new hnew
-  simp only [eliminateImmediateLeftRecursion, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   rcases immediateGeneratedCase_of_mem i old new hgenerated with
       hretained | haugmented | hleft
@@ -2002,14 +2028,14 @@ def ImmediateGeneratedCase
 両変換が基底規則の非空 tail 条件を保存することを証明し、先頭非終端記号の許容番号境界を定義する。番号ゼロから始める反復の基底ケースをここで閉じる。
 
 ```lean
-@[grind] theorem substituteEarlier_baseRulesHaveTail
+@[grind .] theorem substituteEarlier_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
     BaseRulesHaveTail (substituteEarlier G i) := by
   classical
   intro new hnew k j hinput hleading
-  simp only [substituteEarlier, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   rcases substituteGeneratedCase_of_mem G i old new hgenerated with
       hretained | ⟨q, suffix, source, _holdInput, holdOutput, _hqi,
@@ -2026,9 +2052,9 @@ def ImmediateGeneratedCase
     · rw [hnewOutput] at hleading
       rcases hterminal with ⟨a, xs, ha⟩
       rw [ha] at hleading
-      simp [leadingBaseIndex] at hleading
+      simp only [leadingBaseIndex, List.cons_append, reduceCtorEq] at hleading
     · rw [hnewOutput, hsourceOutput] at hleading
-      simp [leadingBaseIndex] at hleading
+      simp only [leadingBaseIndex, List.cons_append, Option.some.injEq] at hleading
       subst l
       obtain ⟨m, sourceTail, htailSource⟩ :=
         htail source hsource q j hsourceInput (by
@@ -2037,13 +2063,13 @@ def ImmediateGeneratedCase
         rw [hnewOutput, htailSource, hsuffix]
         simp [List.map_append]⟩
 
-@[grind] theorem eliminateImmediate_baseRulesHaveTail
+@[grind .] theorem eliminateImmediate_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (htail : BaseRulesHaveTail G) :
     BaseRulesHaveTail (eliminateImmediateLeftRecursion G i) := by
   classical
   intro new hnew k j hinput hleading
-  simp only [eliminateImmediateLeftRecursion, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   rcases immediateGeneratedCase_of_mem i old new hgenerated with
       hretained | haugmented | hleft
@@ -2076,7 +2102,8 @@ def ImmediateGeneratedCase
   · obtain ⟨tail, _holdInput, _holdOutput, hnewInput, _⟩ := hleft
     cases hinput.symm.trans hnewInput
 
-@[grind] theorem leadingBound_zero
+omit [LinearOrder T] in
+@[grind .] theorem leadingBound_zero
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G) :
     LeadingBoundAt G i 0 := by
@@ -2085,7 +2112,7 @@ def ImmediateGeneratedCase
   · exact Or.inl hterminal
   · exact Or.inr ⟨j, by simp [leadingBaseIndex, houtput], Nat.zero_le _⟩
 
-@[grind] theorem substituteEarlier_leadingBound
+@[grind .] theorem substituteEarlier_leadingBound
     (G : GreibachWorkGrammar T n) (i : Fin n) (p : Nat)
     (hvalid : WorkOutputsValid G)
     (hbound : LeadingBoundAt G i p)
@@ -2094,7 +2121,7 @@ def ImmediateGeneratedCase
     LeadingBoundAt (substituteEarlier G i) i (p + 1) := by
   classical
   intro new hnew hnewInput
-  simp only [substituteEarlier, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   rcases substituteGeneratedCase_of_mem G i old new hgenerated with
       hretained | ⟨j, suffix, source, holdInput, holdOutput, hji,
@@ -2113,7 +2140,7 @@ def ImmediateGeneratedCase
       · rw [holdOutput] at hterminal
         rcases hterminal with ⟨a, tail, h⟩
         cases h
-      · simp [leadingBaseIndex, holdOutput] at hk
+      · simp only [leadingBaseIndex, holdOutput, Option.some.injEq] at hk
         subst k
         exact hpk
     rcases hearlier j hji source hsource hsourceInput with
@@ -2133,13 +2160,13 @@ def ImmediateGeneratedCase
 先行記号の代入と即時左再帰除去が `BaseOrderedAt` を保存することを示し、必要回数だけ代入を繰り返す関数を定義する。有限な反復回数が停止性の計算根拠になる。
 
 ```lean
-@[grind] theorem substituteEarlier_preserves_baseOrdered
+@[grind .] theorem substituteEarlier_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i k : Fin n)
     (hik : k ≠ i) (hordered : BaseOrderedAt G k) :
     BaseOrderedAt (substituteEarlier G i) k := by
   classical
   intro new hnew hnewInput
-  simp only [substituteEarlier, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   rcases substituteGeneratedCase_of_mem G i old new hgenerated with
       hretained | ⟨j, suffix, source, holdInput, holdOutput, hji,
@@ -2150,13 +2177,13 @@ def ImmediateGeneratedCase
       (hnewInput.symm.trans hinput)
     exact (hik this).elim
 
-@[grind] theorem eliminateImmediate_preserves_baseOrdered
+@[grind .] theorem eliminateImmediate_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i k : Fin n)
     (hik : k ≠ i) (hordered : BaseOrderedAt G k) :
     BaseOrderedAt (eliminateImmediateLeftRecursion G i) k := by
   classical
   intro new hnew hnewInput
-  simp only [eliminateImmediateLeftRecursion, Finset.mem_biUnion] at hnew
+  simp only [Finset.mem_biUnion] at hnew
   obtain ⟨old, hold, hgenerated⟩ := hnew
   rcases immediateGeneratedCase_of_mem i old new hgenerated with
       hretained | haugmented | hleft
@@ -2176,7 +2203,7 @@ def repeatSubstituteEarlier
   | 0 => G
   | k + 1 => substituteEarlier (repeatSubstituteEarlier G i k) i
 
-@[grind] theorem repeatSubstituteEarlier_language
+@[grind .] theorem repeatSubstituteEarlier_language
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat) :
     (repeatSubstituteEarlier G i k).toCFG.language =
       G.toCFG.language := by
@@ -2185,7 +2212,7 @@ def repeatSubstituteEarlier
   | succ k ih =>
       rw [repeatSubstituteEarlier, substituteEarlier_language, ih]
 
-@[grind] theorem repeatSubstituteEarlier_recFresh
+@[grind .] theorem repeatSubstituteEarlier_recFresh
     (G : GreibachWorkGrammar T n) (i j : Fin n) (k : Nat)
     (hfresh : RecFresh G j) :
     RecFresh (repeatSubstituteEarlier G i k) j := by
@@ -2194,7 +2221,7 @@ def repeatSubstituteEarlier
   | succ k ih =>
       exact substituteEarlier_preserves_recFresh _ i j ih
 
-@[grind] theorem repeatSubstituteEarlier_initial
+@[grind .] theorem repeatSubstituteEarlier_initial
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat) :
     (repeatSubstituteEarlier G i k).initial = G.initial := by
   induction k with
@@ -2202,7 +2229,7 @@ def repeatSubstituteEarlier
   | succ k ih =>
       simpa [repeatSubstituteEarlier, substituteEarlier] using ih
 
-@[grind] theorem repeatSubstituteEarlier_outputsValid
+@[grind .] theorem repeatSubstituteEarlier_outputsValid
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat)
     (hvalid : WorkOutputsValid G) :
     WorkOutputsValid (repeatSubstituteEarlier G i k) := by
@@ -2211,7 +2238,7 @@ def repeatSubstituteEarlier
   | succ k ih =>
       exact substituteEarlier_outputsValid _ i ih
 
-@[grind] theorem repeatSubstituteEarlier_baseRulesHaveTail
+@[grind .] theorem repeatSubstituteEarlier_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2223,7 +2250,7 @@ def repeatSubstituteEarlier
       · exact repeatSubstituteEarlier_outputsValid G i k hvalid
       · exact ih
 
-@[grind] theorem repeatSubstituteEarlier_preserves_baseOrdered
+@[grind .] theorem repeatSubstituteEarlier_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i j : Fin n) (k : Nat)
     (hji : j ≠ i) (hordered : BaseOrderedAt G j) :
     BaseOrderedAt (repeatSubstituteEarlier G i k) j := by
@@ -2232,7 +2259,7 @@ def repeatSubstituteEarlier
   | succ k ih =>
       exact substituteEarlier_preserves_baseOrdered _ i j hji ih
 
-@[grind] theorem repeatSubstituteEarlier_leadingBound
+@[grind .] theorem repeatSubstituteEarlier_leadingBound
     (G : GreibachWorkGrammar T n) (i : Fin n) (k : Nat)
     (hk : k ≤ i.val)
     (hvalid : WorkOutputsValid G)
@@ -2264,7 +2291,7 @@ def orderedForwardStep
 一つの番号について代入反復と左再帰除去を組み合わせ、現在番号の自己先頭規則を除く。有限番号を昇順に fold する作業変換と、その段階的不変条件を準備する。
 
 ```lean
-@[grind] theorem eliminateImmediateRule_not_retains_self
+@[grind .] theorem eliminateImmediateRule_not_retains_self
     (i : Fin n) (r : ContextFreeRule T (GreibachWorkNT n))
     (hinput : r.input = .base i)
     (hleading : leadingBaseIndex r.output = some i)
@@ -2299,7 +2326,7 @@ def orderedForwardStep
   next hinput' =>
     exact (hinput' hinput).elim
 
-@[grind] theorem orderedForwardStep_current_ordered
+@[grind .] theorem orderedForwardStep_current_ordered
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (hearlier : ∀ j : Fin n, j < i → BaseOrderedAt G j) :
@@ -2352,7 +2379,7 @@ def orderedForwardFold :
   | G, [] => G
   | G, i :: is => orderedForwardFold (orderedForwardStep G i) is
 
-@[grind] theorem orderedForwardStep_outputsValid
+@[grind .] theorem orderedForwardStep_outputsValid
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2368,7 +2395,7 @@ def FreshFor
 
   ∀ i ∈ is, RecFresh G i
 
-@[grind] theorem orderedForwardStep_baseRulesHaveTail
+@[grind .] theorem orderedForwardStep_baseRulesHaveTail
     (G : GreibachWorkGrammar T n) (i : Fin n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2377,7 +2404,7 @@ def FreshFor
   exact repeatSubstituteEarlier_baseRulesHaveTail
     G i (substitutionPasses i) hvalid htail
 
-@[grind] theorem orderedForwardStep_preserves_baseOrdered
+@[grind .] theorem orderedForwardStep_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (i j : Fin n)
     (hji : j ≠ i) (hordered : BaseOrderedAt G j) :
     BaseOrderedAt (orderedForwardStep G i) j := by
@@ -2393,7 +2420,7 @@ def FreshFor
 各 forward step の言語保存を fold 全体へ持ち上げる。同時に fresh 記号の非衝突と初期記号の保持を追跡し、後半の terminal-leading 代入が安全に行える状態を得る。
 
 ```lean
-@[grind] theorem orderedForwardStep_freshFor
+@[grind .] theorem orderedForwardStep_freshFor
     (G : GreibachWorkGrammar T n) (i : Fin n) (is : List (Fin n))
     (hinodup : i ∉ is) (hfresh : FreshFor G (i :: is)) :
     FreshFor (orderedForwardStep G i) is := by
@@ -2405,13 +2432,13 @@ def FreshFor
   · apply repeatSubstituteEarlier_recFresh
     exact hfresh k (by simp [hk])
 
-@[grind] theorem orderedForwardStep_initial
+@[grind .] theorem orderedForwardStep_initial
     (G : GreibachWorkGrammar T n) (i : Fin n) :
     (orderedForwardStep G i).initial = G.initial := by
   simp only [orderedForwardStep, eliminateImmediateLeftRecursion]
   exact repeatSubstituteEarlier_initial G i (substitutionPasses i)
 
-@[grind] theorem orderedForwardFold_language
+@[grind .] theorem orderedForwardFold_language
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hnodup : is.Nodup) (hfresh : FreshFor G is)
     (hinitial : ∀ i ∈ is, G.initial ≠ .recursive i) :
@@ -2443,7 +2470,7 @@ def FreshFor
         _ = G.toCFG.language :=
           repeatSubstituteEarlier_language G i (substitutionPasses i)
 
-@[grind] theorem orderedForwardFold_outputsValid
+@[grind .] theorem orderedForwardFold_outputsValid
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -2455,7 +2482,7 @@ def FreshFor
         (orderedForwardStep_outputsValid G i hvalid htail)
         (orderedForwardStep_baseRulesHaveTail G i hvalid htail)
 
-@[grind] theorem orderedForwardFold_all_ordered
+@[grind .] theorem orderedForwardFold_all_ordered
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hsorted : is.Pairwise (· < ·))
     (hvalid : WorkOutputsValid G)
@@ -2499,7 +2526,7 @@ def FreshFor
 有限番号の降順性を用いて、先頭非終端記号をその規則で置換する操作を定義する。規則一個・規則集合・文法全体の層を分け、後の証明で所属由来を追跡できるようにする。
 
 ```lean
-@[grind] theorem finRange_pairwise_lt :
+@[grind .] theorem finRange_pairwise_lt :
     (List.finRange n).Pairwise (· < ·) := by
   simp only [List.pairwise_iff_getElem]
   intro i j hi hj hij
@@ -2539,7 +2566,7 @@ def SubstituteLeadingCase
       old.output = Symbol.nonterminal (.base j) :: suffix ∧
       new.input = old.input ∧ new.output = source.output ++ suffix
 
-@[grind] theorem substituteLeadingCase_of_mem
+@[grind .] theorem substituteLeadingCase_of_mem
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (old new : ContextFreeRule T (GreibachWorkNT n))
     (hnew : new ∈ substituteLeadingRule G j old) :
@@ -2570,7 +2597,8 @@ def SubstituteLeadingCase
             | recursive k => simp [leadingBaseIndex, houtput] at hleading
             | base k => exact (hother k xs houtput).elim
 
-@[grind] theorem substituteLeading_old_derives
+omit [LinearOrder T] in
+@[grind .] theorem substituteLeading_old_derives
     (G : GreibachWorkGrammar T n) (j : Fin n)
     {suffix : List (Symbol T (GreibachWorkNT n))}
     {target source : ContextFreeRule T (GreibachWorkNT n)}
@@ -2597,7 +2625,7 @@ def SubstituteLeadingCase
       (ContextFreeRule.Rewrites.head (r := source) suffix)
   exact hfirst.single.trans hsecond.single
 
-@[grind] theorem substituteLeading_reverse_step
+@[grind .] theorem substituteLeading_reverse_step
     (G : GreibachWorkGrammar T n) (j : Fin n)
     {u v : List (Symbol T (GreibachWorkNT n))}
     (h : (substituteLeadingBase G j).toCFG.Produces u v) :
@@ -2638,7 +2666,7 @@ def SubstituteLeadingCase
 完全代入後の一歩を旧文法へ戻して言語の逆包含を示す。先頭が終端記号であるか、指定した基底集合に属するかを表す述語を導入し、変換進行度を記述する。
 
 ```lean
-@[grind] theorem substituteLeading_language_reverse
+@[grind .] theorem substituteLeading_language_reverse
     (G : GreibachWorkGrammar T n) (j : Fin n) :
     (substituteLeadingBase G j).toCFG.language ≤ G.toCFG.language := by
   intro w hw
@@ -2659,7 +2687,8 @@ def LeadingAllowedBy
   ∀ r ∈ G.rules, startsWithTerminal r.output ∨
     ∃ j ∈ is, leadingBaseIndex r.output = some j
 
-@[grind] theorem baseStartsWithTerminal_of_ordered_allowed
+omit [LinearOrder T] in
+@[grind .] theorem baseStartsWithTerminal_of_ordered_allowed
     (G : GreibachWorkGrammar T n) (j : Fin n) (is : List (Fin n))
     (hsorted : (j :: is).Pairwise (· > ·))
     (hordered : BaseOrderedAt G j)
@@ -2677,7 +2706,7 @@ def LeadingAllowedBy
       · exact (Fin.lt_asymm hjk
           (List.rel_of_pairwise_cons hsorted htail)).elim
 
-@[grind] theorem substituteLeading_preserves_baseOrdered
+@[grind .] theorem substituteLeading_preserves_baseOrdered
     (G : GreibachWorkGrammar T n) (j k : Fin n)
     (hvalid : WorkOutputsValid G)
     (hterminal : BaseStartsWithTerminal G j)
@@ -2701,7 +2730,7 @@ def LeadingAllowedBy
     exact Or.inl
       (startsWithTerminal_append_nonterminals hsourceTerminal oldTail)
 
-@[grind] theorem substituteLeading_outputsValid
+@[grind .] theorem substituteLeading_outputsValid
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hvalid : WorkOutputsValid G)
     (hterminal : BaseStartsWithTerminal G j) :
@@ -2723,7 +2752,7 @@ def LeadingAllowedBy
     exact Or.inl
       (startsWithTerminal_append_nonterminals hsourceTerminal oldTail)
 
-@[grind] theorem substituteLeading_allowed
+@[grind .] theorem substituteLeading_allowed
     (G : GreibachWorkGrammar T n) (j : Fin n) (is : List (Fin n))
     (hvalid : WorkOutputsValid G)
     (hterminal : BaseStartsWithTerminal G j)
@@ -2751,7 +2780,7 @@ def LeadingAllowedBy
     exact Or.inl
       (startsWithTerminal_append_nonterminals hsourceTerminal oldTail)
 
-@[grind] theorem substituteLeading_mem_of_generated
+@[grind .] theorem substituteLeading_mem_of_generated
     (G : GreibachWorkGrammar T n) (j : Fin n)
     {old new : ContextFreeRule T (GreibachWorkNT n)}
     (hold : old ∈ G.rules)
@@ -2768,7 +2797,7 @@ def LeadingAllowedBy
 基底入力を持つ保持規則と生成規則由来の新規則を分類し、各ケースで先頭条件がどう変化するかを示す。局所分類を生成木変換へ利用する。
 
 ```lean
-@[grind] theorem substituteLeading_old_of_base_input
+@[grind .] theorem substituteLeading_old_of_base_input
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j)
     {r : ContextFreeRule T (GreibachWorkNT n)}
@@ -2798,7 +2827,7 @@ def LeadingAllowedBy
   next =>
     exact Finset.mem_singleton.mp hgenerated ▸ hold
 
-@[grind] theorem substituteLeading_node
+@[grind .] theorem substituteLeading_node
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j)
     (r : ContextFreeRule T (GreibachWorkNT n)) (hr : r ∈ G.rules)
@@ -2900,7 +2929,7 @@ def LeadingAllowedBy
 旧文法の生成木を完全代入後の木へ構造帰納法で移す。先頭非終端記号の番号が真に減少することを再帰の尺度とし、言語の順向き包含を構成する。
 
 ```lean
-@[grind] theorem substituteLeading_formTree
+@[grind .] theorem substituteLeading_formTree
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j)
     {xs : List (Symbol T (GreibachWorkNT n))} {w : List T}
@@ -2920,7 +2949,7 @@ def LeadingAllowedBy
     (fun _ _ ihHead ihTail => FormTree.cons ihHead ihTail)
     h
 
-@[grind] theorem substituteLeading_language_forward
+@[grind .] theorem substituteLeading_language_forward
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j) :
     G.toCFG.language ≤ (substituteLeadingBase G j).toCFG.language := by
@@ -2935,7 +2964,7 @@ def LeadingAllowedBy
     [Symbol.nonterminal G.initial] (terminalSymbols w)
   exact hderives
 
-@[grind] theorem substituteLeading_language
+@[grind .] theorem substituteLeading_language
     (G : GreibachWorkGrammar T n) (j : Fin n)
     (hterminal : BaseStartsWithTerminal G j) :
     (substituteLeadingBase G j).toCFG.language = G.toCFG.language :=
@@ -2948,7 +2977,8 @@ def substituteLeadingFold :
   | G, [] => G
   | G, j :: is => substituteLeadingFold (substituteLeadingBase G j) is
 
-@[grind] theorem leadingAllowedBy_of_valid
+omit [LinearOrder T] in
+@[grind .] theorem leadingAllowedBy_of_valid
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hall : ∀ j : Fin n, j ∈ is)
     (hvalid : WorkOutputsValid G) :
@@ -2958,7 +2988,7 @@ def substituteLeadingFold :
   · exact Or.inl hterminal
   · exact Or.inr ⟨j, hall j, by simp [leadingBaseIndex, houtput]⟩
 
-@[grind] theorem substituteLeadingFold_result
+@[grind .] theorem substituteLeadingFold_result
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hsorted : is.Pairwise (· > ·))
     (hvalid : WorkOutputsValid G)
@@ -2992,7 +3022,7 @@ def substituteLeadingFold :
       rw [substituteLeadingFold]
       exact htail.2.2.2.trans (substituteLeading_language G j hterminal)
 
-@[grind] theorem substituteLeadingFold_all_terminal
+@[grind .] theorem substituteLeadingFold_all_terminal
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hsorted : is.Pairwise (· > ·))
     (hvalid : WorkOutputsValid G)
@@ -3007,7 +3037,7 @@ def substituteLeadingFold :
   · exact hterminal
   · simp at hj
 
-@[grind] theorem substituteLeadingFold_language
+@[grind .] theorem substituteLeadingFold_language
     (G : GreibachWorkGrammar T n) (is : List (Fin n))
     (hsorted : is.Pairwise (· > ·))
     (hvalid : WorkOutputsValid G)
@@ -3028,7 +3058,7 @@ def orderedGreibachTransform
 fold と完全代入を合成し、作業文法の言語保存と「全規則が終端記号から始まる」性質を得る。ここで有限作業型上の Greibach 化を完了し、名前空間境界を閉じる。
 
 ```lean
-@[grind] theorem orderedGreibachTransform_language
+@[grind .] theorem orderedGreibachTransform_language
     (G : GreibachWorkGrammar T n)
     (hfresh : ∀ i : Fin n, RecFresh G i)
     (hinitial : ∀ i : Fin n, G.initial ≠ .recursive i)
@@ -3067,7 +3097,7 @@ fold と完全代入を合成し、作業文法の言語保存と「全規則が
       · intro i hi
         exact hinitial i
 
-@[grind] theorem orderedGreibachTransform_startsWithTerminal
+@[grind .] theorem orderedGreibachTransform_startsWithTerminal
     (G : GreibachWorkGrammar T n)
     (hvalid : WorkOutputsValid G)
     (htail : BaseRulesHaveTail G) :
@@ -3133,7 +3163,8 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
   | .start => S
   | .old A => A
 
-@[grind] theorem oldGreibachSymbols_not_start
+omit [LinearOrder T] in
+@[grind .] theorem oldGreibachSymbols_not_start
     (xs : List (Symbol T N)) :
     Symbol.nonterminal
       (GreibachStartNT.start : GreibachStartNT N) ∉
@@ -3143,7 +3174,7 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
   | cons x xs ih =>
       cases x <;> simp_all
 
-@[grind] theorem inlineGreibachStart_initial_not_output
+@[grind .] theorem inlineGreibachStart_initial_not_output
     (G : ContextFreeGrammar T) [DecidableEq G.NT] :
     ∀ r ∈ (inlineGreibachStart G).rules,
       Symbol.nonterminal (inlineGreibachStart G).initial ∉
@@ -3158,7 +3189,7 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
   · simpa [copyInitialRule] using
       oldGreibachSymbols_not_start old.output
 
-@[grind] theorem inlineGreibachStart_old_step
+@[grind .] theorem inlineGreibachStart_old_step
     (G : ContextFreeGrammar T) [DecidableEq G.NT] {u v}
     (h : G.Produces u v) :
     (inlineGreibachStart G).Derives
@@ -3174,7 +3205,7 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
     Finset.mem_image]
   exact Or.inl ⟨r, hr, rfl⟩
 
-@[grind] theorem inlineGreibachStart_reverse_step
+@[grind .] theorem inlineGreibachStart_reverse_step
     (G : ContextFreeGrammar T) [DecidableEq G.NT] {u v}
     (h : (inlineGreibachStart G).Produces u v) :
     G.Derives
@@ -3226,7 +3257,7 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
     rw [hrule] at hmapped
     exact hmapped
 
-@[grind] theorem inlineGreibachStart_copy_step
+@[grind .] theorem inlineGreibachStart_copy_step
     (G : ContextFreeGrammar T) [DecidableEq G.NT]
     {v : List (Symbol T G.NT)}
     (h : G.Produces [Symbol.nonterminal G.initial] v) :
@@ -3241,7 +3272,8 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
     | nil => rfl
     | cons x xs => simp at hpq
   subst p
-  simp at hpq
+  simp only [List.nil_append, List.cons_append, List.cons.injEq,
+    Symbol.nonterminal.injEq, List.nil_eq] at hpq
   rcases hpq with ⟨hinput, rfl⟩
   simp only [List.nil_append, List.append_nil] at hv
   subst v
@@ -3259,7 +3291,7 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
 追加初期記号の規則を本体へ inline しても言語が保存されることを証明する。先頭終端性を保ち、結果の全規則が Greibach 形状を満たすことまでをまとめる。
 
 ```lean
-@[grind] theorem inlineGreibachStart_language
+@[grind .] theorem inlineGreibachStart_language
     (G : ContextFreeGrammar T) [DecidableEq G.NT] :
     (inlineGreibachStart G).language = G.language := by
   ext w
@@ -3273,7 +3305,7 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
       Function.comp_def] using h
   · intro hw
     rcases hw.eq_or_head with heq | ⟨v, hfirst, hrest⟩
-    · cases w <;> simp [terminalSymbols] at heq
+    · cases w <;> simp at heq
     · have hcopy := inlineGreibachStart_copy_step G hfirst
       have hrest' := ContextFreeGrammar.derives_lift_of_produces
         (inlineGreibachStart_old_step G) hrest
@@ -3285,7 +3317,7 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
 
 
 
-@[grind] theorem inlineGreibachStart_startsWithTerminal
+@[grind .] theorem inlineGreibachStart_startsWithTerminal
     (G : ContextFreeGrammar T) [DecidableEq G.NT]
     (hterminal : ∀ r ∈ G.rules, ∃ (a : T) (tail : List G.NT),
       r.output = Symbol.terminal a :: tail.map Symbol.nonterminal) :
@@ -3307,7 +3339,7 @@ def eraseGreibachStart (S : N) : GreibachStartNT N → N
     simp [copyInitialRule, hout, List.map_map,
       Function.comp_def]
 
-@[grind] theorem inlineGreibachStart_greibach
+@[grind .] theorem inlineGreibachStart_greibach
     (G : ContextFreeGrammar T) [DecidableEq G.NT]
     (hterminal : ∀ r ∈ G.rules, ∃ (a : T) (tail : List G.NT),
       r.output = Symbol.terminal a :: tail.map Symbol.nonterminal) :
@@ -3343,26 +3375,26 @@ abbrev nonemptyGreibachCFG
     initial := .start
     rules := nonemptyGreibachRules g }
 
-@[grind] theorem nonemptyGreibachCFG_eq_inline
+@[grind .] theorem nonemptyGreibachCFG_eq_inline
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     nonemptyGreibachCFG g =
       inlineGreibachStart
         (orderedGreibachTransform (nonemptyGreibachWork g)).toCFG := by
   rfl
 
-@[grind] theorem nonemptyGreibachWork_valid
+@[grind .] theorem nonemptyGreibachWork_valid
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     WorkOutputsValid (nonemptyGreibachWork g) :=
   compactWork_outputsValid (nonemptyCNF g).grammar
     (nonemptyCNF g).no_empty_rules
 
-@[grind] theorem nonemptyGreibachWork_tail
+@[grind .] theorem nonemptyGreibachWork_tail
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     BaseRulesHaveTail (nonemptyGreibachWork g) :=
   compactWork_baseRulesHaveTail (nonemptyCNF g).grammar
     (nonemptyCNF g).no_empty_rules
 
-@[grind] theorem nonemptyGreibachCFG_language_nonempty
+@[grind .] theorem nonemptyGreibachCFG_language_nonempty
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {w : List T} (hw : w ≠ []) :
     w ∈ (nonemptyGreibachCFG g).language ↔ w ∈ g.language := by
@@ -3385,8 +3417,7 @@ abbrev nonemptyGreibachCFG
 非空部分について Greibach 文法構造を組み立て、初期記号非出現と空規則不在を証明する。空語の復元を除くすべての標準形条件がこの段階で揃う。
 
 ```lean
-set_option maxHeartbeats 0 in
-@[grind] theorem nonemptyGreibachCFG_greibach
+@[grind .] theorem nonemptyGreibachCFG_greibach
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (r : ContextFreeRule T (NonemptyGreibachNT g))
     (hr : r ∈ nonemptyGreibachRules g) :
@@ -3404,9 +3435,7 @@ set_option maxHeartbeats 0 in
       (nonemptyGreibachWork_valid g)
       (nonemptyGreibachWork_tail g)) r hr
 
-set_option maxHeartbeats 0 in
--- The generated finite index is definitionally tied to the computed grammar support.
-@[grind] theorem nonemptyGreibachCFG_initial_not_output
+@[grind .] theorem nonemptyGreibachCFG_initial_not_output
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (r : ContextFreeRule T (NonemptyGreibachNT g))
     (hr : r ∈ nonemptyGreibachRules g) :
@@ -3417,9 +3446,7 @@ set_option maxHeartbeats 0 in
   exact inlineGreibachStart_initial_not_output
     (G := (orderedGreibachTransform (nonemptyGreibachWork g)).toCFG) r hr
 
-set_option maxHeartbeats 0 in
--- The generated finite index is definitionally tied to the computed grammar support.
-@[grind] theorem nonemptyGreibachCFG_no_empty_rules
+@[grind .] theorem nonemptyGreibachCFG_no_empty_rules
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     (r : ContextFreeRule T (NonemptyGreibachNT g))
     (hr : r ∈ nonemptyGreibachRules g) :
@@ -3434,8 +3461,6 @@ set_option maxHeartbeats 0 in
         (nonemptyGreibachWork_tail g)) r hr
   rw [hout] at hterminal
   cases hterminal
-set_option maxHeartbeats 0 in
--- Restoring ε threads a generated finite index through the complete GNF proof.
 section
 
 def greibachEmptyRule (G : ContextFreeGrammar T) :
@@ -3457,7 +3482,7 @@ abbrev restoreGreibachEpsilon
     initial := .start
     rules := restoreGreibachEpsilonRules g }
 
-@[grind] theorem restoreGreibachEpsilon_base_step
+@[grind .] theorem restoreGreibachEpsilon_base_step
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (h : (nonemptyGreibachCFG g).Produces u v) :
     (restoreGreibachEpsilon g).Derives u v := by
@@ -3470,7 +3495,7 @@ abbrev restoreGreibachEpsilon
   · exact Finset.mem_insert_of_mem hr
   · exact hr
 
-@[grind] theorem restoreGreibachEpsilon_step_without_initial
+@[grind .] theorem restoreGreibachEpsilon_step_without_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (hno : Symbol.nonterminal (nonemptyGreibachCFG g).initial ∉ u)
     (h : (restoreGreibachEpsilon g).Produces u v) :
@@ -3487,7 +3512,7 @@ abbrev restoreGreibachEpsilon
     · exact ⟨r, hr, hrewrite⟩
   next =>
     exact ⟨r, hr, hrewrite⟩
-@[grind] theorem nonemptyGreibachCFG_step_preserves_initial
+@[grind .] theorem nonemptyGreibachCFG_step_preserves_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] {u v}
     (hno : Symbol.nonterminal (nonemptyGreibachCFG g).initial ∉ u)
     (h : (nonemptyGreibachCFG g).Produces u v) :
@@ -3499,7 +3524,7 @@ abbrev restoreGreibachEpsilon
     nonemptyGreibachCFG_initial_not_output g r hr⟩, hno.2⟩
 
 
-@[grind] theorem restoreGreibachEpsilon_derives_without_initial
+@[grind .] theorem restoreGreibachEpsilon_derives_without_initial
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ∀ {u v},
       Symbol.nonterminal (nonemptyGreibachCFG g).initial ∉ u →
@@ -3523,7 +3548,7 @@ abbrev restoreGreibachEpsilon
 元文法が空語を生成する場合だけ fresh start の ε 規則を戻す。非空語の言語等式と空規則を持たないことを利用し、復元後の言語を元文法の言語へ一致させる。
 
 ```lean
-@[grind] theorem restoreGreibachEpsilon_language_nonempty
+@[grind .] theorem restoreGreibachEpsilon_language_nonempty
     (g : ContextFreeGrammar T) [LinearOrder g.NT]
     {w : List T} (hw : w ≠ []) :
     w ∈ (restoreGreibachEpsilon g).language ↔
@@ -3542,7 +3567,8 @@ abbrev restoreGreibachEpsilon
         | nil => rfl
         | cons x xs => simp at hpq
       subst p
-      simp at hpq
+      simp only [List.nil_append, List.cons_append, List.cons.injEq,
+        Symbol.nonterminal.injEq, List.nil_eq] at hpq
       rcases hpq with ⟨hinput, rfl⟩
       simp only [List.nil_append, List.append_nil] at hv
       subst v
@@ -3584,7 +3610,8 @@ abbrev restoreGreibachEpsilon
         simpa using restoreGreibachEpsilon_base_step g
           (by simpa using hstep)) h
     simpa using h'
-@[grind] theorem derives_nonempty_of_no_empty_rules
+omit [LinearOrder T] in
+@[grind .] theorem derives_nonempty_of_no_empty_rules
     (G : ContextFreeGrammar T)
     (hnoempty : ∀ r ∈ G.rules, r.output ≠ []) :
     ∀ {u v}, u ≠ [] → G.Derives u v → v ≠ [] := by
@@ -3608,7 +3635,7 @@ abbrev restoreGreibachEpsilon
               rw [hout] at hempty
               simp at hempty
 
-@[grind] theorem nonemptyGreibachCFG_empty_not_mem
+@[grind .] theorem nonemptyGreibachCFG_empty_not_mem
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     [] ∉ (nonemptyGreibachCFG g).language := by
   intro h
@@ -3617,7 +3644,7 @@ abbrev restoreGreibachEpsilon
     (nonemptyGreibachCFG_no_empty_rules g)
     (by simp) h rfl
 
-@[grind] theorem restoreGreibachEpsilon_empty_mem
+@[grind .] theorem restoreGreibachEpsilon_empty_mem
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     [] ∈ (restoreGreibachEpsilon g).language ↔ [] ∈ g.language := by
   classical
@@ -3641,7 +3668,7 @@ abbrev restoreGreibachEpsilon
       exact (nonemptyGreibachCFG_empty_not_mem g hbase).elim
     · exact fun h => (hempty h).elim
 
-@[grind] theorem restoreGreibachEpsilon_language
+@[grind .] theorem restoreGreibachEpsilon_language
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     (restoreGreibachEpsilon g).language = g.language := by
   ext w
@@ -3658,7 +3685,7 @@ abbrev restoreGreibachEpsilon
 空語復元後も Greibach 規則形状と初期記号非出現が保たれることを示し、最終的な `GreibachNormalGrammar` を構成する。公開定理として入力文法との言語等式を閉じる。
 
 ```lean
-@[grind] theorem restoreGreibachEpsilon_greibach
+@[grind .] theorem restoreGreibachEpsilon_greibach
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ∀ r ∈ (restoreGreibachEpsilon g).rules,
       ContextFreeRule.IsGreibachNormal
@@ -3675,7 +3702,7 @@ abbrev restoreGreibachEpsilon
   next =>
     exact nonemptyGreibachCFG_greibach g r hr
 
-@[grind] theorem restoreGreibachEpsilon_initial_not_output
+@[grind .] theorem restoreGreibachEpsilon_initial_not_output
     (g : ContextFreeGrammar T) [LinearOrder g.NT] :
     ∀ r ∈ (restoreGreibachEpsilon g).rules,
       Symbol.nonterminal (restoreGreibachEpsilon g).initial ∉ r.output := by

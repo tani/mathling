@@ -54,7 +54,7 @@ infixl:60 " ⧸ " => Tp.rdiv
 例えば、以下のように原子式 `a`, `b` から複合的な論理式 $a / b$ を定義することができる。
 
 ```lean
-#check (# "a" ⧸ # "b")
+example : Tp := # "a" ⧸ # "b"
 ```
 
 Lambek 計算のシーケント $Γ ⇒ A$ は、前提となる論理式の空でないリスト $Γ$ から、単一の結論 $A$ が導出可能であることを表す。
@@ -159,7 +159,7 @@ $α$ はいずれかの断片に必ず含まれることになる。ここでは
 「カット規則が持ち込む文脈」がどのように重なり合うかを網羅的に場合分けするためだけに用いる。
 
 ```lean
-@[grind] lemma list_split_2_cases
+@[grind .] lemma list_split_2_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂) :
   (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂) ∨
   (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R) := by
@@ -175,7 +175,7 @@ $Δ₁$ 側に落ちた場合はそのまま最初のケースとなり、$Δ₂
 その断片をさらに 2 分割することで、$α$ が $Δ₂$ に含まれるか $Δ₃$ に含まれるかを決定する。
 
 ```lean
-@[grind] lemma list_split_3_cases
+@[grind .] lemma list_split_3_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃) :
   (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂ ++ Δ₃) ∨
   (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R ++ Δ₃) ∨
@@ -192,7 +192,7 @@ $Δ₁$ 側に落ちた場合はそのまま最初のケースとなり、$Δ₂
 入れ子の適用によって構成しているため、任意有限個への分割への一般化も同じ手法で可能である。
 
 ```lean
-@[grind] lemma list_split_4_cases
+@[grind .] lemma list_split_4_cases
   (h : Γ₁ ++ [α] ++ Γ₂ = Δ₁ ++ Δ₂ ++ Δ₃ ++ Δ₄) :
   (∃ R, Δ₁ = Γ₁ ++ [α] ++ R ∧ Γ₂ = R ++ Δ₂ ++ Δ₃ ++ Δ₄)
   ∨ (∃ L R, Δ₂ = L ++ [α] ++ R ∧ Γ₁ = Δ₁ ++ L ∧ Γ₂ = R ++ Δ₃ ++ Δ₄)
@@ -610,7 +610,7 @@ def translatedListDegree (toProductFree : α → Tp) (Γ : List α) : Nat :=
 ```
 
 ```lean
-@[grind] lemma translatedListDegree_traversible (toProductFree : α → Tp) :
+@[grind .] lemma translatedListDegree_traversible (toProductFree : α → Tp) :
     translatedListDegree toProductFree (Γ ++ Δ) =
       translatedListDegree toProductFree Γ + translatedListDegree toProductFree Δ := by
   simp [translatedListDegree, list_degree_traversible]
@@ -622,7 +622,7 @@ def translatedIsAtom (toProductFree : α → Tp) (A : α) : Prop :=
 ```
 
 ```lean
-@[grind] lemma translatedNonemptyAppend (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
+@[grind .] lemma translatedNonemptyAppend (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   exact nonempty_append h
 ```
 

@@ -105,7 +105,7 @@ lemma proveAux_complete {Γ : List Tp} {A : Tp} (h : prove1 Γ A) : prove2 Γ A 
 同値であることが分かる。
 
 ```lean
-@[grind] lemma prove1_iff_prove2 {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ prove2 Γ A := by
+@[grind .] lemma prove1_iff_prove2 {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ prove2 Γ A := by
   grind only [prove1, prove2, ctxToProductFree, Tp.toProductFree, prove1_iff_prove2]
 ```
 

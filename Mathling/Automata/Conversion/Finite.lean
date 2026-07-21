@@ -47,7 +47,7 @@ grind_pattern path_toWholeStackNPDA_reaches =>
   M.Path q q' w,
   M.toWholeStackNPDA.Reaches (w, q, stack) ([], q', stack)
 
-@[grind] private theorem toWholeStackNPDA_reaches_path_aux (M : NFA α σ)
+@[grind .] private theorem toWholeStackNPDA_reaches_path_aux (M : NFA α σ)
     {c : WholeStackNPDA.ID α σ PUnit}
     {q' : σ} {stack' : List PUnit}
     (h : M.toWholeStackNPDA.Reaches c ([], q', stack')) :
@@ -62,7 +62,7 @@ grind_pattern path_toWholeStackNPDA_reaches =>
           exact ⟨hpathStack, ⟨.cons _ _ _ _ _ edge path⟩⟩
       | epsilon hmem => simp [toWholeStackNPDA] at hmem
 
-@[grind] private theorem toWholeStackNPDA_reaches_path (M : NFA α σ)
+@[grind .] private theorem toWholeStackNPDA_reaches_path (M : NFA α σ)
     {q q' : σ} {w : List α}
     {stack stack' : List PUnit}
     (h : M.toWholeStackNPDA.Reaches (w, q, stack) ([], q', stack')) :

@@ -49,18 +49,18 @@ end LeftLinearGrammar
 
 ```lean
 /-- Reversing a rule with empty output leaves the output empty. -/
-@[grind] private theorem ContextFreeRule.reverse_output_nil {T N : Type*}
+@[grind .] private theorem ContextFreeRule.reverse_output_nil {T N : Type*}
     {r : ContextFreeRule T N} (h : r.output = []) : r.reverse.output = [] := by
   simp [ContextFreeRule.reverse, h]
 
 /-- Reversing a rule with singleton output leaves the output unchanged. -/
-@[grind] private theorem ContextFreeRule.reverse_output_singleton {T N : Type*}
+@[grind .] private theorem ContextFreeRule.reverse_output_singleton {T N : Type*}
     {r : ContextFreeRule T N} {a : T} (h : r.output = [Symbol.terminal a]) :
     r.reverse.output = [Symbol.terminal a] := by
   simp [ContextFreeRule.reverse, h]
 
 /-- Reversing a rule with two-symbol output swaps the two symbols. -/
-@[grind] private theorem ContextFreeRule.reverse_output_pair {T N : Type*}
+@[grind .] private theorem ContextFreeRule.reverse_output_pair {T N : Type*}
     {r : ContextFreeRule T N} {x y : Symbol T N} (h : r.output = [x, y]) :
     r.reverse.output = [y, x] := by
   simp [ContextFreeRule.reverse, h]
@@ -96,8 +96,9 @@ def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T where
   simp [reverseRightLinear, RightLinearGrammar.language, LeftLinearGrammar.language]
 
 /-- A left-linear grammar with finitely many nonterminals generates a regular language. -/
-@[grind] theorem language_isRegular (g : LeftLinearGrammar T) [Fintype g.cfg.NT] :
+@[grind .] theorem language_isRegular (g : LeftLinearGrammar T) [Finite g.cfg.NT] :
     g.language.IsRegular := by
+  letI := Fintype.ofFinite g.cfg.NT
   letI : Fintype g.reverseRightLinear.cfg.NT := by
     change Fintype g.cfg.NT
     infer_instance
@@ -151,9 +152,10 @@ end RightLinearGrammar
 with a finite nonterminal type: reverse a right-linear witness for the reversed
 language back into a left-linear witness for the original language. -/
 @[important, grind =] theorem Language.isRegular_iff_exists_leftLinearGrammar
-    {T : Type} [Fintype T] {L : Language T} :
+    {T : Type} [Finite T] {L : Language T} :
     L.IsRegular ↔
       ∃ g : LeftLinearGrammar T, Nonempty (Fintype g.cfg.NT) ∧ g.language = L := by
+  letI := Fintype.ofFinite T
   constructor
   · intro hL
     have hrev : L.reverse.IsRegular := Language.isRegular_reverse_iff.mpr hL

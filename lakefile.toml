@@ -8,6 +8,8 @@ testDriver = "mathlingTests"
 pp.unicode.fun = true # pretty-prints `fun a ↦ b`
 relaxedAutoImplicit = false
 weak.linter.mathlibStandardSet = true
+weak.linter.style.emptyLine = false
+weak.linter.style.whitespace = false
 maxSynthPendingDepth = 3
 
 [[require]]

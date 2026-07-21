@@ -2,7 +2,7 @@
 
     public import Mathling.Automata.Core
     public import Mathlib.Computability.MyhillNerode
-    public import Mathlib.Data.Finite.Card
+    public import Mathlib.SetTheory.Cardinal.NatCard
     public import Mathling.Meta.Important
 
     public import LiterateLean
