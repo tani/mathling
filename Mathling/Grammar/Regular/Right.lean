@@ -42,13 +42,24 @@ Its body is exposed because public reversal and regularity results identify it
 with the underlying context-free language. -/
 @[expose] public def language (g : RightLinearGrammar T) : Language T := g.cfg.language
 
+/-- Every right-linear grammar is context-free after forgetting its rule-shape
+certificate. -/
+@[important, grind .] public theorem language_isContextFree (g : RightLinearGrammar T) :
+    g.language.IsContextFree :=
+  ⟨g.cfg, rfl⟩
+
 /-- Forget that a right-linear grammar is right-linear. -/
-public def toLinear (g : RightLinearGrammar T) : LinearGrammar T where
+/- Exposed because the exported language-preservation theorem observes the
+underlying context-free grammar definitionally. -/
+@[expose] public def toLinear (g : RightLinearGrammar T) : LinearGrammar T where
   cfg := g.cfg
   linear r hr := by
     rcases g.rightLinear r hr with h | ⟨a, h⟩ | ⟨a, B, h⟩ <;>
       simp [ContextFreeRule.IsLinear, ContextFreeRule.nonterminalCount,
         symbolIsNonterminal, h]
+
+@[important, grind =, simp] public theorem toLinear_language (g : RightLinearGrammar T) :
+    g.toLinear.language = g.language := rfl
 ```
 
 ## NFA への変換
@@ -509,6 +520,16 @@ with a finite nonterminal type. -/
     letI : Fintype g.cfg.NT := inst
     rw [← hL]
     exact g.language_isRegular
+
+/-- Over a finite alphabet, every regular language is context-free.  The
+right-linear characterization supplies the context-free grammar witness. -/
+@[important, grind →] public theorem Language.isRegular_isContextFree
+    {T : Type} [Finite T] {L : Language T} (h : L.IsRegular) :
+    L.IsContextFree := by
+  obtain ⟨g, _, hlanguage⟩ :=
+    Language.isRegular_iff_exists_rightLinearGrammar.mp h
+  rw [← hlanguage]
+  exact g.language_isContextFree
 
 end Mathling.Grammar
 

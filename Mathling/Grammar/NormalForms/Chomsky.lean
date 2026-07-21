@@ -42,6 +42,12 @@ Its body is exposed because public pumping and normal-form proofs identify it
 with the underlying context-free language. -/
 @[expose] public def language (g : ChomskyNormalGrammar T) : Language T := g.cfg.language
 
+/-- A Chomsky-normal grammar is a context-free grammar with an additional
+rule-shape certificate. -/
+@[important, grind .] public theorem language_isContextFree (g : ChomskyNormalGrammar T) :
+    g.language.IsContextFree :=
+  ⟨g.cfg, rfl⟩
+
 /-- Forget the Chomsky-normality evidence. -/
 public def toContextFreeGrammar (g : ChomskyNormalGrammar T) : ContextFreeGrammar T := g.cfg
 

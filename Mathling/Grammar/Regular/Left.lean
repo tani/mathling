@@ -31,6 +31,12 @@ Its body is exposed because public reversal results identify it with the
 reversed language of the associated right-linear grammar. -/
 @[expose] public def language (g : LeftLinearGrammar T) : Language T := g.cfg.language
 
+/-- Every left-linear grammar is context-free after forgetting its rule-shape
+certificate. -/
+@[important, grind .] public theorem language_isContextFree (g : LeftLinearGrammar T) :
+    g.language.IsContextFree :=
+  ⟨g.cfg, rfl⟩
+
 /-- Forget that a left-linear grammar is left-linear. -/
 public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
   cfg := g.cfg
@@ -38,6 +44,9 @@ public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
     rcases g.leftLinear r hr with h | ⟨a, h⟩ | ⟨A, a, h⟩ <;>
       simp [ContextFreeRule.IsLinear, ContextFreeRule.nonterminalCount,
         symbolIsNonterminal, h]
+
+@[important, grind =, simp] public theorem toLinear_language (g : LeftLinearGrammar T) :
+    g.toLinear.language = g.language := rfl
 
 end LeftLinearGrammar
 

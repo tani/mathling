@@ -156,6 +156,13 @@ public structure LinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T
   linear : ∀ r ∈ cfg.rules, Mathling.Grammar.ContextFreeRule.IsLinear r
 
+namespace LinearGrammar
+
+/-- The language generated after forgetting the linearity certificate. -/
+@[expose] public def language (g : LinearGrammar T) : Language T := g.cfg.language
+
+end LinearGrammar
+
 /-- A context-free grammar in one-symbol right-linear normal form. -/
 public structure RightLinearGrammar (T : Type*) where
   cfg : ContextFreeGrammar T

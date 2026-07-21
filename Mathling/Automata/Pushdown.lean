@@ -693,161 +693,29 @@ end NPDA
 
 ```
 
-## 全スタック関係への境界
+## 局所規則を持つ DPDA
 
-`WholeStackNPDA` は、任意のスタック全体を関係で書き換えられる別の意味論モデルである。有限局所規則の `NPDA` とは意図的に区別し、`NPDA.toWholeStackNPDA` だけを変換境界とする。`step_toWholeStackNPDA_iff` と `reaches_toWholeStackNPDA_iff` が1歩と実行列の両方を対応させるため、局所規則の公開 API を保ったまま、既存の高階な PDA 構成で全スタック意味論を利用できる。
-
-```lean
-
-/-- A nondeterministic pushdown automaton whose transition relation may inspect
-and replace the whole stack at once. -/
-@[ext] public structure WholeStackNPDA (α State Stack : Type*) where
-  step : State → Option α → List Stack → Set (State × List Stack)
-  start : Set State
-  accept : Set State
-  initialStack : List Stack
-
-namespace WholeStackNPDA
-
-variable {α State Stack : Type*}
-
-/-- An instantaneous description: unread input, control state, and stack. -/
-public abbrev ID (α State Stack : Type*) := List α × State × List Stack
-
-/-- One consuming or epsilon transition of an NPDA. -/
-@[grind cases] public inductive Step (M : WholeStackNPDA α State Stack) :
-    ID α State Stack → ID α State Stack → Prop
-  | consume {a input q stack q' stack'}
-      (h : (q', stack') ∈ M.step q (some a) stack) :
-      Step M (a :: input, q, stack) (input, q', stack')
-  | epsilon {input q stack q' stack'}
-      (h : (q', stack') ∈ M.step q none stack) :
-      Step M (input, q, stack) (input, q', stack')
-
-/-- Zero or more transitions of an NPDA. -/
-public abbrev Reaches (M : WholeStackNPDA α State Stack) := Relation.ReflTransGen M.Step
-
-/-- Acceptance by final state after consuming all input. -/
-/- Exposed because exported conversion proofs destructure the shared acceptance predicate. -/
-@[expose] public def Accepts (M : WholeStackNPDA α State Stack) (w : List α) : Prop :=
-  ∃ q₀ ∈ M.start, ∃ qf ∈ M.accept, ∃ stack,
-    M.Reaches (w, q₀, M.initialStack) ([], qf, stack)
-
-/-- The language accepted by an NPDA. -/
-/- Exposed so exported conversion specifications can reduce the shared language observation. -/
-@[expose] public def language (M : WholeStackNPDA α State Stack) : Language α := {w | M.Accepts w}
-
-end WholeStackNPDA
-
-namespace NPDA
-
-variable {α State Stack : Type*}
-
-/-- Interpret local rules as a whole-stack transition relation. -/
-public def toWholeStackNPDA (M : NPDA α State Stack) : WholeStackNPDA α State Stack where
-  step q sym stack := {next | ∃ r ∈ M.rules, r.source = q ∧ r.input = sym ∧
-    ∃ tail, stack = r.pop :: tail ∧ next = (r.target, r.push ++ tail)}
-  start := {q | q ∈ M.start}
-  accept := {q | q ∈ M.accept}
-  initialStack := M.initialStack
-
-@[grind .] theorem step_toWholeStackNPDA_iff (M : NPDA α State Stack)
-    {c c' : ID α State Stack} :
-    M.Step c c' ↔ M.toWholeStackNPDA.Step c c' := by
-  constructor
-  · intro h
-    cases h with
-    | @consume a input tail r hr input_eq =>
-        apply WholeStackNPDA.Step.consume
-        exact ⟨r, hr, rfl, input_eq, tail, rfl, rfl⟩
-    | @epsilon input tail r hr input_eq =>
-        apply WholeStackNPDA.Step.epsilon
-        exact ⟨r, hr, rfl, input_eq, tail, rfl, rfl⟩
-  · intro h
-    cases h with
-    | @consume a input q stack q' stack' hmem =>
-        rcases hmem with ⟨r, hr, hsource, hinput, tail, hstack, hnext⟩
-        subst q
-        subst stack
-        obtain ⟨rfl, rfl⟩ := hnext
-        exact Step.consume r hr hinput
-    | @epsilon input q stack q' stack' hmem =>
-        rcases hmem with ⟨r, hr, hsource, hinput, tail, hstack, hnext⟩
-        subst q
-        subst stack
-        obtain ⟨rfl, rfl⟩ := hnext
-        exact Step.epsilon r hr hinput
-
-@[grind .] theorem reaches_toWholeStackNPDA_iff (M : NPDA α State Stack)
-    {c c' : ID α State Stack} :
-    M.Reaches c c' ↔ M.toWholeStackNPDA.Reaches c c' := by
-  constructor
-  · intro h
-    induction h with
-    | refl => exact Relation.ReflTransGen.refl
-    | tail h step ih => exact ih.tail ((M.step_toWholeStackNPDA_iff).mp step)
-  · intro h
-    induction h with
-    | refl => exact Relation.ReflTransGen.refl
-    | tail h step ih => exact ih.tail ((M.step_toWholeStackNPDA_iff).mpr step)
-
-/-- The whole-stack interpretation is exactly the operational semantics of
-the finite local rule list. -/
-@[grind =, simp] public theorem toWholeStackNPDA_language (M : NPDA α State Stack) :
-    M.toWholeStackNPDA.language = M.language := by
-  ext word
-  constructor
-  · rintro ⟨q₀, hq₀, qf, hqf, stack, hreach⟩
-    exact ⟨q₀, hq₀, qf, hqf, stack,
-      (M.reaches_toWholeStackNPDA_iff).mpr hreach⟩
-  · rintro ⟨q₀, hq₀, qf, hqf, stack, hreach⟩
-    exact ⟨q₀, hq₀, qf, hqf, stack,
-      (M.reaches_toWholeStackNPDA_iff).mp hreach⟩
-
-end NPDA
-
-```
-
-## 全スタック PDA と DPDA の意味論
-
-`WholeStackNPDA` はスタック全体を書き換える遷移関数 `step : State → Option α → List Stack → Set (State × List Stack)` を持つ。`ID`（instantaneous description）は未読入力・制御状態・スタックの組であり、`Step` はこの上の一手の遷移関係を `consume`（入力を1文字消費する遷移）と `epsilon`（入力を消費しない遷移）の2コンストラクタで帰納的に定義する。`Reaches` はこの一手関係の反射推移閉包であり、受理は
-
-```math
-M.\mathrm{Accepts}(w) \iff \exists\, q_0 \in M.\mathrm{start},\ \exists\, q_f \in M.\mathrm{accept},\ \exists\, s,\ M.\mathrm{Reaches}\,(w, q_0, M.\mathrm{initialStack})\,([\,], q_f, s)
-```
-
-として定義される。初期状態・初期スタックから出発して入力 `w` を読み尽くし、受理状態へ到達する経路が存在すれば受理される（到達時のスタックの中身そのものは問わない）。`language` はこの `Accepts` 述語をそのまま言語として束ねたものである。
-
-以下では、決定性版 `DPDA` を定義し、`WholeStackNPDA` への埋め込みとして意味論を与える。
+`DPDA` は有限局所規則 `NPDA` と、その規則表が決定的である証拠を束ねる。二つの規則が
+同じ状態とスタック先頭で競合し、同じ入力を読むか一方が epsilon 規則なら、その二規則は
+同一でなければならない。この条件により epsilon 遷移と consuming 遷移の競合も排除される。
 
 ```lean
 /-- A deterministic pushdown automaton with a single start state. -/
-public structure DPDA (α State Stack : Type*) where
-  step : State → Option α → List Stack → Option (State × List Stack)
-  start : State
-  accept : Set State
-  initialStack : List Stack
+public structure DPDA (α State Stack : Type*) extends NPDA α State Stack where
+  deterministic : ∀ {r s}, r ∈ rules → s ∈ rules →
+    r.source = s.source → r.pop = s.pop →
+    (r.input = none ∨ s.input = none ∨ r.input = s.input) → r = s
 
 namespace DPDA
 
 variable {α State Stack : Type*}
 
-/-- Regard a deterministic PDA as a nondeterministic PDA with singleton transitions. -/
-/- Exposed because the exported language-preservation theorem below is definitionally proved by
-unfolding this representation-changing conversion. -/
-@[expose] public def toWholeStackNPDA (M : DPDA α State Stack) : WholeStackNPDA α State Stack where
-  step q sym stack := {next | M.step q sym stack = some next}
-  start := {M.start}
-  accept := M.accept
-  initialStack := M.initialStack
+/-- The language of a DPDA is the language of its underlying local NPDA. -/
+@[expose] public def language (M : DPDA α State Stack) : Language α := M.toNPDA.language
 
-/-- The language of a DPDA is the language of its underlying NPDA. -/
-/- Exposed because `DPDA.toWholeStackNPDA_language` is an exported definitional specification. -/
-@[expose] public def language (M : DPDA α State Stack) : Language α := M.toWholeStackNPDA.language
-
-/-- Forgetting determinism preserves a DPDA's language. -/
-@[grind =, simp] public theorem toWholeStackNPDA_language (M : DPDA α State Stack) :
-    M.toWholeStackNPDA.language = M.language := rfl
+/-- Forgetting determinism preserves the accepted language definitionally. -/
+@[grind =, simp] public theorem toNPDA_language (M : DPDA α State Stack) :
+    M.toNPDA.language = M.language := rfl
 
 end DPDA
 
@@ -870,7 +738,7 @@ stateDiagram-v2
 - `push_phase_nonshrinking`: `push` 局面ではスタックの高さが単調非減少。
 - `pop_phase_nongrowing`: `pop` 局面ではスタックの高さが単調非増加。
 
-この制限クラスは、線形文法（linear grammar）から構成される PDA が自然にこの形を取ることから、他モジュールでの変換の中間表現として用いられる。`toWholeStackNPDA` は局面を制御状態 `State × TurnPhase` へ埋め込むことで一手番の不変条件そのものを忘れ、`WholeStackNPDA` として意味論を与える。`toWholeStackNPDA_language` はこの忘却が受理言語を変えないことを保証する。
+この制限クラスは、線形文法（linear grammar）から構成される PDA が自然にこの形を取ることから、他モジュールでの変換の中間表現として用いられる。実行意味論はこの型自身に直接与え、別の「全スタック PDA」型を経由しない。これにより一般の PDA 理論は有限局所規則 `NPDA` に一本化され、一回転構成だけが位相付きの専用意味論を持つ。
 
 ```lean
 /-- The phase of a one-turn pushdown computation. -/
@@ -902,26 +770,31 @@ namespace OneTurnNPDA
 
 variable {α State Stack : Type*}
 
-/-- Forget the one-turn invariants while retaining the phase in the control state. -/
-/- Exposed because the exported language-preservation theorem below is definitionally proved by
-unfolding this representation-changing conversion. -/
-@[expose] public def toWholeStackNPDA (M : OneTurnNPDA α State Stack) :
-    WholeStackNPDA α (State × TurnPhase) Stack where
-  step qp sym stack :=
-    {next | (next.1.1, next.1.2, next.2) ∈ M.step qp.1 qp.2 sym stack}
-  start := {qp | qp.1 ∈ M.start ∧ qp.2 = TurnPhase.push}
-  accept := {qp | qp.1 ∈ M.accept}
-  initialStack := M.initialStack
+/-- An instantaneous description including the one-turn phase. -/
+public abbrev ID (α State Stack : Type*) :=
+  List α × (State × TurnPhase) × List Stack
 
-/-- The language of a one-turn PDA is the language of its underlying NPDA. -/
-/- Exposed because `OneTurnNPDA.toWholeStackNPDA_language` is an exported definitional
-specification. -/
+/-- One consuming or epsilon transition of a one-turn machine. -/
+@[grind cases] public inductive Step (M : OneTurnNPDA α State Stack) :
+    ID α State Stack → ID α State Stack → Prop
+  | consume {a input q phase stack q' phase' stack'}
+      (h : (q', phase', stack') ∈ M.step q phase (some a) stack) :
+      Step M (a :: input, (q, phase), stack) (input, (q', phase'), stack')
+  | epsilon {input q phase stack q' phase' stack'}
+      (h : (q', phase', stack') ∈ M.step q phase none stack) :
+      Step M (input, (q, phase), stack) (input, (q', phase'), stack')
+
+/-- Zero or more one-turn transitions. -/
+public abbrev Reaches (M : OneTurnNPDA α State Stack) := Relation.ReflTransGen M.Step
+
+/-- Acceptance starts in the push phase and ends in any phase. -/
+@[expose] public def Accepts (M : OneTurnNPDA α State Stack) (w : List α) : Prop :=
+  ∃ q₀ ∈ M.start, ∃ qf ∈ M.accept, ∃ phase stack,
+    M.Reaches (w, (q₀, .push), M.initialStack) ([], (qf, phase), stack)
+
+/-- The language accepted by a one-turn PDA. -/
 @[expose] public def language (M : OneTurnNPDA α State Stack) : Language α :=
-  M.toWholeStackNPDA.language
-
-/-- Forgetting the one-turn invariants preserves the accepted language. -/
-@[grind =, simp] public theorem toWholeStackNPDA_language (M : OneTurnNPDA α State Stack) :
-    M.toWholeStackNPDA.language = M.language := rfl
+  {w | M.Accepts w}
 
 end OneTurnNPDA
 

@@ -4,6 +4,7 @@
     public import Mathlib.Computability.RegularExpressions
     public import Mathling.Meta.Important
 
+    import Cslib.Computability.Languages.RegularLanguage
     import LiterateLean
     open scoped LiterateLean
 
@@ -78,6 +79,97 @@ public abbrev language (r : RegularExpression α) : Language α :=
 
 @[grind =, simp] public theorem language_star (r : RegularExpression α) :
     language (star r) = (language r)∗ := rfl
+
+```
+
+## 正規表現から正則言語への接続
+
+一文字言語には三状態 DFA を直接与える。開始状態から指定文字を読んだ場合だけ受理状態へ
+移り、それ以外または二文字目以降は dead 状態へ移る。和・連接・Kleene star については
+正則言語の閉包性を用いるため、正規表現の構文帰納法がそのまま有限オートマトンの存在証明に
+なる。連接と star の構成が要求する alphabet の基準要素は `Nonempty` から局所的に選ぶ。
+
+```lean
+private def symbolDFA [DecidableEq α] (a : α) : DFA α (Option Bool) where
+  step state b :=
+    match state with
+    | none => if b = a then some false else some true
+    | some _ => some true
+  start := none
+  accept := {some false}
+
+@[grind =, simp] private theorem symbolDFA_evalFrom_dead [DecidableEq α]
+    (a : α) (word : List α) :
+    (symbolDFA a).evalFrom (some true) word = some true := by
+  induction word with
+  | nil => rfl
+  | cons b word ih => simpa [symbolDFA] using ih
+
+@[grind =] private theorem symbolDFA_language [DecidableEq α] (a : α) :
+    (symbolDFA a).accepts = ({[a]} : Language α) := by
+  ext word
+  cases word with
+  | nil =>
+      change (symbolDFA a).eval [] = some false ↔ ([] : List α) = [a]
+      simp [symbolDFA, DFA.eval, DFA.evalFrom]
+  | cons b tail =>
+      cases tail with
+      | nil =>
+          change (symbolDFA a).eval [b] = some false ↔ [b] = [a]
+          simp [symbolDFA, DFA.eval, DFA.evalFrom]
+      | cons c tail =>
+          change (symbolDFA a).eval (b :: c :: tail) = some false ↔
+            b :: c :: tail = [a]
+          have heval : (symbolDFA a).eval (b :: c :: tail) = some true := by
+            rw [DFA.eval, DFA.evalFrom_cons, DFA.evalFrom_cons]
+            by_cases h : b = a <;>
+              simpa [symbolDFA, h] using symbolDFA_evalFrom_dead a tail
+          simp [heval]
+
+/-- Every regular expression over a nonempty finite alphabet denotes a regular
+language.  The proof is the language-level form of Thompson construction. -/
+@[important, grind .] public theorem language_isRegular [Nonempty α]
+    (r : RegularExpression α) : (language r).IsRegular := by
+  letI : Inhabited α := ⟨Classical.choice inferInstance⟩
+  letI : DecidableEq α := Classical.decEq α
+  induction r with
+  | zero => exact Cslib.Language.IsRegular.zero
+  | epsilon => exact Cslib.Language.IsRegular.one
+  | char a =>
+      exact Language.isRegular_iff.mpr
+        ⟨Option Bool, inferInstance, symbolDFA a, symbolDFA_language a⟩
+  | plus r s hr hs => exact Cslib.Language.IsRegular.add hr hs
+  | comp r s hr hs => exact Cslib.Language.IsRegular.mul hr hs
+  | star r hr => exact Cslib.Language.IsRegular.kstar hr
+
+/-- A finite-state NFA together with its recognized-language specification. -/
+public structure FiniteNFA (α : Type*) (L : Language α) where
+  State : Type
+  stateFintype : Fintype State
+  machine : NFA α State
+  language_eq : machine.accepts = L
+
+/-- Compile a regular expression to a finite NFA.  The concrete state type is
+hidden behind the presentation record so clients depend only on its language. -/
+public noncomputable def compileNFA [Nonempty α]
+    (r : RegularExpression α) : FiniteNFA α (language r) := by
+  classical
+  let witness := Mathling.Automata.Language.isRegular_iff_nfa.mp r.language_isRegular
+  let State := Classical.choose witness
+  let inst := Classical.choose (Classical.choose_spec witness)
+  let machine := Classical.choose (Classical.choose_spec (Classical.choose_spec witness))
+  have correct := Classical.choose_spec
+    (Classical.choose_spec (Classical.choose_spec witness))
+  exact
+    { State := State
+      stateFintype := inst
+      machine := machine
+      language_eq := correct }
+
+/-- The compiled finite NFA recognizes exactly the denoted regex language. -/
+@[important, grind =, simp] public theorem compileNFA_language [Nonempty α]
+    (r : RegularExpression α) : r.compileNFA.machine.accepts = language r :=
+  r.compileNFA.language_eq
 ```
 
 ## executable matcher とその正当性

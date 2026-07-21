@@ -44,6 +44,25 @@ public noncomputable def toChomskyNormalGrammar {T : Type}
 
 end Classical
 end ContextFreeGrammar
+
+namespace Language
+
+open Mathling.Grammar
+
+/-- A language is context-free exactly when it has a Chomsky-normal
+presentation.  The forward direction uses the classical normal-form
+construction; the reverse direction forgets the normal-form certificate. -/
+@[important, grind =] public theorem isContextFree_iff_exists_chomskyNormalGrammar
+    {T : Type} {L : Language T} :
+    L.IsContextFree ↔ ∃ g : ChomskyNormalGrammar T, g.language = L := by
+  constructor
+  · rintro ⟨g, rfl⟩
+    exact ⟨ContextFreeGrammar.Classical.toChomskyNormalGrammar g,
+      ContextFreeGrammar.Classical.toChomskyNormalGrammar_language g⟩
+  · rintro ⟨g, rfl⟩
+    exact g.language_isContextFree
+
+end Language
 end Mathling.Grammar
 
 ```

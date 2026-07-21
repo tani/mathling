@@ -862,6 +862,19 @@ accepts it. Both machine state and stack alphabets are existential witnesses. -/
 
 end Language
 
+namespace Mathling.Automata.NPDA
+
+variable {T State Stack : Type}
+
+/-- The language of every finite-local NPDA is context-free.  The classical
+CFG construction supplies the witness without exposing decidable-equality
+requirements in the statement. -/
+@[important, grind .] public theorem language_isContextFree
+    (M : NPDA T State Stack) : M.language.IsContextFree :=
+  Language.isContextFree_iff_exists_npda.mpr ⟨State, Stack, M, rfl⟩
+
+end Mathling.Automata.NPDA
+
 ```
 
 <!--

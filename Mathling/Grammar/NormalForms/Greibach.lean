@@ -33,6 +33,12 @@ Its body is exposed because public conversion proofs identify it with the
 underlying context-free language. -/
 @[expose] public def language (g : GreibachNormalGrammar T) : Language T := g.cfg.language
 
+/-- A Greibach-normal grammar is context-free after its normal-form evidence is
+forgotten. -/
+@[important, grind .] public theorem language_isContextFree (g : GreibachNormalGrammar T) :
+    g.language.IsContextFree :=
+  ⟨g.cfg, rfl⟩
+
 /-- Forget the Greibach-normality evidence.
 
 Its body is exposed because the public language projection theorem is proved

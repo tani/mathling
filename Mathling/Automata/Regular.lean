@@ -1,6 +1,7 @@
     module
 
     public import Mathling.Automata.Regular.Finite
+    public import Mathling.Automata.Regular.Kleene
     public import Mathling.Automata.Regular.Minimization
     public import Mathling.Automata.Regular.Pumping
 
