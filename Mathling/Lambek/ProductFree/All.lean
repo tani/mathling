@@ -13,10 +13,9 @@
     public import Mathling.Lambek.ProductFree.Shallow.Core
     public import Mathling.Lambek.ProductFree.Shallow.Decision
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Lambek / ProductFree / All モジュール
 

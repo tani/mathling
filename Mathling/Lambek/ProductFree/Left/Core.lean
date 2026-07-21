@@ -4,10 +4,9 @@
     public import Mathlib.Data.Nat.Basic
     public import Mathling.Lambek.ProductFree.Core
     public import Mathling.Meta.Important
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Left Fragment of Product-Free Lambek Calculus
 
@@ -34,7 +33,7 @@ set_option linter.style.maxHeartbeats false
 
 ```lean
 @[grind cases]
-inductive Tp where
+public inductive Tp where
   | atom (name : String) : Tp
   | ldiv (A B : Tp) : Tp
   deriving Repr, DecidableEq
@@ -55,7 +54,7 @@ infixr:60 " ⧹ " => Tp.ldiv
 各 left 論理式を一般の product-free 論理式へ写す。
 
 ```lean
-def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
+public def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
   | .atom name => Mathling.Lambek.ProductFree.Tp.atom name
   | .ldiv A B => Mathling.Lambek.ProductFree.Tp.ldiv A.toProductFree B.toProductFree
 ```
@@ -64,7 +63,7 @@ def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
 
 ```lean
 @[grind =]
-def tp_degree (A : Tp) : Nat :=
+public def tp_degree (A : Tp) : Nat :=
   Mathling.Lambek.ProductFree.translatedTpDegree Tp.toProductFree A
 ```
 
@@ -72,7 +71,7 @@ def tp_degree (A : Tp) : Nat :=
 
 ```lean
 @[grind =]
-def list_degree (Γ : List Tp) : Nat :=
+public def list_degree (Γ : List Tp) : Nat :=
   Mathling.Lambek.ProductFree.translatedListDegree Tp.toProductFree Γ
 ```
 
@@ -87,7 +86,7 @@ lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_d
 文脈も同じ写像で翻訳する。
 
 ```lean
-def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
+public def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
   List.map Tp.toProductFree
 ```
 
@@ -129,7 +128,7 @@ left 側の表記 `ctxToProductFree Γ` と一般側の表記 `Γ.map Tp.toProdu
 left シーケントは一般断片のシーケントとして実装する。
 
 ```lean
-def Sequent (Γ : List Tp) (A : Tp) : Prop :=
+public def Sequent (Γ : List Tp) (A : Tp) : Prop :=
   Mathling.Lambek.ProductFree.Sequent (ctxToProductFree Γ) A.toProductFree
 ```
 
@@ -253,7 +252,7 @@ lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
 Core.lean 本体から独立させつつ軽量に保てる理由である。
 
 ```lean
-@[important, grind =>] theorem cut_admissible
+@[important, grind =>] public theorem cut_admissible
   {Γ Δ Λ : List Tp} {A B : Tp}
   (d_left : Sequent Γ A)
   (d_right : Sequent (Δ ++ [A] ++ Λ) B) :
@@ -296,7 +295,7 @@ base 断片の `Core.lean` は `ldiv_invertible` と `rdiv_invertible` の両方
 
 ```lean
 @[grind]
-def is_atom (A : Tp) : Prop :=
+public def is_atom (A : Tp) : Prop :=
   Mathling.Lambek.ProductFree.translatedIsAtom Tp.toProductFree A
 ```
 

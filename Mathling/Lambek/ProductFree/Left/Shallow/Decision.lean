@@ -5,10 +5,9 @@
     public import Mathling.Lambek.ProductFree.Left.Shallow.Core
     public import Mathling.Lambek.ProductFree.Decision
     public import Mathling.Meta.Important
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Decidability for the Left-Shallow Fragment
 
@@ -36,7 +35,7 @@ set_option linter.style.maxHeartbeats false
 
 ```lean
 @[grind .]
-def prove2 (Γ : List Tp) (A : Tp) : Bool :=
+public def prove2 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProve2 Tp.toProductFree Γ A
 ```
 
@@ -47,7 +46,7 @@ def prove2 (Γ : List Tp) (A : Tp) : Bool :=
 
 ```lean
 @[important, grind .]
-theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
+public theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
   simpa [prove2, Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.translatedProve2_iff_Sequent
       Tp.toProductFree (Γ := Γ) (A := A))
@@ -56,7 +55,7 @@ theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A :=
 したがって shallow シーケントには `Decidable` instance が入る。
 
 ```lean
-instance {Γ : List Tp} {A : Tp} : Decidable (Γ ⇒ A) :=
+public instance {Γ : List Tp} {A : Tp} : Decidable (Γ ⇒ A) :=
   decidable_of_iff (prove2 Γ A) prove2_iff_sequent
 ```
 

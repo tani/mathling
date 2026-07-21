@@ -5,10 +5,9 @@
     public import Mathling.Lambek.ProductFree.Right.Shallow.Core
     public import Mathling.Lambek.ProductFree.Decision
     public import Mathling.Meta.Important
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Decidability for the Right-Shallow Fragment
 
@@ -40,7 +39,7 @@ base file 側の `prove1`／`prove2` に委ねられる。
 
 ```lean
 @[grind .]
-def prove1 (Γ : List Tp) (A : Tp) : Bool :=
+public def prove1 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProve1 Tp.toProductFree Γ A
 ```
 
@@ -50,7 +49,7 @@ def prove1 (Γ : List Tp) (A : Tp) : Bool :=
 
 ```lean
 @[grind .]
-def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
+public def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProveAux
     Tp.toProductFree n Γ A
 ```
@@ -61,7 +60,7 @@ def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
 
 ```lean
 @[grind .]
-def prove2 (Γ : List Tp) (A : Tp) : Bool :=
+public def prove2 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProve2 Tp.toProductFree Γ A
 ```
 
@@ -159,7 +158,7 @@ lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := b
 
 ```lean
 @[important, grind .]
-theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
+public theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
   simpa [prove2, Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.translatedProve2_iff_Sequent
       Tp.toProductFree (Γ := Γ) (A := A))
@@ -169,7 +168,7 @@ theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A :=
 `Γ ⇒ A` という命題に対して、Lean の `decide` タクティクを用いた自動的な証明・判定が可能になる。
 
 ```lean
-instance {Γ : List Tp} {A : Tp} : Decidable (Γ ⇒ A) :=
+public instance {Γ : List Tp} {A : Tp} : Decidable (Γ ⇒ A) :=
   decidable_of_iff (prove2 Γ A) prove2_iff_sequent
 ```
 

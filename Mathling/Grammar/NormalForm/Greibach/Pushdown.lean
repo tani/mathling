@@ -4,10 +4,9 @@
     public import Mathling.Grammar.Conversion.Pushdown
     public import Mathling.Meta.Important
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Grammar / NormalForm / Greibach / Pushdown モジュール
 
@@ -17,7 +16,6 @@
 いう一般の等価性である。新しい機械や文法の構成は不要で、既存の変換を橋渡しする。
 
 ```lean
-@[expose] public section
 
 namespace Language
 
@@ -28,7 +26,7 @@ generates it. Forward: every context-free grammar has a language-preserving
 Greibach-normal presentation (`ContextFreeGrammar.Classical.toGreibachNormalGrammar`).
 Backward: forgetting Greibach-normality evidence returns a plain context-free
 grammar for the same language. -/
-@[important, grind =] theorem isContextFree_iff_exists_greibachNormalGrammar
+@[important, grind =] public theorem isContextFree_iff_exists_greibachNormalGrammar
     {T : Type} {L : Language T} :
     L.IsContextFree ↔ ∃ g : GreibachNormalGrammar T, g.language = L := by
   constructor
@@ -51,7 +49,8 @@ grammar for the same language. -/
 finite local NPDA, both state and stack alphabets being existential witnesses.
 This composes `isContextFree_iff_exists_greibachNormalGrammar` with the general
 context-free/pushdown equivalence `isContextFree_iff_exists_npda`. -/
-@[important] theorem exists_greibachNormalGrammar_iff_exists_npda {T : Type} {L : Language T} :
+@[important] public theorem exists_greibachNormalGrammar_iff_exists_npda
+    {T : Type} {L : Language T} :
     (∃ g : GreibachNormalGrammar T, g.language = L) ↔
       ∃ State Stack : Type, ∃ M : NPDA T State Stack, M.language = L := by
   rw [← isContextFree_iff_exists_greibachNormalGrammar]

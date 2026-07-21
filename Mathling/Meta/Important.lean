@@ -2,10 +2,9 @@
 
     public import Lean.Attributes
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Meta / Important モジュール
 
@@ -18,7 +17,6 @@
 変えない。登録は初期化時に一度だけ行われる。
 
 ```lean
-@[expose] public section
 
 namespace Mathling.Meta
 

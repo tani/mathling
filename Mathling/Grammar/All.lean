@@ -1,5 +1,7 @@
     module
 
+    public import Mathling.Grammar.Core
+    public import Mathling.Grammar.ContextFree
     public import Mathling.Grammar.Regular.RightLinear
     public import Mathling.Grammar.Regular.LeftLinear
     public import Mathling.Grammar.Regular.Linear
@@ -11,10 +13,9 @@
     public import Mathling.Grammar.Conversion.Pushdown
 
     public import Mathling.Grammar.Theory.Pumping
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Grammar / All モジュール
 

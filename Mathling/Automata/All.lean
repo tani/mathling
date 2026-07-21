@@ -1,14 +1,15 @@
     module
 
+    public import Mathling.Automata.Core
+    public import Mathling.Automata.Conversion.Pushdown
     public import Mathling.Automata.Conversion.Finite
     public import Mathling.Automata.Conversion.Regex
     public import Mathling.Automata.Theory.Minimization
     public import Mathling.Automata.Theory.Pumping
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Automata / All モジュール
 

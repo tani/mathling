@@ -1,4 +1,13 @@
-# LeanQASM agent instructions
+# Agent instructions
+
+## Lean visibility and import policy
+
+1. `public section` is forbidden. Do not use it directly or through a construct such as `@[expose] public section`.
+2. Every exported declaration must be marked `public` explicitly on that declaration. Do not rely on section-wide visibility.
+3. `public import` is allowed only in designated public API or umbrella modules. A module that defines `public` declarations is a designated API module only for the direct dependencies required by those declarations' exported signatures.
+4. Implementation modules must use ordinary `import` declarations by default. In an API module, use `public import` only for a dependency whose exported declaration, type, instance, syntax, or attribute is required by the module's public interface; document non-obvious cases.
+5. `import all` and importing an `All` umbrella module are forbidden except in proof modules, test modules, or modules explicitly documented as internal. The root façade imports leaf APIs directly.
+6. Every use of `@[expose]` requires an explicit adjacent justification explaining why reducibility across the module boundary is necessary.
 
 ## LiterateLean is mandatory
 

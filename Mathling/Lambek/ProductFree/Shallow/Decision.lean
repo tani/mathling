@@ -5,10 +5,9 @@
     public import Mathling.Lambek.ProductFree.Decision
     public import Mathling.Lambek.ProductFree.Shallow.Core
     public import Mathling.Meta.Important
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Decidability for the Shallow Fragment
 
@@ -36,7 +35,7 @@ shallow 断片は左除法 `⧹` と右除法 `⧸` の両方を許すが引数�
 
 ```lean
 @[grind .]
-def prove1 (Γ : List Tp) (A : Tp) : Bool :=
+public def prove1 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.prove1 (ctxToProductFree Γ) A.toProductFree
 ```
 
@@ -46,7 +45,7 @@ def prove1 (Γ : List Tp) (A : Tp) : Bool :=
 
 ```lean
 @[grind .]
-def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
+public def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.proveAux n (ctxToProductFree Γ) A.toProductFree
 ```
 
@@ -56,7 +55,7 @@ base file 側にすでに定義されているため、ここでは呼び出す�
 
 ```lean
 @[grind .]
-def prove2 (Γ : List Tp) (A : Tp) : Bool :=
+public def prove2 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.prove2 (ctxToProductFree Γ) A.toProductFree
 ```
 
@@ -153,7 +152,7 @@ lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := b
 
 ```lean
 @[important, grind .]
-theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
+public theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
   rw [← prove1_iff_prove2, prove1_iff_sequent]
 ```
 
@@ -161,7 +160,7 @@ theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A :=
 具体的なシーケントに対して Lean の `decide` タクティクによる自動的な証明・判定が可能になる。
 
 ```lean
-instance {Γ : List Tp} {A : Tp} : Decidable (Γ ⇒ A) :=
+public instance {Γ : List Tp} {A : Tp} : Decidable (Γ ⇒ A) :=
   decidable_of_iff (prove2 Γ A) prove2_iff_sequent
 ```
 

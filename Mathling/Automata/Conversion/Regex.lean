@@ -4,10 +4,9 @@
     public import Mathlib.Computability.RegularExpressions
     public import Mathling.Meta.Important
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Automata / Conversion / Regex モジュール
 
@@ -18,7 +17,6 @@
 Mathlib の `RegularExpression` をそのまま Mathling 名前空間へ再輸出し、`empty`/`epsilon`/`symbol`/`union`/`concat`/`star` という短い構成子省略形を与える。これらはすべて `abbrev` であり、対応する Mathlib 側のコンストラクタと定義的に等しいため、後続の証明で展開のコストを気にする必要はない。
 
 ```lean
-public section
 
 /-!
 # Regular expressions
@@ -31,27 +29,27 @@ open scoped Computability
 namespace Mathling.Automata
 
 /-- Mathlib's regular expressions, re-exported in the Mathling namespace. -/
-abbrev RegularExpression (α : Type*) := _root_.RegularExpression α
+public abbrev RegularExpression (α : Type*) := _root_.RegularExpression α
 
 namespace RegularExpression
 
 /-- The regular expression that matches no words. -/
-abbrev empty : RegularExpression α := (0 : _root_.RegularExpression α)
+public abbrev empty : RegularExpression α := (0 : _root_.RegularExpression α)
 
 /-- The regular expression that matches only the empty word. -/
-abbrev epsilon : RegularExpression α := (1 : _root_.RegularExpression α)
+public abbrev epsilon : RegularExpression α := (1 : _root_.RegularExpression α)
 
 /-- The regular expression that matches a single symbol. -/
-abbrev symbol (a : α) : RegularExpression α := _root_.RegularExpression.char a
+public abbrev symbol (a : α) : RegularExpression α := _root_.RegularExpression.char a
 
 /-- Union of two regular expressions. -/
-abbrev union (r s : RegularExpression α) : RegularExpression α := r + s
+public abbrev union (r s : RegularExpression α) : RegularExpression α := r + s
 
 /-- Concatenation of two regular expressions. -/
-abbrev concat (r s : RegularExpression α) : RegularExpression α := r * s
+public abbrev concat (r s : RegularExpression α) : RegularExpression α := r * s
 
 /-- Kleene star of a regular expression. -/
-abbrev star (r : RegularExpression α) : RegularExpression α :=
+public abbrev star (r : RegularExpression α) : RegularExpression α :=
   _root_.RegularExpression.star r
 ```
 
@@ -61,23 +59,24 @@ $`\mathrm{language} : \mathrm{RegularExpression}\,\alpha \to \mathrm{Language}\,
 
 ```lean
 /-- The language denoted by a regular expression. -/
-abbrev language (r : RegularExpression α) : Language α :=
+public abbrev language (r : RegularExpression α) : Language α :=
   _root_.RegularExpression.matches' r
 
-@[grind =, simp] theorem language_empty : language (empty : RegularExpression α) = 0 := rfl
+@[grind =, simp] public theorem language_empty : language (empty : RegularExpression α) = 0 := rfl
 
-@[grind =, simp] theorem language_epsilon : language (epsilon : RegularExpression α) = 1 := rfl
+@[grind =, simp] public theorem language_epsilon :
+    language (epsilon : RegularExpression α) = 1 := rfl
 
-@[grind =, simp] theorem language_symbol (a : α) :
+@[grind =, simp] public theorem language_symbol (a : α) :
     language (symbol a) = ({[a]} : Language α) := rfl
 
-@[grind =, simp] theorem language_union (r s : RegularExpression α) :
+@[grind =, simp] public theorem language_union (r s : RegularExpression α) :
     language (union r s) = language r + language s := rfl
 
-@[grind =, simp] theorem language_concat (r s : RegularExpression α) :
+@[grind =, simp] public theorem language_concat (r s : RegularExpression α) :
     language (concat r s) = language r * language s := rfl
 
-@[grind =, simp] theorem language_star (r : RegularExpression α) :
+@[grind =, simp] public theorem language_star (r : RegularExpression α) :
     language (star r) = (language r)∗ := rfl
 ```
 
@@ -87,11 +86,11 @@ abbrev language (r : RegularExpression α) : Language α :=
 
 ```lean
 /-- Decides whether a word matches a regular expression. -/
-abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : Bool :=
+public abbrev «matches» [DecidableEq α] (r : RegularExpression α) (w : List α) : Bool :=
   _root_.RegularExpression.rmatch r w
 
 /-- The executable matcher recognizes exactly the denoted language. -/
-@[important, grind =, simp] theorem matches_iff_mem_language [DecidableEq α]
+@[important, grind =, simp] public theorem matches_iff_mem_language [DecidableEq α]
     (r : RegularExpression α) (w : List α) :
     «matches» r w ↔ w ∈ language r :=
   _root_.RegularExpression.rmatch_iff_matches' r w
@@ -200,7 +199,7 @@ end Internal
 
 ```lean
 /-- Parse a string as a regular expression over `Char`; `""` denotes epsilon. -/
-def parse (s : String) : Except String (RegularExpression Char) :=
+public def parse (s : String) : Except String (RegularExpression Char) :=
   let cs := s.toList
   match cs with
   | [] => .ok epsilon
@@ -214,7 +213,7 @@ def parse (s : String) : Except String (RegularExpression Char) :=
 
 /-- Parses a regular expression and decides whether it matches the input string.
 Malformed regular expressions do not match any input. -/
-def «match» (pattern input : String) : Bool :=
+public def «match» (pattern input : String) : Bool :=
   match parse pattern with
   | .ok r => «matches» r input.toList
   | .error _ => false

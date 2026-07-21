@@ -2,17 +2,15 @@
 
     public import Mathling.Automata.Core
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Automata / Conversion / Pushdown モジュール
 
 局所遷移で記述した非決定性プッシュダウン・オートマトンと一回転 NPDA の実行意味論を定める。構成、反射推移閉包による実行、受理条件、言語という順に公開し、文法変換側が参照する機械モデルの境界を固定する。
 
 ```lean
-@[expose] public section
 
 /-!
 # Pushdown automata
@@ -24,7 +22,7 @@ namespace Mathling.Automata
 
 /-- One local pushdown rule: inspect one stack symbol, optionally consume one
 input symbol, and replace the inspected symbol by a finite stack word. -/
-@[ext] structure PushdownRule (α State Stack : Type*) where
+@[ext] public structure PushdownRule (α State Stack : Type*) where
   source : State
   input : Option α
   pop : Stack
@@ -32,7 +30,7 @@ input symbol, and replace the inspected symbol by a finite stack word. -/
   push : List Stack
 
 /-- A nondeterministic pushdown automaton presented by a finite rule list. -/
-@[ext] structure NPDA (α State Stack : Type*) where
+@[ext] public structure NPDA (α State Stack : Type*) where
   rules : List (PushdownRule α State Stack)
   start : List State
   accept : List State
@@ -43,10 +41,11 @@ namespace NPDA
 variable {α State Stack : Type*}
 
 /-- An instantaneous description: unread input, control state, and stack. -/
-abbrev ID (α State Stack : Type*) := List α × State × List Stack
+public abbrev ID (α State Stack : Type*) := List α × State × List Stack
 
 /-- One consuming or epsilon application of a local pushdown rule. -/
-@[grind cases] inductive Step (M : NPDA α State Stack) : ID α State Stack → ID α State Stack → Prop
+@[grind cases] public inductive Step (M : NPDA α State Stack) :
+    ID α State Stack → ID α State Stack → Prop
   | consume {a : α} {input : List α} {stack : List Stack}
       (rule : PushdownRule α State Stack) (mem : rule ∈ M.rules)
       (input_eq : rule.input = some a) :
@@ -59,20 +58,26 @@ abbrev ID (α State Stack : Type*) := List α × State × List Stack
         (input, rule.target, rule.push ++ stack)
 
 /-- Zero or more local transitions. -/
-abbrev Reaches (M : NPDA α State Stack) := Relation.ReflTransGen M.Step
+public abbrev Reaches (M : NPDA α State Stack) := Relation.ReflTransGen M.Step
 
-/-- Acceptance by final state after consuming all input. -/
-def Accepts (M : NPDA α State Stack) (w : List α) : Prop :=
+/-- Acceptance by a local NPDA.
+
+Its body is exposed because public grammar conversions destruct acceptance
+witnesses and reconstruct them as reachability witnesses. -/
+@[expose] public def Accepts (M : NPDA α State Stack) (w : List α) : Prop :=
   ∃ q₀ ∈ M.start, ∃ qf ∈ M.accept, ∃ stack,
     M.Reaches (w, q₀, M.initialStack) ([], qf, stack)
 
-/-- The language accepted by a finite-rule NPDA. -/
-def language (M : NPDA α State Stack) : Language α := {w | M.Accepts w}
+/-- The language accepted by a local NPDA.
+
+Its body is exposed because public language-equivalence theorems rewrite
+membership into the corresponding acceptance predicate. -/
+@[expose] public def language (M : NPDA α State Stack) : Language α := {w | M.Accepts w}
 
 mutual
   /-- A run that removes one designated top symbol while preserving an
   arbitrary stack suffix. -/
-  @[grind cases] inductive Balanced (M : NPDA α State Stack) :
+  @[grind cases] public inductive Balanced (M : NPDA α State Stack) :
       State → Stack → State → List α → Prop
     | rule {q : State} {childWord : List α}
         (r : PushdownRule α State Stack) (mem : r ∈ M.rules)
@@ -80,7 +85,7 @@ mutual
         Balanced M r.source r.pop q (r.input.toList ++ childWord)
 
   /-- A sequence of balanced runs that removes a complete stack word. -/
-  @[grind cases] inductive StackBalanced (M : NPDA α State Stack) :
+  @[grind cases] public inductive StackBalanced (M : NPDA α State Stack) :
       State → List Stack → State → List α → Prop
     | nil (q : State) : StackBalanced M q [] q []
     | cons {p mid q : State} {top : Stack} {stack : List Stack}
@@ -91,7 +96,7 @@ end
 
 /-- A balanced one-symbol computation induces a concrete run with arbitrary
 unread input and an arbitrary untouched stack suffix. -/
-@[grind .] theorem Balanced.reaches {M : NPDA α State Stack}
+@[grind .] public theorem Balanced.reaches {M : NPDA α State Stack}
     {p q : State} {top : Stack} {word : List α}
     (h : Balanced M p top q word)
     (input : List α) (suffix : List Stack) :
@@ -160,7 +165,7 @@ unread input and an arbitrary untouched stack suffix. -/
 
 /-- Fresh control states used to turn final-state acceptance into empty-stack
 acceptance. -/
-@[grind cases] inductive FinalState (State : Type*) where
+@[grind cases] public inductive FinalState (State : Type*) where
   | boot
   | sim (state : State)
   | drain
@@ -168,58 +173,60 @@ acceptance. -/
   deriving Repr, DecidableEq
 
 /-- Fresh bottom marker plus embedded symbols of the original stack alphabet. -/
-@[grind cases] inductive FinalStack (Stack : Type*) where
+@[grind cases] public inductive FinalStack (Stack : Type*) where
   | bottom
   | old (symbol : Stack)
   deriving Repr, DecidableEq
 
 /-- Every stack symbol that can occur in a run from the declared initial
 stack. -/
-def stackSupport (M : NPDA α State Stack) : List Stack :=
+public def stackSupport (M : NPDA α State Stack) : List Stack :=
   M.initialStack ++ M.rules.flatMap fun r => r.pop :: r.push
 
 namespace Internal
 
-def bootRules (M : NPDA α State Stack) :
+public def bootRules (M : NPDA α State Stack) :
     List (PushdownRule α (FinalState State) (FinalStack Stack)) :=
   M.start.map fun q =>
     { source := .boot, input := none, pop := .bottom, target := .sim q
       push := M.initialStack.map FinalStack.old ++ [.bottom] }
 
-def simulationRules (M : NPDA α State Stack) :
+public def simulationRules (M : NPDA α State Stack) :
     List (PushdownRule α (FinalState State) (FinalStack Stack)) :=
   M.rules.map fun r =>
     { source := .sim r.source, input := r.input, pop := .old r.pop
       target := .sim r.target, push := r.push.map FinalStack.old }
 
-def enterDrainRules (M : NPDA α State Stack) :
+public def enterDrainRules (M : NPDA α State Stack) :
     List (PushdownRule α (FinalState State) (FinalStack Stack)) :=
   M.accept.flatMap fun q => M.stackSupport.map fun x =>
     { source := .sim q, input := none, pop := .old x
       target := .drain, push := [] }
 
-def acceptBottomRules (M : NPDA α State Stack) :
+public def acceptBottomRules (M : NPDA α State Stack) :
     List (PushdownRule α (FinalState State) (FinalStack Stack)) :=
   M.accept.map fun q =>
     { source := .sim q, input := none, pop := .bottom
       target := .done, push := [] }
 
-def drainRules (M : NPDA α State Stack) :
+public def drainRules (M : NPDA α State Stack) :
     List (PushdownRule α (FinalState State) (FinalStack Stack)) :=
   M.stackSupport.map fun x =>
     { source := .drain, input := none, pop := .old x
       target := .drain, push := [] }
 
-def finishDrainRule :
+public def finishDrainRule :
     PushdownRule α (FinalState State) (FinalStack Stack) :=
   { source := .drain, input := none, pop := .bottom
     target := .done, push := [] }
 
 end Internal
 
-/-- Normalize an NPDA so every accepting run starts above a private bottom
-marker and finishes with the empty stack in one private final state. -/
-def finalToEmpty (M : NPDA α State Stack) :
+/-- Convert final-state acceptance into empty-stack acceptance.
+
+Its body is exposed because public conversion theorems simplify its generated
+rules and endpoints when transporting accepting runs. -/
+@[expose] public def finalToEmpty (M : NPDA α State Stack) :
     NPDA α (FinalState State) (FinalStack Stack) where
   rules := Internal.bootRules M ++ Internal.simulationRules M ++
     Internal.enterDrainRules M ++ Internal.acceptBottomRules M ++
@@ -229,8 +236,11 @@ def finalToEmpty (M : NPDA α State Stack) :
   initialStack := [.bottom]
 
 /-- Reachable normalized configurations keep exactly one bottom marker until
-the final transition removes it. -/
-def FinalStackGood :
+the final transition removes it.
+
+Its body is exposed because public conversion proofs simplify the invariant
+at the final configuration to recover an empty stack. -/
+@[expose] public def FinalStackGood :
     ID α (FinalState State) (FinalStack Stack) → Prop
   | (_, .boot, stack) => stack = [.bottom]
   | (_, .sim _, stack) | (_, .drain, stack) =>
@@ -275,7 +285,7 @@ def FinalStackGood :
   · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr hr))))
 
 /-- Every symbol in a stack belongs to the machine's finite stack support. -/
-def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
+public def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
   ∀ x ∈ stack, x ∈ M.stackSupport
 
 @[grind .] theorem initialStack_supported (M : NPDA α State Stack) :
@@ -438,12 +448,12 @@ def StackSupported (M : NPDA α State Stack) (stack : List Stack) : Prop :=
       exact (ih htail).head first
 
 /-- Original-machine acceptance evidence with a possibly unread suffix. -/
-def AcceptingPrefix (M : NPDA α State Stack) (word input : List α) : Prop :=
+public def AcceptingPrefix (M : NPDA α State Stack) (word input : List α) : Prop :=
   ∃ q₀ ∈ M.start, ∃ qf ∈ M.accept, ∃ stack,
     M.Reaches (word, q₀, M.initialStack) (input, qf, stack)
 
 /-- Semantic invariant carried by every phase of the normalized machine. -/
-def FinalRunGood (M : NPDA α State Stack) (word : List α) :
+public def FinalRunGood (M : NPDA α State Stack) (word : List α) :
     ID α (FinalState State) (FinalStack Stack) → Prop
   | (input, .boot, stack) => input = word ∧ stack = [.bottom]
   | (input, .sim q, stack) =>
@@ -547,7 +557,7 @@ def FinalRunGood (M : NPDA α State Stack) (word : List α) :
 
 /-- The stack-shape component of the normalization invariant propagates over
 reachable configurations. -/
-@[grind .] theorem finalReaches_stack_good (M : NPDA α State Stack)
+@[grind .] public theorem finalReaches_stack_good (M : NPDA α State Stack)
     {word : List α} {c' : ID α (FinalState State) (FinalStack Stack)}
     (h : M.finalToEmpty.Reaches
       (word, (FinalState.boot : FinalState State),
@@ -570,7 +580,7 @@ reachable configurations. -/
     | done => exact hout.1
 
 /-- Final-state normalization preserves the accepted language. -/
-@[grind =, simp] theorem finalToEmpty_language (M : NPDA α State Stack) :
+@[grind =, simp] public theorem finalToEmpty_language (M : NPDA α State Stack) :
     M.finalToEmpty.language = M.language := by
   ext word
   constructor
@@ -649,7 +659,7 @@ stack word. -/
 
 /-- Any concrete run that empties its complete initial stack decomposes into
 the balanced semantics used by the triple construction. -/
-@[grind .] theorem stackBalanced_of_reaches_to_empty {M : NPDA α State Stack}
+@[grind .] public theorem stackBalanced_of_reaches_to_empty {M : NPDA α State Stack}
     {p q : State} {stack : List Stack} {word : List α}
     (h : M.Reaches (word, p, stack) ([], q, [])) :
     StackBalanced M p stack q word :=
@@ -691,7 +701,7 @@ end NPDA
 
 /-- A nondeterministic pushdown automaton whose transition relation may inspect
 and replace the whole stack at once. -/
-@[ext] structure WholeStackNPDA (α State Stack : Type*) where
+@[ext] public structure WholeStackNPDA (α State Stack : Type*) where
   step : State → Option α → List Stack → Set (State × List Stack)
   start : Set State
   accept : Set State
@@ -702,10 +712,10 @@ namespace WholeStackNPDA
 variable {α State Stack : Type*}
 
 /-- An instantaneous description: unread input, control state, and stack. -/
-abbrev ID (α State Stack : Type*) := List α × State × List Stack
+public abbrev ID (α State Stack : Type*) := List α × State × List Stack
 
 /-- One consuming or epsilon transition of an NPDA. -/
-@[grind cases] inductive Step (M : WholeStackNPDA α State Stack) :
+@[grind cases] public inductive Step (M : WholeStackNPDA α State Stack) :
     ID α State Stack → ID α State Stack → Prop
   | consume {a input q stack q' stack'}
       (h : (q', stack') ∈ M.step q (some a) stack) :
@@ -715,15 +725,17 @@ abbrev ID (α State Stack : Type*) := List α × State × List Stack
       Step M (input, q, stack) (input, q', stack')
 
 /-- Zero or more transitions of an NPDA. -/
-abbrev Reaches (M : WholeStackNPDA α State Stack) := Relation.ReflTransGen M.Step
+public abbrev Reaches (M : WholeStackNPDA α State Stack) := Relation.ReflTransGen M.Step
 
 /-- Acceptance by final state after consuming all input. -/
-def Accepts (M : WholeStackNPDA α State Stack) (w : List α) : Prop :=
+/- Exposed because exported conversion proofs destructure the shared acceptance predicate. -/
+@[expose] public def Accepts (M : WholeStackNPDA α State Stack) (w : List α) : Prop :=
   ∃ q₀ ∈ M.start, ∃ qf ∈ M.accept, ∃ stack,
     M.Reaches (w, q₀, M.initialStack) ([], qf, stack)
 
 /-- The language accepted by an NPDA. -/
-def language (M : WholeStackNPDA α State Stack) : Language α := {w | M.Accepts w}
+/- Exposed so exported conversion specifications can reduce the shared language observation. -/
+@[expose] public def language (M : WholeStackNPDA α State Stack) : Language α := {w | M.Accepts w}
 
 end WholeStackNPDA
 
@@ -732,7 +744,7 @@ namespace NPDA
 variable {α State Stack : Type*}
 
 /-- Interpret local rules as a whole-stack transition relation. -/
-def toWholeStackNPDA (M : NPDA α State Stack) : WholeStackNPDA α State Stack where
+public def toWholeStackNPDA (M : NPDA α State Stack) : WholeStackNPDA α State Stack where
   step q sym stack := {next | ∃ r ∈ M.rules, r.source = q ∧ r.input = sym ∧
     ∃ tail, stack = r.pop :: tail ∧ next = (r.target, r.push ++ tail)}
   start := {q | q ∈ M.start}
@@ -781,7 +793,7 @@ def toWholeStackNPDA (M : NPDA α State Stack) : WholeStackNPDA α State Stack w
 
 /-- The whole-stack interpretation is exactly the operational semantics of
 the finite local rule list. -/
-@[grind =, simp] theorem toWholeStackNPDA_language (M : NPDA α State Stack) :
+@[grind =, simp] public theorem toWholeStackNPDA_language (M : NPDA α State Stack) :
     M.toWholeStackNPDA.language = M.language := by
   ext word
   constructor
@@ -810,7 +822,7 @@ M.\mathrm{Accepts}(w) \iff \exists\, q_0 \in M.\mathrm{start},\ \exists\, q_f \i
 
 ```lean
 /-- A deterministic pushdown automaton with a single start state. -/
-structure DPDA (α State Stack : Type*) where
+public structure DPDA (α State Stack : Type*) where
   step : State → Option α → List Stack → Option (State × List Stack)
   start : State
   accept : Set State
@@ -821,17 +833,20 @@ namespace DPDA
 variable {α State Stack : Type*}
 
 /-- Regard a deterministic PDA as a nondeterministic PDA with singleton transitions. -/
-def toWholeStackNPDA (M : DPDA α State Stack) : WholeStackNPDA α State Stack where
+/- Exposed because the exported language-preservation theorem below is definitionally proved by
+unfolding this representation-changing conversion. -/
+@[expose] public def toWholeStackNPDA (M : DPDA α State Stack) : WholeStackNPDA α State Stack where
   step q sym stack := {next | M.step q sym stack = some next}
   start := {M.start}
   accept := M.accept
   initialStack := M.initialStack
 
 /-- The language of a DPDA is the language of its underlying NPDA. -/
-def language (M : DPDA α State Stack) : Language α := M.toWholeStackNPDA.language
+/- Exposed because `DPDA.toWholeStackNPDA_language` is an exported definitional specification. -/
+@[expose] public def language (M : DPDA α State Stack) : Language α := M.toWholeStackNPDA.language
 
 /-- Forgetting determinism preserves a DPDA's language. -/
-@[grind =, simp] theorem toWholeStackNPDA_language (M : DPDA α State Stack) :
+@[grind =, simp] public theorem toWholeStackNPDA_language (M : DPDA α State Stack) :
     M.toWholeStackNPDA.language = M.language := rfl
 
 end DPDA
@@ -859,13 +874,13 @@ stateDiagram-v2
 
 ```lean
 /-- The phase of a one-turn pushdown computation. -/
-@[grind cases] inductive TurnPhase where
+@[grind cases] public inductive TurnPhase where
   | push
   | pop
   deriving Repr, DecidableEq
 
 /-- A nondeterministic PDA whose stack height first grows and then shrinks. -/
-structure OneTurnNPDA (α State Stack : Type*) where
+public structure OneTurnNPDA (α State Stack : Type*) where
   step : State → TurnPhase → Option α → List Stack →
     Set (State × TurnPhase × List Stack)
   start : Set State
@@ -881,14 +896,16 @@ structure OneTurnNPDA (α State Stack : Type*) where
       stack'.length ≤ stack.length
 
 /-- Alternate descriptive name for a nondeterministic one-turn PDA. -/
-abbrev NondeterministicOneTurnPDA := OneTurnNPDA
+public abbrev NondeterministicOneTurnPDA := OneTurnNPDA
 
 namespace OneTurnNPDA
 
 variable {α State Stack : Type*}
 
 /-- Forget the one-turn invariants while retaining the phase in the control state. -/
-def toWholeStackNPDA (M : OneTurnNPDA α State Stack) :
+/- Exposed because the exported language-preservation theorem below is definitionally proved by
+unfolding this representation-changing conversion. -/
+@[expose] public def toWholeStackNPDA (M : OneTurnNPDA α State Stack) :
     WholeStackNPDA α (State × TurnPhase) Stack where
   step qp sym stack :=
     {next | (next.1.1, next.1.2, next.2) ∈ M.step qp.1 qp.2 sym stack}
@@ -897,11 +914,13 @@ def toWholeStackNPDA (M : OneTurnNPDA α State Stack) :
   initialStack := M.initialStack
 
 /-- The language of a one-turn PDA is the language of its underlying NPDA. -/
-def language (M : OneTurnNPDA α State Stack) : Language α :=
+/- Exposed because `OneTurnNPDA.toWholeStackNPDA_language` is an exported definitional
+specification. -/
+@[expose] public def language (M : OneTurnNPDA α State Stack) : Language α :=
   M.toWholeStackNPDA.language
 
 /-- Forgetting the one-turn invariants preserves the accepted language. -/
-@[grind =, simp] theorem toWholeStackNPDA_language (M : OneTurnNPDA α State Stack) :
+@[grind =, simp] public theorem toWholeStackNPDA_language (M : OneTurnNPDA α State Stack) :
     M.toWholeStackNPDA.language = M.language := rfl
 
 end OneTurnNPDA

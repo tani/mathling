@@ -3,17 +3,15 @@
     public import Mathling.Grammar.NormalForm.Chomsky.Conversion
     public import Mathling.Meta.Important
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Grammar / NormalForm / Chomsky / Classical モジュール
 
 計算可能な Chomsky 標準形変換に必要な終端記号・非終端記号の順序を古典論理で選ぶ薄いラッパである。実行可能性を要求しない利用者向けに型クラス引数を隠しつつ、基礎変換の言語保存定理をそのまま公開する。
 
 ```lean
-@[expose] public section
 
 namespace Mathling.Grammar
 namespace ContextFreeGrammar
@@ -22,7 +20,7 @@ namespace Classical
 /-- Convert a context-free grammar over a small terminal type to Chomsky normal
 form, choosing classical orders. Use `ContextFreeGrammar.toChomskyNormalGrammar`
 when executable code is required. -/
-noncomputable def toChomskyNormalGrammar {T : Type}
+public noncomputable def toChomskyNormalGrammar {T : Type}
     (g : ContextFreeGrammar T) : ChomskyNormalGrammar T := by
   classical
   letI : LinearOrder T := linearOrderOfSTO WellOrderingRel
@@ -37,7 +35,7 @@ noncomputable def toChomskyNormalGrammar {T : Type}
 言語保存定理へ簡約できる。選ばれた順序の具体的な値は等式の両辺に観測されない。
 
 ```lean
-@[important, grind =, simp] theorem toChomskyNormalGrammar_language {T : Type}
+@[important, grind =, simp] public theorem toChomskyNormalGrammar_language {T : Type}
     (g : ContextFreeGrammar T) :
     (Classical.toChomskyNormalGrammar g).language = g.language := by
   classical

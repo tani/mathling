@@ -4,17 +4,15 @@
     public import Mathlib.Data.Finset.Union
     public import Mathlib.Data.List.Sublists
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Grammar / ContextFree モジュール
 
 文脈自由文法の有限台を抽出し、導出を構造化した証拠木へ変換する補助理論を提供する。有限性の計算可能な境界と、通常の書換え導出と木構造意味論の往復が、後続のオートマトン変換の基盤になる。
 
 ```lean
-@[expose] public section
 
 /-!
 # Context-free grammar support
@@ -27,7 +25,7 @@ The semantic notions of rewriting, derivation, and language remain Mathlib's
 namespace Mathling.Grammar
 
 /-- Nonterminals occurring in a sentential form, in their original order. -/
-def rhsNonterminals {T N : Type*} : List (Symbol T N) → List N
+public def rhsNonterminals {T N : Type*} : List (Symbol T N) → List N
   | [] => []
   | Symbol.terminal _ :: xs => rhsNonterminals xs
   | Symbol.nonterminal A :: xs => A :: rhsNonterminals xs
@@ -35,11 +33,11 @@ def rhsNonterminals {T N : Type*} : List (Symbol T N) → List N
 namespace ContextFreeRule
 
 /-- The input and all right-hand-side nonterminals of a rule. -/
-def nonterminals {T N : Type*} (r : ContextFreeRule T N) : List N :=
+public def nonterminals {T N : Type*} (r : ContextFreeRule T N) : List N :=
   r.input :: rhsNonterminals r.output
 
 /-- Renaming nonterminals preserves a one-rule rewrite. -/
-@[grind .] theorem Rewrites.mapNonterminal {T N M : Type*}
+@[grind .] public theorem Rewrites.mapNonterminal {T N M : Type*}
     {r : ContextFreeRule T N} {u v : List (Symbol T N)}
     (h : r.Rewrites u v) (f : N → M) :
     (ContextFreeRule.mapNonterminal f r).Rewrites
@@ -68,17 +66,17 @@ namespace ContextFreeGrammar
 variable {T N : Type*}
 
 /-- The finite support explicitly mentioned by a grammar. -/
-def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.NT :=
+public def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.NT :=
   {g.initial} ∪ g.rules.biUnion fun r =>
     (ContextFreeRule.nonterminals r).toFinset
 
-@[grind ., simp] theorem initial_mem_activeNonterminals (g : ContextFreeGrammar T)
+@[grind ., simp] public theorem initial_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT] :
     g.initial ∈ activeNonterminals g := by
   classical
   simp [activeNonterminals]
 
-@[grind =>] theorem rule_input_mem_activeNonterminals (g : ContextFreeGrammar T)
+@[grind =>] public theorem rule_input_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} (hr : r ∈ g.rules) :
     r.input ∈ activeNonterminals g := by
@@ -104,7 +102,7 @@ def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.
           · exact List.mem_cons.mpr (Or.inl (Symbol.nonterminal.inj hEq))
           · exact List.mem_cons.mpr (Or.inr (ih htail))
 
-@[grind =>] theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
+@[grind =>] public theorem rule_rhs_mem_activeNonterminals (g : ContextFreeGrammar T)
     [DecidableEq g.NT]
     {r : ContextFreeRule T g.NT} {A : g.NT} (hr : r ∈ g.rules)
     (hA : Symbol.nonterminal A ∈ r.output) :
@@ -127,7 +125,7 @@ def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.
 
 ```lean
 /-- Terminal embedding is injective. -/
-@[grind .] theorem terminalSymbols_injective {u v : List T} :
+@[grind .] public theorem terminalSymbols_injective {u v : List T} :
     (terminalSymbols (N := N) u) = terminalSymbols v → u = v := by
   intro h
   induction u generalizing v with
@@ -143,7 +141,7 @@ def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.
           exact congrArg (a :: ·) (ih htail)
 
 /-- A context-free rule cannot rewrite a terminal-only sentential form. -/
-@[grind .] theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
+@[grind .] public theorem no_rewrites_terminals (r : ContextFreeRule T N) {w : List T}
     {v : List (Symbol T N)} :
     r.Rewrites (terminalSymbols w) v → False := by
   intro h
@@ -154,7 +152,7 @@ def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.
       | cons _ htail => exact ih htail
 
 /-- A derivation between terminal-only forms does not change the word. -/
-@[grind .] theorem derives_terminals_eq (g : ContextFreeGrammar T) {u v : List T} :
+@[grind .] public theorem derives_terminals_eq (g : ContextFreeGrammar T) {u v : List T} :
     g.Derives (terminalSymbols u) (terminalSymbols v) → u = v := by
   intro h
   rcases h.eq_or_head with heq | ⟨_, ⟨r, _, hr⟩, _⟩
@@ -171,14 +169,14 @@ def activeNonterminals (g : ContextFreeGrammar T) [DecidableEq g.NT] : Finset g.
 
 ```lean
 mutual
-  inductive DerivationSymbolTree (g : ContextFreeGrammar T) :
+  public inductive DerivationSymbolTree (g : ContextFreeGrammar T) :
       Symbol T g.NT → List T → Prop
     | terminal (a : T) : DerivationSymbolTree g (.terminal a) [a]
     | nonterminal (r : ContextFreeRule T g.NT) (hr : r ∈ g.rules)
         {w : List T} (children : DerivationFormTree g r.output w) :
         DerivationSymbolTree g (.nonterminal r.input) w
 
-  inductive DerivationFormTree (g : ContextFreeGrammar T) :
+  public inductive DerivationFormTree (g : ContextFreeGrammar T) :
       List (Symbol T g.NT) → List T → Prop
     | nil : DerivationFormTree g [] []
     | cons {x : Symbol T g.NT} {u : List T}
@@ -255,7 +253,7 @@ termination_by xs
     derivationFormTree_append g hp
       (DerivationFormTree.cons (DerivationSymbolTree.nonterminal r hr hout) hq)
 
-@[grind .] theorem derivationFormTree_of_derives
+@[grind .] public theorem derivationFormTree_of_derives
     (g : ContextFreeGrammar T) {xs : List (Symbol T g.NT)} {w : List T}
     (h : g.Derives xs (terminalSymbols w)) :
     DerivationFormTree g xs w := by
@@ -270,7 +268,7 @@ termination_by xs
 最後に逆方向として、先頭記号への導出と残りの文への導出を独立に行った結果を連結できること（`derives_cons_of`）を確認し、これを用いて「一歩の生成規則がターゲット文法の導出をシミュレートする」という仮定から「任意の導出全体のシミュレーションが従う」こと（`derives_lift_of_produces`）を示す。これは正規形変換などで規則ごとの対応を文法全体の言語保存へ一般化する際の共通部品として使われる。
 
 ```lean
-@[grind .] theorem derives_cons_of
+@[grind .] public theorem derives_cons_of
     (g : ContextFreeGrammar T)
     {x : Symbol T g.NT} {u : List T}
     {xs : List (Symbol T g.NT)} {v : List T}
@@ -282,7 +280,7 @@ termination_by xs
   simpa [terminalSymbols, List.map_append, List.append_assoc] using h₁.trans h₂
 
 /-- Lift a simulation of source production steps to complete derivations. -/
-@[grind .] theorem derives_lift_of_produces
+@[grind .] public theorem derives_lift_of_produces
     {g₁ : ContextFreeGrammar T} {g₂ : ContextFreeGrammar T}
     {mapSym : Symbol T g₁.NT → Symbol T g₂.NT}
     (hstep : ∀ {u v}, g₁.Produces u v →

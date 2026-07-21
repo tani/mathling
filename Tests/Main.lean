@@ -1,11 +1,10 @@
     module
 
-    public import Mathling.Automata.Conversion.Pushdown
+    import Mathling.Automata.Conversion.Pushdown
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling 回帰テストドライバ
 
@@ -45,7 +44,7 @@ def run : IO Unit :=
 
 end Mathling.Tests
 
-def main : IO Unit := Mathling.Tests.run
+public def main : IO Unit := Mathling.Tests.run
 ```
 
 <!--

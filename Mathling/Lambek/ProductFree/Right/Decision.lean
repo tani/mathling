@@ -5,10 +5,9 @@
     public import Mathling.Lambek.ProductFree.Right.Core
     public import Mathling.Lambek.ProductFree.Decision
     public import Mathling.Meta.Important
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    public section
 
 # Decidability for the Right Fragment
 
@@ -45,7 +44,7 @@ right 断片は右除法 `⧸` のみを持つ部分体系であり、埋め込�
 
 ```lean
 @[grind .]
-def prove1 (Γ : List Tp) (A : Tp) : Bool :=
+public def prove1 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProve1 toProductFree Γ A
 ```
 
@@ -55,7 +54,7 @@ base file 側で証明済みであるため、ここで再証明する必要は�
 
 ```lean
 @[grind .]
-def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
+public def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProveAux toProductFree n Γ A
 ```
 
@@ -65,7 +64,7 @@ def proveAux (n : Nat) (Γ : List Tp) (A : Tp) : Bool :=
 
 ```lean
 @[grind .]
-def prove2 (Γ : List Tp) (A : Tp) : Bool :=
+public def prove2 (Γ : List Tp) (A : Tp) : Bool :=
   Mathling.Lambek.ProductFree.translatedProve2 toProductFree Γ A
 ```
 
@@ -140,7 +139,7 @@ lemma prove1_iff_sequent {Γ : List Tp} {A : Tp} : prove1 Γ A ↔ Γ ⇒ A := b
 
 ```lean
 @[important, grind .]
-theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
+public theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A := by
   simpa [prove2, Sequent, ctxToProductFree, toProductFree] using
     (Mathling.Lambek.ProductFree.translatedProve2_iff_Sequent toProductFree
       (Γ := Γ) (A := A))
@@ -149,7 +148,7 @@ theorem prove2_iff_sequent {Γ : List Tp} {A : Tp} : prove2 Γ A ↔ Γ ⇒ A :=
 したがって right シーケントには `Decidable` instance が入る。
 
 ```lean
-instance {Γ : List Tp} {A : Tp} : Decidable (Γ ⇒ A) :=
+public instance {Γ : List Tp} {A : Tp} : Decidable (Γ ⇒ A) :=
   decidable_of_iff (prove2 Γ A) prove2_iff_sequent
 ```
 

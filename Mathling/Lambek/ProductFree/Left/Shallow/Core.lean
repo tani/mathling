@@ -4,10 +4,9 @@
     public import Mathlib.Data.Nat.Basic
     public import Mathling.Lambek.ProductFree.Core
     public import Mathling.Meta.Important
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Left-Shallow Fragment of Product-Free Lambek Calculus
 
@@ -37,7 +36,7 @@ set_option linter.style.maxHeartbeats false
 
 ```lean
 @[grind cases]
-inductive Tp where
+public inductive Tp where
   | atom (name : String) : Tp
   | ldiv (A : String) (B : String) : Tp
   deriving Repr, DecidableEq
@@ -58,7 +57,7 @@ infixr:60 " ⧹ " => Tp.ldiv
 各 shallow 論理式を一般の product-free 論理式へ直接写す。
 
 ```lean
-def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
+public def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
   | .atom name => Mathling.Lambek.ProductFree.Tp.atom name
   | .ldiv A B =>
       Mathling.Lambek.ProductFree.Tp.ldiv
@@ -73,7 +72,7 @@ left-shallow の定理は一般の product-free 断片への翻訳から得る�
 文脈も同じ写像で翻訳する。
 
 ```lean
-def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
+public def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
   List.map Tp.toProductFree
 ```
 
@@ -101,7 +100,7 @@ def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
 shallow シーケントは一般断片のシーケントとして実装する。
 
 ```lean
-def Sequent (Γ : List Tp) (A : Tp) : Prop :=
+public def Sequent (Γ : List Tp) (A : Tp) : Prop :=
   Mathling.Lambek.ProductFree.Sequent (ctxToProductFree Γ) A.toProductFree
 ```
 
@@ -174,7 +173,7 @@ infixl:50 " ⇒ " => Sequent
 カット許容性は left 断片での結果を翻訳して得る。
 
 ```lean
-@[important, grind =>] theorem cut_admissible
+@[important, grind =>] public theorem cut_admissible
   {Γ Δ Λ : List Tp} {A B : Tp}
   (d_left : Sequent Γ A)
   (d_right : Sequent (Δ ++ [A] ++ Λ) B) :
@@ -208,7 +207,7 @@ infixl:50 " ⇒ " => Sequent
 
 ```lean
 @[grind]
-def is_atom (A : Tp) : Prop :=
+public def is_atom (A : Tp) : Prop :=
   Mathling.Lambek.ProductFree.translatedIsAtom Tp.toProductFree A
 ```
 

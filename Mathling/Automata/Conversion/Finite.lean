@@ -2,17 +2,15 @@
 
     public import Mathling.Automata.Conversion.Pushdown
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Automata / Conversion / Finite モジュール
 
 DFA を NFA に、さらに有限オートマトンをスタックを実質的に使わない NPDA に埋め込む。各埋め込みは遷移構造だけでなく受理言語を保存し、正則言語から文脈自由言語への包含を構成的に接続する。
 
 ```lean
-@[expose] public section
 
 /-!
 # Finite-to-pushdown conversions
@@ -25,7 +23,7 @@ namespace Mathling.Automata
 namespace NFA
 
 /-- Regard an NFA as an NPDA that never changes its empty stack. -/
-def toWholeStackNPDA (M : NFA α σ) : WholeStackNPDA α σ PUnit where
+public def toWholeStackNPDA (M : NFA α σ) : WholeStackNPDA α σ PUnit where
   step q sym stack :=
     match sym with
     | some a => {next | next.1 ∈ M.step q a ∧ next.2 = stack}
@@ -70,7 +68,7 @@ grind_pattern path_toWholeStackNPDA_reaches =>
   M.toWholeStackNPDA_reaches_path_aux h
 
 /-- The stack-free NPDA conversion accepts exactly the NFA language. -/
-@[grind =, simp] theorem toWholeStackNPDA_language (M : NFA α σ) :
+@[grind =, simp] public theorem toWholeStackNPDA_language (M : NFA α σ) :
     M.toWholeStackNPDA.language = M.accepts := by
   ext w
   rw [NFA.accepts_iff_exists_path]
@@ -96,14 +94,14 @@ end NFA
 namespace DFA
 
 /-- Regard a DFA as a deterministic PDA that never changes its empty stack. -/
-def toDPDA (M : DFA α σ) : DPDA α σ PUnit where
+public def toDPDA (M : DFA α σ) : DPDA α σ PUnit where
   step q sym stack := sym.map fun a => (M.step q a, stack)
   start := M.start
   accept := M.accept
   initialStack := []
 
 /-- The stack-free DPDA conversion accepts exactly the DFA language. -/
-@[grind =, simp] theorem toDPDA_language (M : DFA α σ) :
+@[grind =, simp] public theorem toDPDA_language (M : DFA α σ) :
     M.toDPDA.language = M.accepts := by
   have hconversion : DPDA.toWholeStackNPDA (DFA.toDPDA M) =
       Mathling.Automata.NFA.toWholeStackNPDA M.toNFA := by

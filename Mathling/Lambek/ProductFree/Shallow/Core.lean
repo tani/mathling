@@ -4,10 +4,9 @@
     public import Mathlib.Data.Nat.Basic
     public import Mathling.Lambek.ProductFree.Core
     public import Mathling.Meta.Important
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Shallow Fragment of Product-Free Lambek Calculus
 
@@ -34,7 +33,7 @@ set_option linter.style.maxHeartbeats false
 
 ```lean
 @[grind cases]
-inductive Tp where
+public inductive Tp where
   | atom (name : String) : Tp
   | ldiv (A B : String)  : Tp
   | rdiv (B A : String)  : Tp
@@ -63,7 +62,7 @@ infixl:60 " ⧸ " => Tp.rdiv
 
 ```lean
 @[grind =]
-def tp_degree : Tp → Nat
+public def tp_degree : Tp → Nat
   | Tp.atom _ => 1
   | Tp.ldiv _ _ => 3
   | Tp.rdiv _ _ => 3
@@ -73,7 +72,7 @@ def tp_degree : Tp → Nat
 
 ```lean
 @[grind =]
-def list_degree : List Tp → Nat
+public def list_degree : List Tp → Nat
   | [] => 0
   | A :: Γ => tp_degree A + list_degree Γ
 ```
@@ -102,7 +101,7 @@ shallow 断片の証明は、一般の product-free 断片へ翻訳して再利�
 各 shallow 論理式を一般断片の論理式へ写す。
 
 ```lean
-def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
+public def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
   | .atom name => Mathling.Lambek.ProductFree.Tp.atom name
   | .ldiv A B =>
       Mathling.Lambek.ProductFree.Tp.ldiv
@@ -117,7 +116,7 @@ def Tp.toProductFree : Tp → Mathling.Lambek.ProductFree.Tp
 文脈も要素ごとに翻訳する。
 
 ```lean
-def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
+public def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
   List.map Tp.toProductFree
 ```
 
@@ -146,7 +145,7 @@ def ctxToProductFree : List Tp → List Mathling.Lambek.ProductFree.Tp :=
 shallow シーケントは翻訳先のシーケントとして実装する。
 
 ```lean
-def Sequent (Γ : List Tp) (A : Tp) : Prop :=
+public def Sequent (Γ : List Tp) (A : Tp) : Prop :=
   Mathling.Lambek.ProductFree.Sequent (ctxToProductFree Γ) A.toProductFree
 ```
 
@@ -291,7 +290,7 @@ lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
 
 ```lean
 @[important, grind =>]
-theorem cut_admissible
+public theorem cut_admissible
   (d_left : Sequent Γ A)
   (d_right : Sequent (Δ ++ [A] ++ Λ) B) :
   Sequent (Δ ++ Γ ++ Λ) B := by
@@ -338,7 +337,7 @@ theorem cut_admissible
 
 ```lean
 @[grind]
-def is_atom : Tp → Prop
+public def is_atom : Tp → Prop
   | Tp.atom _ => True
   | _ => False
 ```

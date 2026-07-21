@@ -4,18 +4,15 @@
     public import Mathlib.Computability.NFA
     public import Mathlib.Computability.EpsilonNFA
     public import Mathling.Meta.Important
-
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Automata / Core モジュール
 
 Mathlib の DFA/NFA を Mathling の名前空間から利用するための型別名と、DFA を NFA として忘却する変換を提供する。変換後も受理言語が等しいことがこの層の中心契約であり、後続の正則言語変換はその等式だけに依存する。
 
 ```lean
-@[expose] public section
 
 /-!
 # Finite automata
@@ -26,24 +23,24 @@ Finite automata aliases, conversions, and regular-language characterizations.
 namespace Mathling.Automata
 
 /-- Mathlib's deterministic finite automata, re-exported in the Mathling namespace. -/
-abbrev DFA (α σ : Type*) := _root_.DFA α σ
+public abbrev DFA (α σ : Type*) := _root_.DFA α σ
 
 /-- Mathlib's nondeterministic finite automata, re-exported in the Mathling namespace. -/
-abbrev NFA (α σ : Type*) := _root_.NFA α σ
+public abbrev NFA (α σ : Type*) := _root_.NFA α σ
 
 /-- Mathlib's epsilon-NFAs, re-exported in the Mathling namespace. -/
-abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
+public abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
 
 /-- Converting a DFA to an NFA preserves its language. -/
-@[grind =, simp] theorem DFA.toNFA_language {α σ : Type*} (M : DFA α σ) :
+@[grind =, simp] public theorem DFA.toNFA_language {α σ : Type*} (M : DFA α σ) :
     M.toNFA.accepts = M.accepts := _root_.DFA.toNFA_correct M
 
 /-- Determinizing an NFA preserves its language. -/
-@[grind =, simp] theorem NFA.toDFA_language {α σ : Type*} (M : NFA α σ) :
+@[grind =, simp] public theorem NFA.toDFA_language {α σ : Type*} (M : NFA α σ) :
     M.toDFA.accepts = M.accepts := _root_.NFA.toDFA_correct
 
 /-- Removing epsilon transitions preserves an epsilon-NFA's language. -/
-@[grind =, simp] theorem εNFA.toNFA_language {α σ : Type*} (M : εNFA α σ) :
+@[grind =, simp] public theorem εNFA.toNFA_language {α σ : Type*} (M : εNFA α σ) :
     M.toNFA.accepts = M.accepts := _root_.εNFA.toNFA_correct M
 
 ```
@@ -56,7 +53,7 @@ abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
 
 ```lean
 /-- A language is regular exactly when some finite-state NFA accepts it. -/
-@[important, grind =] theorem Language.isRegular_iff_nfa {α : Type*} {L : Language α} :
+@[important, grind =] public theorem Language.isRegular_iff_nfa {α : Type*} {L : Language α} :
     L.IsRegular ↔ ∃ σ : Type*, ∃ _ : Fintype σ, ∃ M : NFA α σ, M.accepts = L := by
   constructor
   · rintro h

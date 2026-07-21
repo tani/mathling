@@ -3,10 +3,9 @@
     public import Mathlib.Data.Nat.Basic
     public import Mathlib.Data.List.Basic
     public import Mathling.Meta.Important
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Lambek 計算（積なし）の基本定義と性質
 
@@ -36,7 +35,7 @@ set_option linter.style.maxHeartbeats false
 
 ```lean
 @[grind cases]
-inductive Tp where
+public inductive Tp where
   | atom (name : String) : Tp
   | ldiv (A B : Tp)      : Tp
   | rdiv (A B : Tp)      : Tp
@@ -67,7 +66,7 @@ Lambek 計算のシーケント $Γ ⇒ A$ は、前提となる論理式の空�
 
 ```lean
 @[grind intro]
-inductive Sequent : List Tp → Tp → Prop where
+public inductive Sequent : List Tp → Tp → Prop where
   | ax : Sequent [A] A
   | rdiv_r :
       Γ ≠ [] →
@@ -100,7 +99,7 @@ infixl:50 " ⇒ " => Sequent
 
 ```lean
 @[grind =]
-def tp_degree : Tp → Nat
+public def tp_degree : Tp → Nat
   | # _     => 1
   | A ⧹ B   => tp_degree A + tp_degree B + 1
   | A ⧸ B   => tp_degree A + tp_degree B + 1
@@ -108,7 +107,7 @@ def tp_degree : Tp → Nat
 
 ```lean
 @[grind =]
-def list_degree : List Tp → Nat
+public def list_degree : List Tp → Nat
   | []        => 0
   | A :: Γ    => tp_degree A + list_degree Γ
 ```
@@ -127,7 +126,7 @@ lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_d
 
 ```lean
 @[grind =>]
-lemma nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
+public lemma nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
   induction h <;> grind [List.append_eq_nil_iff]
 ```
 
@@ -329,7 +328,7 @@ $Δ, Γ, Λ ⇒ B$ の証明をカットフリー体系の規則のみで具体�
 ```lean
 set_option maxHeartbeats 1000000 in
 @[important, grind =>]
-theorem cut_admissible
+public theorem cut_admissible
   (d_left : Γ ⇒ A)
   (d_right : Δ ++ [A] ++ Λ ⇒ B) :
   Δ ++ Γ ++ Λ ⇒ B := by
@@ -537,7 +536,7 @@ theorem cut_admissible
 
 ```lean
 @[grind =>]
-theorem ldiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (A ⧹ B)) :
+public theorem ldiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (A ⧹ B)) :
   [A] ++ Γ ⇒ B := by
     have a: [A] ⇒ A := by grind
     have b: [B] ⇒ B := by grind
@@ -547,7 +546,7 @@ theorem ldiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (A ⧹ B)) :
 
 ```lean
 @[grind =>]
-theorem rdiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (B ⧸ A)) :
+public theorem rdiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (B ⧸ A)) :
   Γ ++ [A] ⇒ B := by
     have a: [A] ⇒ A := by grind
     have b: [B] ⇒ B := by grind
@@ -569,15 +568,18 @@ theorem rdiv_invertible {Γ : List Tp} {A B : Tp} (h : Γ ⇒ (B ⧸ A)) :
 したがって、原子式のみからなるシーケントについては、単に公理 `ax` の適用可能性（すなわち一致判定）のみを確認すればよい。
 
 ```lean
-@[grind]
-def is_atom : Tp → Prop
+/-- Recognize atoms in the public product-free syntax.
+
+Its body is exposed because public fragment translations normalize this
+predicate inside their `grind` proofs. -/
+@[grind, expose] public def is_atom : Tp → Prop
   | Tp.atom _ => True
   | _   => False
 ```
 
 ```lean
 @[grind =>]
-theorem atom_generation
+public theorem atom_generation
   (h_ctx : ∀ x ∈ Γ, is_atom x)
   (h_der : Γ ⇒ Tp.atom s) :
     Γ = [Tp.atom s] := by
@@ -600,29 +602,33 @@ theorem atom_generation
 そのための薄い helper をここにまとめて置く。
 
 ```lean
-def translatedTpDegree (toProductFree : α → Tp) (A : α) : Nat :=
+public def translatedTpDegree (toProductFree : α → Tp) (A : α) : Nat :=
   tp_degree (toProductFree A)
 ```
 
 ```lean
-def translatedListDegree (toProductFree : α → Tp) (Γ : List α) : Nat :=
+public def translatedListDegree (toProductFree : α → Tp) (Γ : List α) : Nat :=
   list_degree (Γ.map toProductFree)
 ```
 
 ```lean
-@[grind .] lemma translatedListDegree_traversible (toProductFree : α → Tp) :
+@[grind .] public lemma translatedListDegree_traversible (toProductFree : α → Tp) :
     translatedListDegree toProductFree (Γ ++ Δ) =
       translatedListDegree toProductFree Γ + translatedListDegree toProductFree Δ := by
   simp [translatedListDegree, list_degree_traversible]
 ```
 
 ```lean
-def translatedIsAtom (toProductFree : α → Tp) (A : α) : Prop :=
+/-- Transport atomicity through a public translation.
+
+Its body is exposed because public fragment proofs reduce it after a case
+split on the translated formula. -/
+@[expose] public def translatedIsAtom (toProductFree : α → Tp) (A : α) : Prop :=
   is_atom (toProductFree A)
 ```
 
 ```lean
-@[grind .] lemma translatedNonemptyAppend (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
+@[grind .] public lemma translatedNonemptyAppend (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   exact nonempty_append h
 ```
 

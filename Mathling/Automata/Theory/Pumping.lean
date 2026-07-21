@@ -3,10 +3,9 @@
     public import Mathling.Automata.Core
     public import Mathling.Meta.Important
 
-    public import LiterateLean
+    import LiterateLean
     open scoped LiterateLean
 
-    @[expose] public section
 
 # Mathling / Automata / Theory / Pumping モジュール
 
@@ -15,7 +14,6 @@ Mathlib の有限オートマトン版 pumping lemma を、Mathling が公開す
 `Language.IsRegular` は「有限状態の DFA が存在して受理する」という存在量化として定義されているため、汲み上げ補題の移送は単純である: 証人の DFA を取り出し（`rcases h with ⟨σ, _, M, rfl⟩`）、その DFA に対して Mathlib が既に持つ `DFA.pumping_lemma` をそのまま適用するだけでよい。汲み上げ定数 $`p`$ は状態数 $`\mathrm{Fintype.card}\ σ`$ に取り、$`p \ge 1`$ は開始状態 `M.start` の存在から従う。
 
 ```lean
-@[expose] public section
 
 /-!
 # Pumping lemma for regular languages
@@ -28,7 +26,7 @@ namespace Mathling.Automata
 open Computability
 
 /-- Every regular language satisfies the pumping lemma. -/
-@[grind ., important] theorem Language.IsRegular.pumping_lemma
+@[grind ., important] public theorem Language.IsRegular.pumping_lemma
     {α : Type*} {L : Language α} (h : L.IsRegular) :
     ∃ p ≥ 1, ∀ x ∈ L, p ≤ x.length →
       ∃ a b c, x = a ++ b ++ c ∧ a.length + b.length ≤ p ∧ b ≠ [] ∧
