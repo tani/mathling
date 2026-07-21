@@ -3,6 +3,7 @@
     import Mathling.Automata.Pushdown
     import Mathling.Automata.Regular.Finite
     import Mathling.Grammar.Regular.Regex
+    import Mathling.Grammar.Deterministic
 
     import LiterateLean
     open scoped LiterateLean
@@ -49,6 +50,19 @@ def singletonNFA : Mathling.Automata.NFA Bool Bool where
 @[grind =] theorem finiteNFA_toNPDA_regression :
   singletonNFA.toNPDA.language = singletonNFA.accepts :=
   Mathling.Automata.NFA.toNPDA_language singletonNFA
+
+@[grind =] theorem finiteNFA_toεNFA_regression :
+    singletonNFA.toεNFA.accepts = singletonNFA.accepts :=
+  Mathling.Automata.NFA.toεNFA_language singletonNFA
+
+@[grind .] theorem regular_dcfl_regression :
+    singletonNFA.accepts.IsDeterministicContextFree := by
+  exact (Language.isRegular_iff_nfa.mpr
+    ⟨Bool, inferInstance, singletonNFA, rfl⟩).isDeterministicContextFree
+
+@[grind .] theorem regular_dcfl_is_cfl_regression :
+    singletonNFA.accepts.IsContextFree :=
+  regular_dcfl_regression.isContextFree
 
 @[grind =] theorem finiteNFA_toRegex_regression :
     Mathling.Automata.RegularExpression.language singletonNFA.toRegex =

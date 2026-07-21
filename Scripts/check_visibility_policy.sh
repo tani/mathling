@@ -25,6 +25,7 @@ is_designated_public_module() {
     Mathling/Automata/Core.lean|Mathling/Automata/Regex.lean|Mathling/Automata/Pushdown.lean|\
     Mathling/Automata/Regular.lean|Mathling/Automata/Regular/*.lean|\
     Mathling/Grammar.lean|Mathling/Grammar/Core.lean|Mathling/Grammar/ContextFree.lean|\
+    Mathling/Grammar/Deterministic.lean|\
     Mathling/Grammar/Regular.lean|Mathling/Grammar/Regular/*.lean|Mathling/Grammar/Pushdown.lean|\
     Mathling/Grammar/NormalForms.lean|Mathling/Grammar/NormalForms/*.lean|Mathling/Grammar/Theory.lean|\
     Mathling/Lambek.lean|Mathling/Lambek/ProductFree.lean|\

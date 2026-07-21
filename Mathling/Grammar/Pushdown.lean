@@ -860,6 +860,26 @@ accepts it. Both machine state and stack alphabets are existential witnesses. -/
     exact ⟨Mathling.Automata.NPDA.Classical.toContextFreeGrammar M,
       Mathling.Automata.NPDA.Classical.toContextFreeGrammar_language M⟩
 
+/-- A language is deterministic context-free when a finite local DPDA accepts it. -/
+@[expose] public def IsDeterministicContextFree {T : Type}
+    (L : Language T) : Prop :=
+  ∃ State Stack : Type, ∃ M : DPDA T State Stack, M.language = L
+
+/-- The operational DPDA presentation of deterministic context-freeness. -/
+@[important, grind =, simp] public theorem isDeterministicContextFree_iff_exists_dpda
+    {T : Type} {L : Language T} :
+    L.IsDeterministicContextFree ↔
+      ∃ State Stack : Type, ∃ M : DPDA T State Stack, M.language = L := by
+  rfl
+
+/-- Forgetting determinism proves the standard inclusion DCFL ⊆ CFL. -/
+@[important, grind .] public theorem IsDeterministicContextFree.isContextFree
+    {T : Type} {L : Language T} (h : L.IsDeterministicContextFree) :
+    L.IsContextFree := by
+  obtain ⟨State, Stack, M, rfl⟩ := h
+  exact Language.isContextFree_iff_exists_npda.mpr
+    ⟨State, Stack, M.toNPDA, M.toNPDA_language⟩
+
 end Language
 
 namespace Mathling.Automata.NPDA
@@ -874,6 +894,17 @@ requirements in the statement. -/
   Language.isContextFree_iff_exists_npda.mpr ⟨State, Stack, M, rfl⟩
 
 end Mathling.Automata.NPDA
+
+namespace Mathling.Automata.DPDA
+
+variable {T State Stack : Type}
+
+/-- Every local DPDA recognizes a deterministic context-free language. -/
+@[important, grind .] public theorem language_isDeterministicContextFree
+    (M : DPDA T State Stack) : M.language.IsDeterministicContextFree :=
+  ⟨State, Stack, M, rfl⟩
+
+end Mathling.Automata.DPDA
 
 ```
 

@@ -121,12 +121,16 @@ namespace DFA
 /-- Regard a finite DFA as a deterministic finite-local PDA that preserves one
 dummy stack marker. -/
 public noncomputable def toDPDA [Fintype α] [Fintype σ]
-    (M : DFA α σ) : DPDA α σ PUnit := by
+    (M : DFA α σ) : Mathling.Automata.DPDA α σ PUnit := by
   classical
-  refine { toNPDA := Mathling.Automata.NFA.toNPDA M.toNFA, deterministic := ?_ }
+  refine
+    { rules := Mathling.Automata.NFA.localPushdownRules M.toNFA
+      start := M.start
+      accept := (Finset.univ.filter fun q => q ∈ M.accept).toList
+      initialStack := [PUnit.unit]
+      deterministic := ?_ }
   intro r s hr hs hsource _ hinput
-  simp only [Mathling.Automata.NFA.toNPDA,
-    Mathling.Automata.NFA.localPushdownRules, List.mem_map,
+  simp only [Mathling.Automata.NFA.localPushdownRules, List.mem_map,
     Finset.mem_toList, Finset.mem_filter] at hr hs
   rcases hr with ⟨⟨q, a, q'⟩, hqa, rfl⟩
   rcases hs with ⟨⟨p, b, p'⟩, hpb, rfl⟩
@@ -147,8 +151,27 @@ public noncomputable def toDPDA [Fintype α] [Fintype σ]
 @[important, grind =, simp] public theorem toDPDA_language
     [Fintype α] [Fintype σ] (M : DFA α σ) :
     M.toDPDA.language = M.accepts := by
-  change (Mathling.Automata.NFA.toNPDA M.toNFA).language = M.accepts
-  rw [Mathling.Automata.NFA.toNPDA_language, _root_.DFA.toNFA_correct]
+  classical
+  have hstart :
+      (Finset.univ.filter fun q : σ => q ∈ M.toNFA.start).toList = [M.start] := by
+    rw [show (Finset.univ.filter fun q : σ => q ∈ M.toNFA.start) = {M.start} by
+      ext q
+      simp]
+    exact Finset.toList_singleton M.start
+  have hmachine : M.toDPDA.toNPDA = Mathling.Automata.NFA.toNPDA M.toNFA := by
+    change
+      ({ rules := Mathling.Automata.NFA.localPushdownRules M.toNFA
+         start := [M.start]
+         accept := (Finset.univ.filter fun q => q ∈ M.accept).toList
+         initialStack := [PUnit.unit] } : NPDA α σ PUnit) =
+      ({ rules := Mathling.Automata.NFA.localPushdownRules M.toNFA
+         start := (Finset.univ.filter fun q => q ∈ M.toNFA.start).toList
+         accept := (Finset.univ.filter fun q => q ∈ M.toNFA.accept).toList
+         initialStack := [PUnit.unit] } : NPDA α σ PUnit)
+    rw [hstart]
+    rfl
+  rw [Mathling.Automata.DPDA.language, hmachine,
+    Mathling.Automata.NFA.toNPDA_language, _root_.DFA.toNFA_correct]
 
 end DFA
 

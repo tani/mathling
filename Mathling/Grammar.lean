@@ -2,6 +2,7 @@
 
     public import Mathling.Grammar.Core
     public import Mathling.Grammar.ContextFree
+    public import Mathling.Grammar.Deterministic
     public import Mathling.Grammar.Regular
     public import Mathling.Grammar.NormalForms
     public import Mathling.Grammar.Pushdown

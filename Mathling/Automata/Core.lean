@@ -43,6 +43,10 @@ public abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
 @[grind =, simp] public theorem εNFA.toNFA_language {α σ : Type*} (M : εNFA α σ) :
     M.toNFA.accepts = M.accepts := _root_.εNFA.toNFA_correct M
 
+/-- Adding empty epsilon transitions to an NFA preserves its language. -/
+@[grind =, simp] public theorem NFA.toεNFA_language {α σ : Type*} (M : NFA α σ) :
+    M.toεNFA.accepts = M.accepts := _root_.NFA.toεNFA_correct M
+
 ```
 
 ## 型の再輸出と変換の正しさ
@@ -62,6 +66,18 @@ public abbrev εNFA (α σ : Type*) := _root_.εNFA α σ
   · rintro ⟨σ, _, M, rfl⟩
     apply Language.isRegular_iff.mpr
     exact ⟨Set σ, inferInstance, M.toDFA, _root_.NFA.toDFA_correct⟩
+
+/-- A language is regular exactly when some finite-state epsilon-NFA accepts it. -/
+@[important, grind =] public theorem Language.isRegular_iff_εnfa
+    {α : Type*} {L : Language α} :
+    L.IsRegular ↔ ∃ σ : Type*, ∃ _ : Fintype σ, ∃ M : εNFA α σ, M.accepts = L := by
+  constructor
+  · intro h
+    obtain ⟨σ, inst, M, hM⟩ := Language.isRegular_iff_nfa.mp h
+    exact ⟨σ, inst, M.toεNFA, M.toεNFA_language.trans hM⟩
+  · rintro ⟨σ, inst, M, hM⟩
+    apply Language.isRegular_iff_nfa.mpr
+    exact ⟨σ, inst, M.toNFA, M.toNFA_language.trans hM⟩
 
 end Mathling.Automata
 

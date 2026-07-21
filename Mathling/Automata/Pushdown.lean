@@ -701,7 +701,11 @@ end NPDA
 
 ```lean
 /-- A deterministic pushdown automaton with a single start state. -/
-public structure DPDA (α State Stack : Type*) extends NPDA α State Stack where
+public structure DPDA (α State Stack : Type*) where
+  rules : List (PushdownRule α State Stack)
+  start : State
+  accept : List State
+  initialStack : List Stack
   deterministic : ∀ {r s}, r ∈ rules → s ∈ rules →
     r.source = s.source → r.pop = s.pop →
     (r.input = none ∨ s.input = none ∨ r.input = s.input) → r = s
@@ -709,6 +713,16 @@ public structure DPDA (α State Stack : Type*) extends NPDA α State Stack where
 namespace DPDA
 
 variable {α State Stack : Type*}
+
+/-- Forget determinism and expose the unique start state as a singleton list.
+
+Its body is exposed because public language-preservation proofs reduce the
+resulting NPDA fields across the automata-module boundary. -/
+@[expose] public def toNPDA (M : DPDA α State Stack) : NPDA α State Stack where
+  rules := M.rules
+  start := [M.start]
+  accept := M.accept
+  initialStack := M.initialStack
 
 /-- The language of a DPDA is the language of its underlying local NPDA. -/
 @[expose] public def language (M : DPDA α State Stack) : Language α := M.toNPDA.language

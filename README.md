@@ -24,6 +24,7 @@ flowchart LR
     Left["Left-linear grammar"]
     Linear["Linear grammar"]
     CFL["Context-free language"]
+    DCFL["Deterministic context-free language"]
     CFG["Context-free grammar"]
     CNF["Chomsky-normal grammar"]
     GNF["Greibach-normal grammar"]
@@ -34,7 +35,7 @@ flowchart LR
     Regex <-->|"Kleene theorem; finite nonempty alphabet"| Regular
     Regular <-->|"finite-state presentation"| DFA
     DFA <-->|"forget / subset construction"| NFA
-    ENFA -->|"remove ε-transitions"| NFA
+    ENFA <-->|"add / remove ε-transitions"| NFA
     Regular <-->|"finite alphabet"| Right
     Regular <-->|"finite alphabet"| Left
 
@@ -44,6 +45,8 @@ flowchart LR
     Linear -->|"same language"| OneTurn
 
     Regular -->|"language-class inclusion"| CFL
+    Regular -->|"finite alphabet"| DCFL
+    DCFL -->|"forget determinism"| CFL
     NFA -->|"dummy stack marker; finite alphabet/state"| NPDA
     DFA -->|"deterministic embedding"| DPDA
     DPDA -->|"forget determinism"| NPDA
@@ -68,6 +71,10 @@ The central verified bridges are:
   `Language.isContextFree_iff_exists_greibachNormalGrammar` for context-free presentations;
 - `NFA.toNPDA_language`, `DFA.toDPDA_language`, and
   `LinearGrammar.toOneTurnNPDA_language` for language-preserving embeddings.
+- `Language.isRegular_iff_εnfa`,
+  `Language.IsRegular.isDeterministicContextFree`, and
+  `Language.IsDeterministicContextFree.isContextFree` for the ε-NFA and deterministic
+  context-free edges.
 
 ## Features
 
