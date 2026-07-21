@@ -1,6 +1,6 @@
     module
 
-    import Mathling.Automata.Conversion.Pushdown
+    import Mathling.Automata.Pushdown
 
     import LiterateLean
     open scoped LiterateLean
