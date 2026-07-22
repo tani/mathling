@@ -478,32 +478,56 @@ Lake の実行可能ターゲットが期待する `main : IO Unit` を、テス
 public def main : IO Unit := Mathling.Tests.run
 ```
 
-## Shallow Lambek language-class characterizations
+## Shallow Lambek 語彙文法
 
-These type-level regressions keep the epsilon-free hypotheses and the three
-public existence equivalences available through the test target.
+この回帰テストは、語彙受理、三つの具体的な順方向変換、および各変換の言語保存定理が
+公開 API としてテストターゲットから利用できることを固定する。
 
-```lean
+\`\`\`lean
 namespace Mathling.Tests
 
-example {L : Language Unit} (hε : [] ∉ L) :
-    L.IsLinear ↔
-      ∃ g : Mathling.Lambek.ProductFree.Shallow.Grammar Unit, g.language = L :=
-  Language.isLinear_iff_exists_shallowGrammar hε
+example (g : Mathling.Lambek.ProductFree.Shallow.Grammar Unit) :
+    [] ∉ g.language :=
+  g.empty_not_mem
 
-example {L : Language Unit} (hε : [] ∉ L) :
-    L.IsRegular ↔
-      ∃ g : Mathling.Lambek.ProductFree.Left.Shallow.Grammar Unit, g.language = L :=
-  Mathling.Grammar.Language.isRegular_iff_exists_leftShallowGrammar hε
+noncomputable example (g : Mathling.Lambek.ProductFree.Shallow.Grammar Unit) :
+    Mathling.Grammar.LinearGrammar Unit :=
+  g.toLinearGrammar
 
-example {L : Language Unit} (hε : [] ∉ L) :
-    L.IsRegular ↔
-      ∃ g : Mathling.Lambek.ProductFree.Right.Shallow.Grammar Unit, g.language = L :=
-  Mathling.Grammar.Language.isRegular_iff_exists_rightShallowGrammar hε
+noncomputable example (g : Mathling.Lambek.ProductFree.Left.Shallow.Grammar Unit) :
+    Mathling.Grammar.LeftLinearGrammar Unit :=
+  g.toLeftLinearGrammar
+
+noncomputable example (g : Mathling.Lambek.ProductFree.Right.Shallow.Grammar Unit) :
+    Mathling.Grammar.RightLinearGrammar Unit :=
+  g.toRightLinearGrammar
+
+noncomputable example (g : Mathling.Lambek.ProductFree.Shallow.Grammar Unit) :
+    g.toLinearGrammar.language = g.language :=
+  g.toLinearGrammar_language
+
+noncomputable example (g : Mathling.Lambek.ProductFree.Left.Shallow.Grammar Unit) :
+    g.toLeftLinearGrammar.language = g.language :=
+  g.toLeftLinearGrammar_language
+
+noncomputable example (g : Mathling.Lambek.ProductFree.Right.Shallow.Grammar Unit) :
+    g.toRightLinearGrammar.language = g.language :=
+  g.toRightLinearGrammar_language
+
+example (g : Mathling.Lambek.ProductFree.Shallow.Grammar Unit) :
+    g.language.IsLinear :=
+  g.language_isLinear
+
+example (g : Mathling.Lambek.ProductFree.Left.Shallow.Grammar Unit) :
+    g.language.IsRegular :=
+  g.language_isRegular
+
+example (g : Mathling.Lambek.ProductFree.Right.Shallow.Grammar Unit) :
+    g.language.IsRegular :=
+  g.language_isRegular
 
 end Mathling.Tests
-```
-
+\`\`\`
 <!--
 vim: set filetype=markdown :
 Local Variables:

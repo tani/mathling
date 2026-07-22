@@ -1,8 +1,9 @@
     module
 
-    import Mathling.Lambek.ProductFree.Fragments.Shallow.Core
-    import Mathling.Lambek.ProductFree.Fragments.Left.Shallow.Core
-    import Mathling.Lambek.ProductFree.Fragments.Right.Shallow.Core
+    public import Mathling.Lambek.Lexicon
+    public import Mathling.Lambek.ProductFree.Fragments.Shallow.Core
+    public import Mathling.Lambek.ProductFree.Fragments.Left.Shallow.Core
+    public import Mathling.Lambek.ProductFree.Fragments.Right.Shallow.Core
     public import Mathling.Grammar.Regular.Linear
     public import Mathling.Grammar.Regular.Left
     public import Mathling.Grammar.Regular.Right
@@ -11,52 +12,32 @@
     open scoped LiterateLean
 
 
-# Shallow Lambek 断片が表す言語クラス
+# Shallow Lambek 文法と具体的な文法変換
 
-このモジュールは、三つの shallow 断片を言語クラスの側から公開する。一般の
-shallow 断片には線形文法を、左または右だけを持つ shallow 断片には対応する
-左線形文法または右線形文法を結び付ける。
+このモジュールは、実際の語彙を持つ Lambek 文法を定義する。語が文法言語に属するとは、
+各終端記号へ語彙範疇を割り当て、その範疇列から既存の shallow シーケント計算で
+指定された開始原子を導出できることを意味する。
 
-現在の層は意味論的なプレゼンテーション境界である。既存の Core モジュールにある
-シーケント計算は変更せず、文法と言語クラスの対応だけを公開する。単語からカテゴリを
-選ぶ有限語彙と、選ばれたカテゴリ列の導出可能性を結ぶ語彙層は、この境界の上に
-追加される別の責務である。
-
-Lambek 計算では前提が空にならない。そのため、ここで扱う各プレゼンテーションは
-空語を含まないという証拠を保持する。
+順方向変換は意味論的なラッパーではなく、各語彙項目から生成規則を組み立てる具体的な関数である。
 
 ```mermaid
 flowchart LR
-    Shallow["Shallow"] <--> Linear["Linear grammar"]
-    Left["Left.Shallow"] <--> LeftLinear["Left-linear grammar"]
-    Right["Right.Shallow"] <--> RightLinear["Right-linear grammar"]
-    Linear --> ClassLinear["Linear language"]
-    LeftLinear --> ClassRegular["Regular language"]
-    RightLinear --> ClassRegular
+    Word --> Lexicon
+    Lexicon --> Categories
+    Categories --> Sequent
+    Lexicon --> Rules
+    Rules --> LinearGrammar
 ```
 
-## 一般 shallow 断片
-
-最初に、一般 shallow 断片の言語プレゼンテーションを定義する。この断片では左右の
-除法をともに許すため、対応先は左右どちらにも一個の非終端記号を置ける線形文法である。
-
-以下の名前空間は、既存の shallow 型とシーケントに対応する言語 API の所属先を固定する。
+## 一般 shallow 文法
 
 ```lean
 namespace Mathling.Lambek.ProductFree.Shallow
-```
 
-プレゼンテーションは線形文法本体と空語排除の証拠を一緒に保持する。これにより、
-後続の定理は空語に関する仮定を外部状態に頼らず、値そのものから取り出せる。
-
-```lean
-/-- An epsilon-free linear-language presentation for the shallow fragment. -/
 public structure Grammar (T : Type*) where
-  presentation : Mathling.Grammar.LinearGrammar T
-  empty_not_mem : [] ∉ presentation.language
+  lexicon : Mathling.Lambek.Lexicon T Tp
+  start : String
 ```
-
-以降の操作はプレゼンテーション型のメソッドとして公開するため、専用の名前空間に置く。
 
 ```lean
 namespace Grammar
@@ -64,164 +45,463 @@ namespace Grammar
 variable {T : Type*}
 ```
 
-言語の意味は、保持している線形文法の言語をそのまま観測することで与える。この定義が
-後続の変換定理における共通の観測点になる。
+受理判定では各終端記号に範疇を一つずつ選び、その範疇列を既存の shallow Sequent へ渡す。
 
 ```lean
-/-- The language represented by a shallow presentation. -/
+/- Exposed because public language and decision theorems reduce lexical acceptance. -/
+@[expose] public def Accepts (g : Grammar T) (w : List T) : Prop :=
+  ∃ Γ, g.lexicon.Categorizes w Γ ∧ Sequent Γ (.atom g.start)
+```
+
+```lean
+/- Exposed because public class and conversion theorems compare this set extensionally. -/
 @[expose] public def language (g : Grammar T) : Language T :=
-  g.presentation.language
+  {w | g.Accepts w}
 ```
 
-次に shallow という境界を忘れ、内部の線形文法を取り出す。終端記号や生成規則を
-書き換えない忘却変換なので、データ変換による失敗は起こらない。
+空語からは Lambek 計算が要求する非空の前提列を構成できない。
 
 ```lean
-/-- Forget the shallow boundary and recover the linear grammar. -/
-/- Exposed because the public preservation theorem reduces this forgetful map. -/
-@[expose]
-public def toLinearGrammar (g : Grammar T) : Mathling.Grammar.LinearGrammar T :=
-  g.presentation
+@[important, grind .] public theorem empty_not_mem (g : Grammar T) :
+    [] ∉ g.language := by
+  rintro ⟨Γ, hcat, hseq⟩
+  cases hcat
+  exact Mathling.Lambek.ProductFree.nonempty_premises hseq rfl
 ```
 
-言語の定義と忘却変換が同じ文法を参照するため、言語保存は定義的等式になる。この等式が
-以後のクラス定理で shallow 側と線形文法側を接続する。
+原子語彙は終端規則へ、右除法語彙は右線形規則へ、左除法語彙は左線形規則へ変換する。
 
 ```lean
-@[important, grind =, simp] public theorem toLinearGrammar_language (g : Grammar T) :
-    g.toLinearGrammar.language = g.language := rfl
+private def lexicalRule (entry : T × Tp) : ContextFreeRule T String :=
+  match entry with
+  | (a, .atom A) =>
+      { input := A, output := [Symbol.terminal a] }
+  | (a, .rdiv B A) =>
+      { input := B, output := [Symbol.terminal a, Symbol.nonterminal A] }
+  | (a, .ldiv A B) =>
+      { input := B, output := [Symbol.nonterminal A, Symbol.terminal a] }
 ```
-
-忘却先は線形文法なので、その既存定理を用いてプレゼンテーションの言語が線形言語で
-あることを得る。これは最終的な iff の shallow から linear への向きを担う。
 
 ```lean
-@[important, grind .] public theorem language_isLinear (g : Grammar T) :
-    g.language.IsLinear :=
-  g.toLinearGrammar.language_isLinear
+/-- 各 shallow 語彙項目を対応する具体的な線形生成規則へ変換する。 -/
+public noncomputable def toLinearGrammar (g : Grammar T) :
+    Mathling.Grammar.LinearGrammar T := by
+  classical
+  exact
+    { cfg :=
+        { NT := String
+          initial := g.start
+          rules := (g.lexicon.entries.map lexicalRule).toFinset }
+      linear := by
+        intro r hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, A⟩
+        cases A <;>
+          simp [lexicalRule, Mathling.Grammar.ContextFreeRule.IsLinear,
+            Mathling.Grammar.ContextFreeRule.nonterminalCount,
+            Mathling.Grammar.symbolIsNonterminal] }
 ```
-
-構造体に保存した不変条件を、言語 API 上の定理として取り出す。最終的な存在同値では、
-この条件と対象言語に対する仮定が一致する。
-
-```lean
-@[important, grind .] public theorem language_empty_not_mem (g : Grammar T) :
-    [] ∉ g.language :=
-  g.empty_not_mem
-```
-
-一般 shallow 側の観測 API が揃ったので、二つの名前空間を閉じる。
 
 ```lean
 end Grammar
 end Mathling.Lambek.ProductFree.Shallow
 ```
 
-### 線形文法から一般 shallow への変換
+一般 shallow の語彙規則が表す生成 spine を明示する。基底規則は原子語彙を一語生成し、右除法は左端へ、左除法は右端へ一語を追加する。
 
-逆向きは線形文法の名前空間に置き、メソッド記法で利用できるようにする。変換は文法を
-変更せず、呼び出し側が与えた空語排除の証拠を shallow 境界に格納する。
+\`\`\`math
+\begin{aligned}
+a:A &\Longmapsto A \to a,\\
+a:B/A &\Longmapsto B \to aA,\\
+a:A\backslash B &\Longmapsto B \to Aa.
+\end{aligned}
+\`\`\`
 
-```lean
-namespace Mathling.Grammar.LinearGrammar
+\`\`\`lean
+namespace Mathling.Lambek.ProductFree.Shallow
+namespace Grammar
 
-variable {T : Type*}
-```
+@[grind cases] public inductive Generates (g : Grammar T) : String → List T → Prop
+  | atom {a A} (entry : (a, Tp.atom A) ∈ g.lexicon.entries) :
+      Generates g A [a]
+  | rdiv {a A B w}
+      (entry : (a, Tp.rdiv B A) ∈ g.lexicon.entries)
+      (child : Generates g A w) :
+      Generates g B (a :: w)
+  | ldiv {a A B w}
+      (entry : (a, Tp.ldiv A B) ∈ g.lexicon.entries)
+      (child : Generates g A w) :
+      Generates g B (w ++ [a])
+\`\`\`
 
-この構成によって任意の epsilon-free 線形文法が一般 shallow のプレゼンテーションに
-なる。証拠引数は実行時のデータではなく、Lambek 側の非空条件を記録する契約である。
+spine から Lambek 導出を作る向きは、各 constructor を対応する左規則へ写す。ここでは語列と型列を同時に組み立てるため、語彙割当も証人として返す。
 
-```lean
-/-- Regard an epsilon-free linear grammar as a shallow presentation. -/
-/- Exposed because the public preservation theorem reduces the packaged grammar. -/
-@[expose]
-public def toShallowGrammar (g : Mathling.Grammar.LinearGrammar T)
-    (empty_not_mem : [] ∉ g.language) :
-    Mathling.Lambek.ProductFree.Shallow.Grammar T where
-  presentation := g
-  empty_not_mem := empty_not_mem
-```
+\`\`\`lean
+@[grind .] private theorem categorizes_append_singleton
+    {g : Grammar T} {w : List T} {Γ : List Tp} {a : T} {A : Tp}
+    (h : g.lexicon.Categorizes w Γ)
+    (entry : (a, A) ∈ g.lexicon.entries) :
+    g.lexicon.Categorizes (w ++ [a]) (Γ ++ [A]) := by
+  induction h with
+  | nil =>
+      simpa using
+        (Mathling.Lambek.Lexicon.Categorizes.cons entry
+          Mathling.Lambek.Lexicon.Categorizes.nil)
+  | @cons a' A' w' Γ' head tail ih =>
+      simpa [List.append_assoc] using
+        (Mathling.Lambek.Lexicon.Categorizes.cons head ih)
 
-変換後も同じ文法を保持するので、この向きの言語保存も定義的等式である。先ほどの
-忘却変換と合わせて、一般 shallow と epsilon-free 線形文法を往復できる。
+@[grind .] public theorem accepts_of_generates
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.Generates A w) :
+    ∃ Γ, g.lexicon.Categorizes w Γ ∧ Sequent Γ (.atom A) := by
+  induction h with
+  | atom entry =>
+      exact ⟨[.atom _],
+        Mathling.Lambek.Lexicon.Categorizes.cons entry
+          Mathling.Lambek.Lexicon.Categorizes.nil,
+        Sequent.ax⟩
+  | @rdiv a A B w entry child ih =>
+      obtain ⟨Γ, hcat, hseq⟩ := ih
+      refine ⟨.rdiv B A :: Γ,
+        Mathling.Lambek.Lexicon.Categorizes.cons entry hcat, ?_⟩
+      simpa using
+        (Sequent.rdiv_l (Γ := []) (Λ := []) hseq
+          (Sequent.ax : Sequent [.atom B] (.atom B)))
+  | @ldiv a A B w entry child ih =>
+      obtain ⟨Γ, hcat, hseq⟩ := ih
+      refine ⟨Γ ++ [.ldiv A B],
+        categorizes_append_singleton hcat entry, ?_⟩
+      simpa using
+        (Sequent.ldiv_l (Γ := []) (Λ := []) hseq
+          (Sequent.ax : Sequent [.atom B] (.atom B)))
+\`\`\`
 
-```lean
-@[important, grind =, simp] public theorem toShallowGrammar_language
-    (g : Mathling.Grammar.LinearGrammar T) (empty_not_mem : [] ∉ g.language) :
-    (g.toShallowGrammar empty_not_mem).language = g.language := rfl
-```
+逆向きでは、各前提を一つの終端語断片として解釈する。語彙由来の前提は一語を担い、既に導出済みの原子前提は一つの生成 spine 全体を担う。左規則は引数側の断片を主辞へ吸収して原子資源へ置換するため、導出木に関する帰納法がそのまま生成 spine を復元する。
 
-```lean
-end Mathling.Grammar.LinearGrammar
-```
+\`\`\`lean
+private inductive Item (g : Grammar T) :
+    List T → Mathling.Lambek.ProductFree.Tp → Prop
+  | lexical {a A}
+      (entry : (a, A) ∈ g.lexicon.entries) :
+      Item g [a] A.toProductFree
+  | derived {w A} (generation : g.Generates A w) :
+      Item g w (Mathling.Lambek.ProductFree.Tp.atom A)
 
-## left-shallow 断片
+private inductive Resources (g : Grammar T) :
+    List Mathling.Lambek.ProductFree.Tp → List T → Prop
+  | nil : Resources g [] []
+  | cons {A Γ u v}
+      (head : Item g u A)
+      (tail : Resources g Γ v) :
+      Resources g (A :: Γ) (u ++ v)
 
-left-shallow では左除法だけを許す。この方向制約を文法側でも保つため、内部表現には
-左線形文法を使う。正規言語の既存特徴付けが有限個の非終端記号を要求するので、その
-有限性証拠もプレゼンテーションに含める。
+@[grind .] private theorem Resources.append
+    {g : Grammar T} {Γ Δ : List Mathling.Lambek.ProductFree.Tp}
+    {u v : List T}
+    (left : Resources g Γ u) (right : Resources g Δ v) :
+    Resources g (Γ ++ Δ) (u ++ v) := by
+  induction left with
+  | nil => simpa using right
+  | @cons A Γ x y head tail ih =>
+      simpa [List.append_assoc] using Resources.cons head (ih right)
+
+@[grind .] private theorem Resources.split
+    {g : Grammar T} {Γ Δ : List Mathling.Lambek.ProductFree.Tp}
+    {w : List T}
+    (h : Resources g (Γ ++ Δ) w) :
+    ∃ u v, w = u ++ v ∧ Resources g Γ u ∧ Resources g Δ v := by
+  induction Γ generalizing w with
+  | nil =>
+      exact ⟨[], w, by simp, Resources.nil, by simpa using h⟩
+  | cons A Γ ih =>
+      cases h with
+      | @cons _ _ x y head tail =>
+          obtain ⟨u, v, rfl, hΓ, hΔ⟩ := ih tail
+          exact ⟨x ++ u, v, by simp [List.append_assoc],
+            Resources.cons head hΓ, hΔ⟩
+
+@[grind .] private theorem Resources.singleton
+    {g : Grammar T} {A : Mathling.Lambek.ProductFree.Tp} {w : List T}
+    (h : Resources g [A] w) :
+    Item g w A := by
+  cases h with
+  | @cons _ _ u v head tail =>
+      cases tail
+      simpa using head
+
+@[grind .] private theorem Resources.ofCategorizes
+    {g : Grammar T} {w : List T} {Γ : List Tp}
+    (h : g.lexicon.Categorizes w Γ) :
+    Resources g (ctxToProductFree Γ) w := by
+  induction h with
+  | nil => exact Resources.nil
+  | @cons a A w Γ entry tail ih =>
+      simpa [ctxToProductFree] using
+        (Resources.cons (Item.lexical entry) ih)
+\`\`\`
+
+一般 ProductFree 導出に対する資源保存を証明する。右導入の結論は原子になれず、二つの左導入だけが再帰的な spine の左右延長になる。
+
+\`\`\`lean
+@[grind .] private theorem generates_of_resources
+    {g : Grammar T}
+    {Γ : List Mathling.Lambek.ProductFree.Tp}
+    {C : Mathling.Lambek.ProductFree.Tp}
+    (derivation : Mathling.Lambek.ProductFree.Sequent Γ C) :
+    ∀ {A w}, C = Mathling.Lambek.ProductFree.Tp.atom A →
+      Resources g Γ w → g.Generates A w := by
+  induction derivation with
+  | @ax C =>
+      intro A w hC resources
+      subst C
+      have item := Resources.singleton resources
+      cases item with
+      | @lexical a shallow entry =>
+          cases shallow <;>
+            simp_all [Tp.toProductFree]
+          exact Generates.atom entry
+      | derived generation =>
+          simpa using generation
+  | @rdiv_r Γ X Y hne premise ih =>
+      intro A w hC
+      cases hC
+  | @ldiv_r Γ X Y hne premise ih =>
+      intro A w hC
+      cases hC
+  | @rdiv_l Δ X Γ B Λ C argument main ihArgument ihMain =>
+      intro A w hC resources
+      obtain ⟨wΓ, wrest, rfl, resourcesΓ, resourcesRest⟩ :=
+        Resources.split (Γ := Γ) (Δ := [B ⧸ X] ++ Δ ++ Λ) resources
+      obtain ⟨wPrincipal, wrest', rfl, resourcesPrincipal, resourcesRest'⟩ :=
+        Resources.split (Γ := [B ⧸ X]) (Δ := Δ ++ Λ) resourcesRest
+      obtain ⟨wΔ, wΛ, rfl, resourcesΔ, resourcesΛ⟩ :=
+        Resources.split (Γ := Δ) (Δ := Λ) resourcesRest'
+      have principal := Resources.singleton resourcesPrincipal
+      cases principal with
+      | @lexical a shallow entry =>
+          cases shallow with
+          | atom name =>
+              simp [Tp.toProductFree] at *
+          | ldiv left result =>
+              simp [Tp.toProductFree] at *
+          | rdiv result arg =>
+              simp only [Tp.toProductFree,
+                Mathling.Lambek.ProductFree.Tp.rdiv.injEq] at *
+              subst B
+              subst X
+              have child := ihArgument rfl resourcesΔ
+              have combined : Item g ([a] ++ wΔ)
+                  (Mathling.Lambek.ProductFree.Tp.atom result) :=
+                Item.derived (by simpa using Generates.rdiv entry child)
+              have replaced :
+                  Resources g
+                    (Γ ++ [Mathling.Lambek.ProductFree.Tp.atom result] ++ Λ)
+                    (wΓ ++ ([a] ++ wΔ) ++ wΛ) :=
+                Resources.append resourcesΓ
+                  (Resources.append (Resources.cons combined Resources.nil)
+                    resourcesΛ)
+              simpa [List.append_assoc] using ihMain hC replaced
+      | derived generation =>
+          cases generation
+  | @ldiv_l Δ X Γ B Λ C argument main ihArgument ihMain =>
+      intro A w hC resources
+      obtain ⟨wΓ, wrest, rfl, resourcesΓ, resourcesRest⟩ :=
+        Resources.split (Γ := Γ) (Δ := Δ ++ [X ⧹ B] ++ Λ) resources
+      obtain ⟨wΔ, wrest', rfl, resourcesΔ, resourcesRest'⟩ :=
+        Resources.split (Γ := Δ) (Δ := [X ⧹ B] ++ Λ) resourcesRest
+      obtain ⟨wPrincipal, wΛ, rfl, resourcesPrincipal, resourcesΛ⟩ :=
+        Resources.split (Γ := [X ⧹ B]) (Δ := Λ) resourcesRest'
+      have principal := Resources.singleton resourcesPrincipal
+      cases principal with
+      | @lexical a shallow entry =>
+          cases shallow with
+          | atom name =>
+              simp [Tp.toProductFree] at *
+          | rdiv result arg =>
+              simp [Tp.toProductFree] at *
+          | ldiv arg result =>
+              simp only [Tp.toProductFree,
+                Mathling.Lambek.ProductFree.Tp.ldiv.injEq] at *
+              subst X
+              subst B
+              have child := ihArgument rfl resourcesΔ
+              have combined : Item g (wΔ ++ [a])
+                  (Mathling.Lambek.ProductFree.Tp.atom result) :=
+                Item.derived (Generates.ldiv entry child)
+              have replaced :
+                  Resources g
+                    (Γ ++ [Mathling.Lambek.ProductFree.Tp.atom result] ++ Λ)
+                    (wΓ ++ (wΔ ++ [a]) ++ wΛ) :=
+                Resources.append resourcesΓ
+                  (Resources.append (Resources.cons combined Resources.nil)
+                    resourcesΛ)
+              simpa [List.append_assoc] using ihMain hC replaced
+      | derived generation =>
+          cases generation
+\`\`\`
+
+語彙割当を資源列へ持ち上げると、Lambek 受理から spine を復元できる。したがって Accepts は独立に定義された生成関係と同値になる。
+
+\`\`\`lean
+@[important, grind .] public theorem generates_of_accepts
+    {g : Grammar T} {w : List T} (h : g.Accepts w) :
+    g.Generates g.start w := by
+  obtain ⟨Γ, hcat, hseq⟩ := h
+  exact generates_of_resources hseq rfl (Resources.ofCategorizes hcat)
+
+@[important, grind =] public theorem accepts_iff_generates
+    {g : Grammar T} {w : List T} :
+    g.Accepts w ↔ g.Generates g.start w := by
+  constructor
+  · exact generates_of_accepts
+  · exact accepts_of_generates
+\`\`\`
+
+最後に、生成 spine と実際に構成した LinearGrammar の生成木を規則ごとに対応させる。規則集合の所属証明から元の語彙項目を復元するため、逆向きも定義上の投影ではなく規則形の反転になっている。
+
+\`\`\`lean
+@[important, grind =] public theorem generates_iff_linearGenerates
+    {g : Grammar T} {A : String} {w : List T} :
+    g.Generates A w ↔
+      Mathling.Grammar.LinearGrammar.LinearGenerates g.toLinearGrammar A w := by
+  constructor
+  · intro h
+    induction h with
+    | atom entry =>
+        apply Mathling.Grammar.LinearGrammar.LinearGenerates.leaf
+          (r := lexicalRule (_, .atom _))
+          (word := [_])
+        · simp [toLinearGrammar, entry]
+        · simp [lexicalRule, terminalSymbols]
+    | @rdiv a A B w entry child ih =>
+        simpa [terminalSymbols] using
+          (Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+            (g := g.toLinearGrammar)
+            (r := lexicalRule (a, .rdiv B A))
+            (pre := [a]) (suffix := []) (middle := w) (B := A)
+            (by simp [toLinearGrammar, entry])
+            (by simp [lexicalRule, terminalSymbols])
+            ih)
+    | @ldiv a A B w entry child ih =>
+        simpa [terminalSymbols] using
+          (Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+            (g := g.toLinearGrammar)
+            (r := lexicalRule (a, .ldiv A B))
+            (pre := []) (suffix := [a]) (middle := w) (B := A)
+            (by simp [toLinearGrammar, entry])
+            (by simp [lexicalRule, terminalSymbols])
+            ih)
+  · intro h
+    induction h with
+    | @leaf r word hr hout =>
+        rw [show g.toLinearGrammar.cfg.rules =
+          (g.lexicon.entries.map lexicalRule).toFinset by rfl] at hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, hentry, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, category⟩
+        cases category with
+        | atom A =>
+            simp [lexicalRule, terminalSymbols] at hout
+            subst word
+            exact Generates.atom hentry
+        | ldiv A B =>
+            simp [lexicalRule, terminalSymbols] at hout
+        | rdiv B A =>
+            simp [lexicalRule, terminalSymbols] at hout
+    | @branch r pre suffix middle B hr hout child ih =>
+        rw [show g.toLinearGrammar.cfg.rules =
+          (g.lexicon.entries.map lexicalRule).toFinset by rfl] at hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, hentry, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, category⟩
+        cases category with
+        | atom A =>
+            simp [lexicalRule, terminalSymbols] at hout
+        | ldiv A C =>
+            simp [lexicalRule, terminalSymbols] at hout
+            obtain ⟨rfl, rfl, rfl⟩ := hout
+            simpa using Generates.ldiv hentry ih
+        | rdiv C A =>
+            simp [lexicalRule, terminalSymbols] at hout
+            obtain ⟨rfl, rfl, rfl⟩ := hout
+            simpa using Generates.rdiv hentry ih
+
+@[important, grind =, simp] public theorem toLinearGrammar_language
+    (g : Grammar T) :
+    g.toLinearGrammar.language = g.language := by
+  ext w
+  rw [← Mathling.Grammar.LinearGrammar.linearGenerates_iff]
+  exact g.generates_iff_linearGenerates.symm.trans
+    g.accepts_iff_generates.symm
+
+end Grammar
+end Mathling.Lambek.ProductFree.Shallow
+\`\`\`
+
+## Left.Shallow 文法
 
 ```lean
 namespace Mathling.Lambek.ProductFree.Left.Shallow
-```
 
-一般 shallow と同様に空語排除を保持し、さらに左線形文法の非終端記号型が有限である
-ことを存在的な Fintype インスタンスとして保存する。
-
-```lean
-/-- An epsilon-free finite left-linear presentation. -/
 public structure Grammar (T : Type*) where
-  presentation : Mathling.Grammar.LeftLinearGrammar T
-  finiteNonterminals : Nonempty (Fintype presentation.cfg.NT)
-  empty_not_mem : [] ∉ presentation.language
+  lexicon : Mathling.Lambek.Lexicon T Tp
+  start : String
 ```
 
 ```lean
 namespace Grammar
 
-variable {T : Type}
+variable {T : Type*}
 ```
 
-left-shallow の言語観測も、保持している左線形文法の言語そのものである。
+```lean
+/- Exposed because public language theorems reduce lexical acceptance. -/
+@[expose] public def Accepts (g : Grammar T) (w : List T) : Prop :=
+  ∃ Γ, g.lexicon.Categorizes w Γ ∧ Sequent Γ (.atom g.start)
+```
 
 ```lean
+/- Exposed because public conversion theorems compare this set extensionally. -/
 @[expose] public def language (g : Grammar T) : Language T :=
-  g.presentation.language
+  {w | g.Accepts w}
 ```
 
-方向制約を失わない忘却変換として、内部の左線形文法を取り出す。
-
 ```lean
-/- Exposed because the public preservation theorem reduces this forgetful map. -/
-@[expose]
-public def toLeftLinearGrammar (g : Grammar T) :
-    Mathling.Grammar.LeftLinearGrammar T :=
-  g.presentation
+@[important, grind .] public theorem empty_not_mem (g : Grammar T) :
+    [] ∉ g.language := by
+  rintro ⟨Γ, hcat, hseq⟩
+  cases hcat
+  exact Mathling.Lambek.ProductFree.nonempty_premises hseq rfl
 ```
 
-観測対象と忘却先が同一なので、言語保存は定義的に成立する。
-
 ```lean
-@[important, grind =, simp] public theorem toLeftLinearGrammar_language
-    (g : Grammar T) : g.toLeftLinearGrammar.language = g.language := rfl
+private def lexicalRule (entry : T × Tp) : ContextFreeRule T String :=
+  match entry with
+  | (a, .atom A) =>
+      { input := A, output := [Symbol.terminal a] }
+  | (a, .ldiv A B) =>
+      { input := B, output := [Symbol.nonterminal A, Symbol.terminal a] }
 ```
 
-有限終端アルファベットのもとで、既存の左線形文法による特徴付けに文法と有限性証拠を
-渡す。これにより left-shallow の言語が正規である方向が得られる。
-
 ```lean
-@[important, grind .] public theorem language_isRegular [Finite T] (g : Grammar T) :
-    g.language.IsRegular := by
-  apply Mathling.Grammar.Language.isRegular_iff_exists_leftLinearGrammar.mpr
-  exact ⟨g.toLeftLinearGrammar, g.finiteNonterminals, rfl⟩
-```
-
-最後に、この片側断片でも空語が言語に含まれないことを公開 API として取り出す。
-
-```lean
-@[important, grind .] public theorem language_empty_not_mem (g : Grammar T) :
-    [] ∉ g.language :=
-  g.empty_not_mem
+/-- 各 left-shallow 語彙項目を対応する具体的な左線形生成規則へ変換する。 -/
+public noncomputable def toLeftLinearGrammar (g : Grammar T) :
+    Mathling.Grammar.LeftLinearGrammar T := by
+  classical
+  exact
+    { cfg :=
+        { NT := String
+          initial := g.start
+          rules := (g.lexicon.entries.map lexicalRule).toFinset }
+      leftLinear := by
+        intro r hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, A⟩
+        cases A <;>
+          simp [lexicalRule, Mathling.Grammar.ContextFreeRule.IsLeftLinear] }
 ```
 
 ```lean
@@ -229,104 +509,68 @@ end Grammar
 end Mathling.Lambek.ProductFree.Left.Shallow
 ```
 
-### 左線形文法から left-shallow への変換
-
-逆変換は左線形文法、有限性証拠、空語排除証拠を一つの left-shallow 値へ束ねる。
-
-```lean
-namespace Mathling.Grammar.LeftLinearGrammar
-
-variable {T : Type}
-```
-
-```lean
-/-- Regard an epsilon-free finite left-linear grammar as left-shallow. -/
-/- Exposed because the public preservation theorem reduces the packaged grammar. -/
-@[expose]
-public def toLeftShallowGrammar (g : Mathling.Grammar.LeftLinearGrammar T)
-    (finiteNonterminals : Nonempty (Fintype g.cfg.NT))
-    (empty_not_mem : [] ∉ g.language) :
-    Mathling.Lambek.ProductFree.Left.Shallow.Grammar T where
-  presentation := g
-  finiteNonterminals := finiteNonterminals
-  empty_not_mem := empty_not_mem
-```
-
-この変換も文法本体を変更しないため、言語保存は rfl で閉じる。これが正規言語から
-left-shallow の存在証人を作る際の最後の変換になる。
-
-```lean
-@[important, grind =, simp] public theorem toLeftShallowGrammar_language
-    (g : Mathling.Grammar.LeftLinearGrammar T)
-    (finiteNonterminals : Nonempty (Fintype g.cfg.NT))
-    (empty_not_mem : [] ∉ g.language) :
-    (g.toLeftShallowGrammar finiteNonterminals empty_not_mem).language = g.language := rfl
-```
-
-```lean
-end Mathling.Grammar.LeftLinearGrammar
-```
-
-## right-shallow 断片
-
-right-shallow は left-shallow の鏡像であり、右除法だけを許す。語順の向きを反転で
-隠さず、右線形文法との対応を独立した API として公開する。
+## Right.Shallow 文法
 
 ```lean
 namespace Mathling.Lambek.ProductFree.Right.Shallow
-```
 
-構造は left-shallow と対称で、右線形文法、有限非終端記号の証拠、空語排除の証拠を
-保持する。
-
-```lean
-/-- An epsilon-free finite right-linear presentation. -/
 public structure Grammar (T : Type*) where
-  presentation : Mathling.Grammar.RightLinearGrammar T
-  finiteNonterminals : Nonempty (Fintype presentation.cfg.NT)
-  empty_not_mem : [] ∉ presentation.language
+  lexicon : Mathling.Lambek.Lexicon T Tp
+  start : String
 ```
 
 ```lean
 namespace Grammar
 
-variable {T : Type}
+variable {T : Type*}
 ```
 
 ```lean
+/- Exposed because public language theorems reduce lexical acceptance. -/
+@[expose] public def Accepts (g : Grammar T) (w : List T) : Prop :=
+  ∃ Γ, g.lexicon.Categorizes w Γ ∧ Sequent Γ (.atom g.start)
+```
+
+```lean
+/- Exposed because public conversion theorems compare this set extensionally. -/
 @[expose] public def language (g : Grammar T) : Language T :=
-  g.presentation.language
-```
-
-右方向の形を保ったまま、内部の右線形文法を取り出す。
-
-```lean
-/- Exposed because the public preservation theorem reduces this forgetful map. -/
-@[expose]
-public def toRightLinearGrammar (g : Grammar T) :
-    Mathling.Grammar.RightLinearGrammar T :=
-  g.presentation
+  {w | g.Accepts w}
 ```
 
 ```lean
-@[important, grind =, simp] public theorem toRightLinearGrammar_language
-    (g : Grammar T) : g.toRightLinearGrammar.language = g.language := rfl
-```
-
-有限終端アルファベットと有限非終端記号を既存の右線形特徴付けへ渡し、
-right-shallow の言語が正規であることを得る。
-
-```lean
-@[important, grind .] public theorem language_isRegular [Finite T] (g : Grammar T) :
-    g.language.IsRegular := by
-  apply Mathling.Grammar.Language.isRegular_iff_exists_rightLinearGrammar.mpr
-  exact ⟨g.toRightLinearGrammar, g.finiteNonterminals, rfl⟩
+@[important, grind .] public theorem empty_not_mem (g : Grammar T) :
+    [] ∉ g.language := by
+  rintro ⟨Γ, hcat, hseq⟩
+  cases hcat
+  exact Mathling.Lambek.ProductFree.nonempty_premises hseq rfl
 ```
 
 ```lean
-@[important, grind .] public theorem language_empty_not_mem (g : Grammar T) :
-    [] ∉ g.language :=
-  g.empty_not_mem
+private def lexicalRule (entry : T × Tp) : ContextFreeRule T String :=
+  match entry with
+  | (a, .atom A) =>
+      { input := A, output := [Symbol.terminal a] }
+  | (a, .rdiv B A) =>
+      { input := B, output := [Symbol.terminal a, Symbol.nonterminal A] }
+```
+
+```lean
+/-- 各 right-shallow 語彙項目を対応する具体的な右線形生成規則へ変換する。 -/
+public noncomputable def toRightLinearGrammar (g : Grammar T) :
+    Mathling.Grammar.RightLinearGrammar T := by
+  classical
+  exact
+    { cfg :=
+        { NT := String
+          initial := g.start
+          rules := (g.lexicon.entries.map lexicalRule).toFinset }
+      rightLinear := by
+        intro r hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, A⟩
+        cases A <;>
+          simp [lexicalRule, Mathling.Grammar.ContextFreeRule.IsRightLinear] }
 ```
 
 ```lean
@@ -334,137 +578,755 @@ end Grammar
 end Mathling.Lambek.ProductFree.Right.Shallow
 ```
 
-### 右線形文法から right-shallow への変換
+## 左右 shallow の対応
 
-左側と同じデータフローを右線形文法について構成する。
+片側 fragment は一般 shallow へ忠実に埋め込める。左 fragment は左除法だけを、右 fragment は右除法だけを語彙に許すため、対応する spine も一方向へしか伸びない。
 
-```lean
-namespace Mathling.Grammar.RightLinearGrammar
+### Left.Shallow と左線形生成
 
-variable {T : Type}
-```
+\`\`\`lean
+namespace Mathling.Lambek.ProductFree.Left.Shallow
+namespace Grammar
 
-```lean
-/-- Regard an epsilon-free finite right-linear grammar as right-shallow. -/
-/- Exposed because the public preservation theorem reduces the packaged grammar. -/
-@[expose]
-public def toRightShallowGrammar (g : Mathling.Grammar.RightLinearGrammar T)
-    (finiteNonterminals : Nonempty (Fintype g.cfg.NT))
-    (empty_not_mem : [] ∉ g.language) :
-    Mathling.Lambek.ProductFree.Right.Shallow.Grammar T where
-  presentation := g
-  finiteNonterminals := finiteNonterminals
-  empty_not_mem := empty_not_mem
-```
+@[grind cases] public inductive Generates (g : Grammar T) : String → List T → Prop
+  | atom {a A} (entry : (a, Tp.atom A) ∈ g.lexicon.entries) :
+      Generates g A [a]
+  | ldiv {a A B w}
+      (entry : (a, Tp.ldiv A B) ∈ g.lexicon.entries)
+      (child : Generates g A w) :
+      Generates g B (w ++ [a])
 
-言語保存定理により、変換を介しても対象の正規言語が変わらないことを固定する。
+private def Tp.toGeneral : Tp →
+    Mathling.Lambek.ProductFree.Shallow.Tp
+  | .atom A => .atom A
+  | .ldiv A B => .ldiv A B
 
-```lean
-@[important, grind =, simp] public theorem toRightShallowGrammar_language
-    (g : Mathling.Grammar.RightLinearGrammar T)
-    (finiteNonterminals : Nonempty (Fintype g.cfg.NT))
-    (empty_not_mem : [] ∉ g.language) :
-    (g.toRightShallowGrammar finiteNonterminals empty_not_mem).language = g.language := rfl
-```
+private def toGeneral (g : Grammar T) :
+    Mathling.Lambek.ProductFree.Shallow.Grammar T :=
+  { lexicon :=
+      { entries := g.lexicon.entries.map fun entry =>
+          (entry.1, entry.2.toGeneral) }
+    start := g.start }
 
-```lean
-end Mathling.Grammar.RightLinearGrammar
-```
+@[grind .] private theorem categorizes_toGeneral
+    {g : Grammar T} {w : List T} {Γ : List Tp}
+    (h : g.lexicon.Categorizes w Γ) :
+    g.toGeneral.lexicon.Categorizes w (Γ.map Tp.toGeneral) := by
+  induction h with
+  | nil => exact Mathling.Lambek.Lexicon.Categorizes.nil
+  | @cons a A w Γ entry tail ih =>
+      apply Mathling.Lambek.Lexicon.Categorizes.cons
+        (tail := ih)
+      simpa [toGeneral] using
+        List.mem_map_of_mem (fun entry => (entry.1, entry.2.toGeneral)) entry
 
-## 言語クラスとしての iff
+@[grind .] private theorem toGeneral_accepts
+    {g : Grammar T} {w : List T} (h : g.Accepts w) :
+    g.toGeneral.Accepts w := by
+  obtain ⟨Γ, hcat, hseq⟩ := h
+  refine ⟨Γ.map Tp.toGeneral, categorizes_toGeneral hcat, ?_⟩
+  simpa [toGeneral, Tp.toGeneral,
+    Mathling.Lambek.ProductFree.Shallow.Sequent,
+    Mathling.Lambek.ProductFree.Shallow.ctxToProductFree,
+    Mathling.Lambek.ProductFree.Shallow.Tp.toProductFree,
+    Sequent, ctxToProductFree, Tp.toProductFree,
+    List.map_map] using hseq
 
-ここまでで各方向の変換と包含が揃った。最後に対象言語 L が空語を含まないという仮定の
-もとで、それぞれのプレゼンテーションが存在することと既存の言語クラス述語が同値で
-あることをまとめる。
+@[grind .] private theorem generates_toGeneral
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.Generates A w) :
+    g.toGeneral.Generates A w := by
+  induction h with
+  | atom entry =>
+      apply Mathling.Lambek.ProductFree.Shallow.Grammar.Generates.atom
+      simpa [toGeneral, Tp.toGeneral] using
+        List.mem_map_of_mem (fun entry => (entry.1, entry.2.toGeneral)) entry
+  | ldiv entry child ih =>
+      apply Mathling.Lambek.ProductFree.Shallow.Grammar.Generates.ldiv
+        (child := ih)
+      simpa [toGeneral, Tp.toGeneral] using
+        List.mem_map_of_mem (fun entry => (entry.1, entry.2.toGeneral)) entry
 
-### shallow と線形言語
+@[grind .] private theorem generates_ofGeneral
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.toGeneral.Generates A w) :
+    g.Generates A w := by
+  induction h with
+  | @atom a A entry =>
+      change (a, Mathling.Lambek.ProductFree.Shallow.Tp.atom A) ∈
+        g.lexicon.entries.map (fun entry =>
+          (entry.1, entry.2.toGeneral)) at entry
+      obtain ⟨source, hsource, heq⟩ := List.mem_map.mp entry
+      rcases source with ⟨a', category⟩
+      cases category <;> simp_all [Tp.toGeneral]
+      exact Generates.atom hsource
+  | @rdiv a A B w entry child ih =>
+      change (a, Mathling.Lambek.ProductFree.Shallow.Tp.rdiv B A) ∈
+        g.lexicon.entries.map (fun entry =>
+          (entry.1, entry.2.toGeneral)) at entry
+      obtain ⟨source, hsource, heq⟩ := List.mem_map.mp entry
+      rcases source with ⟨a', category⟩
+      cases category <;> simp_all [Tp.toGeneral]
+  | @ldiv a A B w entry child ih =>
+      change (a, Mathling.Lambek.ProductFree.Shallow.Tp.ldiv A B) ∈
+        g.lexicon.entries.map (fun entry =>
+          (entry.1, entry.2.toGeneral)) at entry
+      obtain ⟨source, hsource, heq⟩ := List.mem_map.mp entry
+      rcases source with ⟨a', category⟩
+      cases category <;> simp_all [Tp.toGeneral]
+      simpa using Generates.ldiv hsource ih
 
-順方向では既存の線形文法存在定理から文法を取り出し、空語排除を言語等式に沿って
-移送して shallow プレゼンテーションを作る。逆方向では、先に証明した
-language_isLinear をそのまま使う。
+@[important, grind .] public theorem accepts_of_generates
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.Generates A w) :
+    ∃ Γ, g.lexicon.Categorizes w Γ ∧ Sequent Γ (.atom A) := by
+  induction h with
+  | atom entry =>
+      exact ⟨[.atom _],
+        Mathling.Lambek.Lexicon.Categorizes.cons entry
+          Mathling.Lambek.Lexicon.Categorizes.nil,
+        Sequent.ax⟩
+  | @ldiv a A B w entry child ih =>
+      obtain ⟨Γ, hcat, hseq⟩ := ih
+      have hcat' :
+          g.lexicon.Categorizes (w ++ [a]) (Γ ++ [.ldiv A B]) := by
+        induction hcat with
+        | nil =>
+            simpa using
+              (Mathling.Lambek.Lexicon.Categorizes.cons entry
+                Mathling.Lambek.Lexicon.Categorizes.nil)
+        | @cons a' A' w' Γ' head tail ih =>
+            simpa [List.append_assoc] using
+              (Mathling.Lambek.Lexicon.Categorizes.cons head ih)
+      refine ⟨Γ ++ [.ldiv A B], hcat', ?_⟩
+      simpa using
+        (Sequent.ldiv_l (Γ := []) (Λ := []) hseq
+          (Sequent.ax : Sequent [.atom B] (.atom B)))
 
-```lean
-namespace Language
+@[important, grind .] public theorem generates_of_accepts
+    {g : Grammar T} {w : List T} (h : g.Accepts w) :
+    g.Generates g.start w :=
+  generates_ofGeneral
+    (Mathling.Lambek.ProductFree.Shallow.Grammar.generates_of_accepts
+      (toGeneral_accepts h))
 
-variable {T : Type*}
-```
+@[important, grind =] public theorem accepts_iff_generates
+    {g : Grammar T} {w : List T} :
+    g.Accepts w ↔ g.Generates g.start w := by
+  constructor
+  · exact generates_of_accepts
+  · exact accepts_of_generates
+\`\`\`
 
-```lean
-@[important, grind =] public theorem isLinear_iff_exists_shallowGrammar
-    {L : Language T} (empty_not_mem : [] ∉ L) :
-    L.IsLinear ↔
-      ∃ g : Mathling.Lambek.ProductFree.Shallow.Grammar T, g.language = L := by
+左向き spine と、実際の左線形規則集合からなる生成木を規則ごとに往復する。
+
+\`\`\`lean
+@[important, grind =] public theorem generates_iff_linearGenerates
+    {g : Grammar T} {A : String} {w : List T} :
+    g.Generates A w ↔
+      Mathling.Grammar.LinearGrammar.LinearGenerates
+        g.toLeftLinearGrammar.toLinear A w := by
   constructor
   · intro h
-    obtain ⟨g, hg⟩ := Language.isLinear_iff_exists_linearGrammar.mp h
-    have hne : [] ∉ g.language := by
-      intro hempty
-      exact empty_not_mem (by simpa [hg] using hempty)
-    exact ⟨g.toShallowGrammar hne, by simpa using hg⟩
-  · rintro ⟨g, rfl⟩
-    exact g.language_isLinear
-```
+    induction h with
+    | atom entry =>
+        apply Mathling.Grammar.LinearGrammar.LinearGenerates.leaf
+          (r := lexicalRule (_, .atom _))
+          (word := [_])
+        · simp [toLeftLinearGrammar, entry]
+        · simp [lexicalRule, terminalSymbols]
+    | @ldiv a A B w entry child ih =>
+        simpa [terminalSymbols] using
+          (Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+            (g := g.toLeftLinearGrammar.toLinear)
+            (r := lexicalRule (a, .ldiv A B))
+            (pre := []) (suffix := [a]) (middle := w) (B := A)
+            (by simp [toLeftLinearGrammar, entry])
+            (by simp [lexicalRule, terminalSymbols])
+            ih)
+  · intro h
+    induction h with
+    | @leaf r word hr hout =>
+        rw [show g.toLeftLinearGrammar.toLinear.cfg.rules =
+          (g.lexicon.entries.map lexicalRule).toFinset by rfl] at hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, hentry, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, category⟩
+        cases category with
+        | atom A =>
+            simp [lexicalRule, terminalSymbols] at hout
+            subst word
+            exact Generates.atom hentry
+        | ldiv A B =>
+            simp [lexicalRule, terminalSymbols] at hout
+    | @branch r pre suffix middle B hr hout child ih =>
+        rw [show g.toLeftLinearGrammar.toLinear.cfg.rules =
+          (g.lexicon.entries.map lexicalRule).toFinset by rfl] at hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, hentry, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, category⟩
+        cases category with
+        | atom A =>
+            simp [lexicalRule, terminalSymbols] at hout
+        | ldiv A C =>
+            simp [lexicalRule, terminalSymbols] at hout
+            obtain ⟨rfl, rfl, rfl⟩ := hout
+            simpa using Generates.ldiv hentry ih
 
-```lean
-end Language
-```
+@[important, grind =, simp] public theorem toLeftLinearGrammar_language
+    (g : Grammar T) :
+    g.toLeftLinearGrammar.language = g.language := by
+  ext w
+  rw [← Mathling.Grammar.LeftLinearGrammar.toLinear_language,
+    ← Mathling.Grammar.LinearGrammar.linearGenerates_iff]
+  exact g.generates_iff_linearGenerates.symm.trans
+    g.accepts_iff_generates.symm
 
-### 片側 shallow と正規言語
+end Grammar
+end Mathling.Lambek.ProductFree.Left.Shallow
+\`\`\`
 
-正規言語側の既存 iff は Mathling.Grammar.Language 名前空間にあるため、新しい二定理も
-同じ場所へ置く。終端アルファベットの有限性は既存定理の契約をそのまま引き継ぐ。
+### Right.Shallow と右線形生成
 
-```lean
-namespace Mathling.Grammar.Language
+右 fragment は上の構成を左右反転したものである。右除法語彙だけが許されるため、各 branch は子が生成する語の左端へ一語を追加する。
 
-variable {T : Type}
-```
+\`\`\`lean
+namespace Mathling.Lambek.ProductFree.Right.Shallow
+namespace Grammar
 
-left-shallow の定理では、左線形文法と有限非終端記号の証拠を既存 iff から同時に
-取り出す。対象言語との等式を使って空語排除を移送し、先ほどの逆変換へ渡す。
+@[grind cases] public inductive Generates (g : Grammar T) : String → List T → Prop
+  | atom {a A} (entry : (a, Tp.atom A) ∈ g.lexicon.entries) :
+      Generates g A [a]
+  | rdiv {a A B w}
+      (entry : (a, Tp.rdiv B A) ∈ g.lexicon.entries)
+      (child : Generates g A w) :
+      Generates g B (a :: w)
 
-```lean
-@[important, grind =] public theorem isRegular_iff_exists_leftShallowGrammar
-    [Finite T] {L : Language T} (empty_not_mem : [] ∉ L) :
-    L.IsRegular ↔
-      ∃ g : Mathling.Lambek.ProductFree.Left.Shallow.Grammar T, g.language = L := by
+private def Tp.toGeneral : Tp →
+    Mathling.Lambek.ProductFree.Shallow.Tp
+  | .atom A => .atom A
+  | .rdiv B A => .rdiv B A
+
+private def toGeneral (g : Grammar T) :
+    Mathling.Lambek.ProductFree.Shallow.Grammar T :=
+  { lexicon :=
+      { entries := g.lexicon.entries.map fun entry =>
+          (entry.1, entry.2.toGeneral) }
+    start := g.start }
+
+@[grind .] private theorem categorizes_toGeneral
+    {g : Grammar T} {w : List T} {Γ : List Tp}
+    (h : g.lexicon.Categorizes w Γ) :
+    g.toGeneral.lexicon.Categorizes w (Γ.map Tp.toGeneral) := by
+  induction h with
+  | nil => exact Mathling.Lambek.Lexicon.Categorizes.nil
+  | @cons a A w Γ entry tail ih =>
+      apply Mathling.Lambek.Lexicon.Categorizes.cons
+        (tail := ih)
+      simpa [toGeneral] using
+        List.mem_map_of_mem (fun entry => (entry.1, entry.2.toGeneral)) entry
+
+@[grind .] private theorem toGeneral_accepts
+    {g : Grammar T} {w : List T} (h : g.Accepts w) :
+    g.toGeneral.Accepts w := by
+  obtain ⟨Γ, hcat, hseq⟩ := h
+  refine ⟨Γ.map Tp.toGeneral, categorizes_toGeneral hcat, ?_⟩
+  simpa [toGeneral, Tp.toGeneral,
+    Mathling.Lambek.ProductFree.Shallow.Sequent,
+    Mathling.Lambek.ProductFree.Shallow.ctxToProductFree,
+    Mathling.Lambek.ProductFree.Shallow.Tp.toProductFree,
+    Sequent, ctxToProductFree, Tp.toProductFree,
+    List.map_map] using hseq
+
+@[grind .] private theorem generates_ofGeneral
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.toGeneral.Generates A w) :
+    g.Generates A w := by
+  induction h with
+  | @atom a A entry =>
+      change (a, Mathling.Lambek.ProductFree.Shallow.Tp.atom A) ∈
+        g.lexicon.entries.map (fun entry =>
+          (entry.1, entry.2.toGeneral)) at entry
+      obtain ⟨source, hsource, heq⟩ := List.mem_map.mp entry
+      rcases source with ⟨a', category⟩
+      cases category <;> simp_all [Tp.toGeneral]
+      exact Generates.atom hsource
+  | @ldiv a A B w entry child ih =>
+      change (a, Mathling.Lambek.ProductFree.Shallow.Tp.ldiv A B) ∈
+        g.lexicon.entries.map (fun entry =>
+          (entry.1, entry.2.toGeneral)) at entry
+      obtain ⟨source, hsource, heq⟩ := List.mem_map.mp entry
+      rcases source with ⟨a', category⟩
+      cases category <;> simp_all [Tp.toGeneral]
+  | @rdiv a A B w entry child ih =>
+      change (a, Mathling.Lambek.ProductFree.Shallow.Tp.rdiv B A) ∈
+        g.lexicon.entries.map (fun entry =>
+          (entry.1, entry.2.toGeneral)) at entry
+      obtain ⟨source, hsource, heq⟩ := List.mem_map.mp entry
+      rcases source with ⟨a', category⟩
+      cases category <;> simp_all [Tp.toGeneral]
+      simpa using Generates.rdiv hsource ih
+
+@[important, grind .] public theorem accepts_of_generates
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.Generates A w) :
+    ∃ Γ, g.lexicon.Categorizes w Γ ∧ Sequent Γ (.atom A) := by
+  induction h with
+  | atom entry =>
+      exact ⟨[.atom _],
+        Mathling.Lambek.Lexicon.Categorizes.cons entry
+          Mathling.Lambek.Lexicon.Categorizes.nil,
+        Sequent.ax⟩
+  | @rdiv a A B w entry child ih =>
+      obtain ⟨Γ, hcat, hseq⟩ := ih
+      refine ⟨.rdiv B A :: Γ,
+        Mathling.Lambek.Lexicon.Categorizes.cons entry hcat, ?_⟩
+      simpa using
+        (Sequent.rdiv_l (Γ := []) (Λ := []) hseq
+          (Sequent.ax : Sequent [.atom B] (.atom B)))
+
+@[important, grind .] public theorem generates_of_accepts
+    {g : Grammar T} {w : List T} (h : g.Accepts w) :
+    g.Generates g.start w :=
+  generates_ofGeneral
+    (Mathling.Lambek.ProductFree.Shallow.Grammar.generates_of_accepts
+      (toGeneral_accepts h))
+
+@[important, grind =] public theorem accepts_iff_generates
+    {g : Grammar T} {w : List T} :
+    g.Accepts w ↔ g.Generates g.start w := by
+  constructor
+  · exact generates_of_accepts
+  · exact accepts_of_generates
+\`\`\`
+
+右向き spine と右線形生成木も同じ規則反転で一致する。
+
+\`\`\`lean
+@[important, grind =] public theorem generates_iff_linearGenerates
+    {g : Grammar T} {A : String} {w : List T} :
+    g.Generates A w ↔
+      Mathling.Grammar.LinearGrammar.LinearGenerates
+        g.toRightLinearGrammar.toLinear A w := by
   constructor
   · intro h
-    obtain ⟨g, hfinite, hg⟩ := isRegular_iff_exists_leftLinearGrammar.mp h
-    have hne : [] ∉ g.language := by
-      intro hempty
-      exact empty_not_mem (by simpa [hg] using hempty)
-    refine ⟨g.toLeftShallowGrammar hfinite hne, ?_⟩
-    exact (g.toLeftShallowGrammar_language hfinite hne).trans hg
-  · rintro ⟨g, rfl⟩
-    exact g.language_isRegular
-```
-
-right-shallow も同じデータフローを右線形文法について適用する。二つの定理を別々に
-公開することで、利用者は語順の向きを反転せずに必要な断片を選択できる。
-
-```lean
-@[important, grind =] public theorem isRegular_iff_exists_rightShallowGrammar
-    [Finite T] {L : Language T} (empty_not_mem : [] ∉ L) :
-    L.IsRegular ↔
-      ∃ g : Mathling.Lambek.ProductFree.Right.Shallow.Grammar T, g.language = L := by
-  constructor
+    induction h with
+    | atom entry =>
+        apply Mathling.Grammar.LinearGrammar.LinearGenerates.leaf
+          (r := lexicalRule (_, .atom _))
+          (word := [_])
+        · simp [toRightLinearGrammar, entry]
+        · simp [lexicalRule, terminalSymbols]
+    | @rdiv a A B w entry child ih =>
+        simpa [terminalSymbols] using
+          (Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+            (g := g.toRightLinearGrammar.toLinear)
+            (r := lexicalRule (a, .rdiv B A))
+            (pre := [a]) (suffix := []) (middle := w) (B := A)
+            (by simp [toRightLinearGrammar, entry])
+            (by simp [lexicalRule, terminalSymbols])
+            ih)
   · intro h
-    obtain ⟨g, hfinite, hg⟩ := isRegular_iff_exists_rightLinearGrammar.mp h
-    have hne : [] ∉ g.language := by
-      intro hempty
-      exact empty_not_mem (by simpa [hg] using hempty)
-    refine ⟨g.toRightShallowGrammar hfinite hne, ?_⟩
-    exact (g.toRightShallowGrammar_language hfinite hne).trans hg
-  · rintro ⟨g, rfl⟩
-    exact g.language_isRegular
-```
+    induction h with
+    | @leaf r word hr hout =>
+        rw [show g.toRightLinearGrammar.toLinear.cfg.rules =
+          (g.lexicon.entries.map lexicalRule).toFinset by rfl] at hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, hentry, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, category⟩
+        cases category with
+        | atom A =>
+            simp [lexicalRule, terminalSymbols] at hout
+            subst word
+            exact Generates.atom hentry
+        | rdiv B A =>
+            simp [lexicalRule, terminalSymbols] at hout
+    | @branch r pre suffix middle B hr hout child ih =>
+        rw [show g.toRightLinearGrammar.toLinear.cfg.rules =
+          (g.lexicon.entries.map lexicalRule).toFinset by rfl] at hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, hentry, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨a, category⟩
+        cases category with
+        | atom A =>
+            simp [lexicalRule, terminalSymbols] at hout
+        | rdiv C A =>
+            simp [lexicalRule, terminalSymbols] at hout
+            obtain ⟨rfl, rfl, rfl⟩ := hout
+            simpa using Generates.rdiv hentry ih
 
-すべてのクラス同値が閉じたので、正規言語の名前空間を閉じる。
+@[important, grind =, simp] public theorem toRightLinearGrammar_language
+    (g : Grammar T) :
+    g.toRightLinearGrammar.language = g.language := by
+  ext w
+  rw [← Mathling.Grammar.RightLinearGrammar.toLinear_language,
+    ← Mathling.Grammar.LinearGrammar.linearGenerates_iff]
+  exact g.generates_iff_linearGenerates.symm.trans
+    g.accepts_iff_generates.symm
 
-```lean
-end Mathling.Grammar.Language
-```
+end Grammar
+end Mathling.Lambek.ProductFree.Right.Shallow
+\`\`\`
+
+## 一般 shallow 言語の線形性
+
+一般 shallow では有限状態性を要求しないため、公開した具体的線形文法と言語等式をそのまま線形言語の witness として使える。
+
+\`\`\`lean
+namespace Mathling.Lambek.ProductFree.Shallow
+namespace Grammar
+
+@[important, grind .] public theorem language_isLinear
+    (g : Grammar T) : g.language.IsLinear := by
+  rw [← g.toLinearGrammar_language]
+  exact g.toLinearGrammar.language_isLinear
+
+end Grammar
+end Mathling.Lambek.ProductFree.Shallow
+\`\`\`
+
+## 片側 shallow 言語の正規性
+
+公開変換の非終端記号型は原子名をそのまま使うため String だが、実際の語彙が参照する原子は有限個しかない。正規性の証明では開始原子と語彙中の原子から有限台を作り、その subtype を非終端記号とする内部文法へ同じ規則を生成する。
+
+### Right.Shallow の有限台
+
+\`\`\`lean
+namespace Mathling.Lambek.ProductFree.Right.Shallow
+namespace Grammar
+
+private def Tp.atoms : Tp → List String
+  | .atom A => [A]
+  | .rdiv B A => [B, A]
+
+private def atomSupport (g : Grammar T) : Finset String :=
+  (g.start :: g.lexicon.entries.flatMap fun entry => entry.2.atoms).toFinset
+
+private abbrev FiniteNT (g : Grammar T) :=
+  {A : String // A ∈ atomSupport g}
+
+@[grind .] private theorem Generates.result_mem_atomSupport
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.Generates A w) :
+    A ∈ atomSupport g := by
+  cases h with
+  | atom entry =>
+      simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+        List.mem_flatMap]
+      right
+      exact ⟨_, entry, by simp [Tp.atoms]⟩
+  | rdiv entry child =>
+      simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+        List.mem_flatMap]
+      right
+      exact ⟨_, entry, by simp [Tp.atoms]⟩
+
+private noncomputable def finiteLexicalRule
+    (g : Grammar T) (entry : {e // e ∈ g.lexicon.entries}) :
+    ContextFreeRule T (FiniteNT g) := by
+  classical
+  rcases entry with ⟨⟨a, category⟩, hentry⟩
+  cases category with
+  | atom A =>
+      exact
+        { input := ⟨A, by
+              simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+                List.mem_flatMap]
+              exact Or.inr ⟨_, hentry, by simp [Tp.atoms]⟩⟩
+          output := [Symbol.terminal a] }
+  | rdiv B A =>
+      exact
+        { input := ⟨B, by
+              simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+                List.mem_flatMap]
+              exact Or.inr ⟨_, hentry, by simp [Tp.atoms]⟩⟩
+          output :=
+            [Symbol.terminal a,
+              Symbol.nonterminal ⟨A, by
+                simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+                  List.mem_flatMap]
+                exact Or.inr ⟨_, hentry, by simp [Tp.atoms]⟩⟩] }
+
+private noncomputable def toFiniteRightLinearGrammar
+    (g : Grammar T) : Mathling.Grammar.RightLinearGrammar T := by
+  classical
+  exact
+    { cfg :=
+        { NT := FiniteNT g
+          initial := ⟨g.start, by simp [atomSupport]⟩
+          rules :=
+            (g.lexicon.entries.attach.map
+              (finiteLexicalRule g)).toFinset }
+      rightLinear := by
+        intro r hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨⟨a, category⟩, hentry⟩
+        cases category <;>
+          simp [finiteLexicalRule,
+            Mathling.Grammar.ContextFreeRule.IsRightLinear] }
+\`\`\`
+
+有限台版の生成木は、既に証明した right-shallow spine と規則単位で一致する。subtype の所属証明は命題の証拠なので、非終端記号の実体は元の原子名から変わらない。
+
+\`\`\`lean
+@[grind .] private theorem generates_toFinite
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.Generates A w) :
+    Mathling.Grammar.LinearGrammar.LinearGenerates
+      g.toFiniteRightLinearGrammar
+      ⟨A, h.result_mem_atomSupport⟩ w := by
+  induction h with
+  | @atom a A entry =>
+      apply Mathling.Grammar.LinearGrammar.LinearGenerates.leaf
+        (r := finiteLexicalRule g ⟨(a, .atom A), entry⟩)
+        (word := [a])
+      · simp [toFiniteRightLinearGrammar]
+      · simp [finiteLexicalRule, terminalSymbols]
+  | @rdiv a A B w entry child ih =>
+      simpa [finiteLexicalRule, terminalSymbols] using
+        (Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+          (g := g.toFiniteRightLinearGrammar)
+          (r := finiteLexicalRule g ⟨(a, .rdiv B A), entry⟩)
+          (pre := [a]) (suffix := []) (middle := w)
+          (B := (⟨A, child.result_mem_atomSupport⟩ : FiniteNT g))
+          (by simp [toFiniteRightLinearGrammar])
+          (by simp [finiteLexicalRule, terminalSymbols])
+          ih)
+
+@[grind .] private theorem generates_ofFinite
+    {g : Grammar T} {A : FiniteNT g} {w : List T}
+    (h : Mathling.Grammar.LinearGrammar.LinearGenerates
+      g.toFiniteRightLinearGrammar A w) :
+    g.Generates A.1 w := by
+  induction h with
+  | @leaf r word hr hout =>
+      rw [show g.toFiniteRightLinearGrammar.cfg.rules =
+        (g.lexicon.entries.attach.map
+          (finiteLexicalRule g)).toFinset by rfl] at hr
+      rw [List.mem_toFinset] at hr
+      obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+      rcases entry with ⟨⟨a, category⟩, hentry⟩
+      cases category with
+      | atom name =>
+          simp [finiteLexicalRule, terminalSymbols] at hout
+          subst word
+          exact Generates.atom hentry
+      | rdiv result arg =>
+          simp [finiteLexicalRule, terminalSymbols] at hout
+  | @branch r pre suffix middle B hr hout child ih =>
+      rw [show g.toFiniteRightLinearGrammar.cfg.rules =
+        (g.lexicon.entries.attach.map
+          (finiteLexicalRule g)).toFinset by rfl] at hr
+      rw [List.mem_toFinset] at hr
+      obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+      rcases entry with ⟨⟨a, category⟩, hentry⟩
+      cases category with
+      | atom name =>
+          simp [finiteLexicalRule, terminalSymbols] at hout
+      | rdiv result arg =>
+          simp [finiteLexicalRule, terminalSymbols] at hout
+          obtain ⟨rfl, rfl, rfl⟩ := hout
+          simpa using Generates.rdiv hentry ih
+
+@[important, grind =] private theorem
+    toFiniteRightLinearGrammar_language (g : Grammar T) :
+    g.toFiniteRightLinearGrammar.language = g.language := by
+  ext w
+  let hstart : g.start ∈ atomSupport g := by simp [atomSupport]
+  calc
+    w ∈ g.toFiniteRightLinearGrammar.language ↔
+        Mathling.Grammar.LinearGrammar.LinearGenerates
+          g.toFiniteRightLinearGrammar
+          (⟨g.start, hstart⟩ : FiniteNT g) w := by
+      simpa [toFiniteRightLinearGrammar] using
+        (Mathling.Grammar.LinearGrammar.linearGenerates_iff
+          g.toFiniteRightLinearGrammar w).symm
+    _ ↔ g.Generates g.start w := by
+      constructor
+      · exact generates_ofFinite
+      · intro h
+        simpa using generates_toFinite h
+    _ ↔ g.Accepts w := g.accepts_iff_generates.symm
+    _ ↔ w ∈ g.language := Iff.rfl
+
+@[important, grind .] public theorem language_isRegular
+    (g : Grammar T) : g.language.IsRegular := by
+  rw [← g.toFiniteRightLinearGrammar_language]
+  exact g.toFiniteRightLinearGrammar.language_isRegular
+
+end Grammar
+end Mathling.Lambek.ProductFree.Right.Shallow
+\`\`\`
+
+### Left.Shallow の有限台
+
+左側も同じ有限台を使い、左除法語彙を A → B a 型の生成規則へ移す。これにより語反転を API に露出させず、左線形文法の既存正規性定理を直接利用できる。
+
+\`\`\`lean
+namespace Mathling.Lambek.ProductFree.Left.Shallow
+namespace Grammar
+
+private def Tp.atoms : Tp → List String
+  | .atom A => [A]
+  | .ldiv A B => [A, B]
+
+private def atomSupport (g : Grammar T) : Finset String :=
+  (g.start :: g.lexicon.entries.flatMap fun entry => entry.2.atoms).toFinset
+
+private abbrev FiniteNT (g : Grammar T) :=
+  {A : String // A ∈ atomSupport g}
+
+@[grind .] private theorem Generates.result_mem_atomSupport
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.Generates A w) :
+    A ∈ atomSupport g := by
+  cases h with
+  | atom entry =>
+      simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+        List.mem_flatMap]
+      right
+      exact ⟨_, entry, by simp [Tp.atoms]⟩
+  | ldiv entry child =>
+      simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+        List.mem_flatMap]
+      right
+      exact ⟨_, entry, by simp [Tp.atoms]⟩
+
+private noncomputable def finiteLexicalRule
+    (g : Grammar T) (entry : {e // e ∈ g.lexicon.entries}) :
+    ContextFreeRule T (FiniteNT g) := by
+  classical
+  rcases entry with ⟨⟨a, category⟩, hentry⟩
+  cases category with
+  | atom A =>
+      exact
+        { input := ⟨A, by
+              simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+                List.mem_flatMap]
+              exact Or.inr ⟨_, hentry, by simp [Tp.atoms]⟩⟩
+          output := [Symbol.terminal a] }
+  | ldiv A B =>
+      exact
+        { input := ⟨B, by
+              simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+                List.mem_flatMap]
+              exact Or.inr ⟨_, hentry, by simp [Tp.atoms]⟩⟩
+          output :=
+            [Symbol.nonterminal ⟨A, by
+                simp only [atomSupport, List.mem_toFinset, List.mem_cons,
+                  List.mem_flatMap]
+                exact Or.inr ⟨_, hentry, by simp [Tp.atoms]⟩⟩,
+              Symbol.terminal a] }
+
+private noncomputable def toFiniteLeftLinearGrammar
+    (g : Grammar T) : Mathling.Grammar.LeftLinearGrammar T := by
+  classical
+  exact
+    { cfg :=
+        { NT := FiniteNT g
+          initial := ⟨g.start, by simp [atomSupport]⟩
+          rules :=
+            (g.lexicon.entries.attach.map
+              (finiteLexicalRule g)).toFinset }
+      leftLinear := by
+        intro r hr
+        rw [List.mem_toFinset] at hr
+        obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+        rcases entry with ⟨⟨a, category⟩, hentry⟩
+        cases category <;>
+          simp [finiteLexicalRule,
+            Mathling.Grammar.ContextFreeRule.IsLeftLinear] }
+
+@[grind .] private theorem generates_toFinite
+    {g : Grammar T} {A : String} {w : List T}
+    (h : g.Generates A w) :
+    Mathling.Grammar.LinearGrammar.LinearGenerates
+      g.toFiniteLeftLinearGrammar.toLinear
+      ⟨A, h.result_mem_atomSupport⟩ w := by
+  induction h with
+  | @atom a A entry =>
+      apply Mathling.Grammar.LinearGrammar.LinearGenerates.leaf
+        (r := finiteLexicalRule g ⟨(a, .atom A), entry⟩)
+        (word := [a])
+      · simp [toFiniteLeftLinearGrammar]
+      · simp [finiteLexicalRule, terminalSymbols]
+  | @ldiv a A B w entry child ih =>
+      simpa [finiteLexicalRule, terminalSymbols] using
+        (Mathling.Grammar.LinearGrammar.LinearGenerates.branch
+          (g := g.toFiniteLeftLinearGrammar.toLinear)
+          (r := finiteLexicalRule g ⟨(a, .ldiv A B), entry⟩)
+          (pre := []) (suffix := [a]) (middle := w)
+          (B := (⟨A, child.result_mem_atomSupport⟩ : FiniteNT g))
+          (by simp [toFiniteLeftLinearGrammar])
+          (by simp [finiteLexicalRule, terminalSymbols])
+          ih)
+
+@[grind .] private theorem generates_ofFinite
+    {g : Grammar T} {A : FiniteNT g} {w : List T}
+    (h : Mathling.Grammar.LinearGrammar.LinearGenerates
+      g.toFiniteLeftLinearGrammar.toLinear A w) :
+    g.Generates A.1 w := by
+  induction h with
+  | @leaf r word hr hout =>
+      rw [show g.toFiniteLeftLinearGrammar.toLinear.cfg.rules =
+        (g.lexicon.entries.attach.map
+          (finiteLexicalRule g)).toFinset by rfl] at hr
+      rw [List.mem_toFinset] at hr
+      obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+      rcases entry with ⟨⟨a, category⟩, hentry⟩
+      cases category with
+      | atom name =>
+          simp [finiteLexicalRule, terminalSymbols] at hout
+          subst word
+          exact Generates.atom hentry
+      | ldiv arg result =>
+          simp [finiteLexicalRule, terminalSymbols] at hout
+  | @branch r pre suffix middle B hr hout child ih =>
+      rw [show g.toFiniteLeftLinearGrammar.toLinear.cfg.rules =
+        (g.lexicon.entries.attach.map
+          (finiteLexicalRule g)).toFinset by rfl] at hr
+      rw [List.mem_toFinset] at hr
+      obtain ⟨entry, _, rfl⟩ := List.mem_map.mp hr
+      rcases entry with ⟨⟨a, category⟩, hentry⟩
+      cases category with
+      | atom name =>
+          simp [finiteLexicalRule, terminalSymbols] at hout
+      | ldiv arg result =>
+          simp [finiteLexicalRule, terminalSymbols] at hout
+          obtain ⟨rfl, rfl, rfl⟩ := hout
+          simpa using Generates.ldiv hentry ih
+
+@[important, grind =] private theorem
+    toFiniteLeftLinearGrammar_language (g : Grammar T) :
+    g.toFiniteLeftLinearGrammar.language = g.language := by
+  ext w
+  let hstart : g.start ∈ atomSupport g := by simp [atomSupport]
+  calc
+    w ∈ g.toFiniteLeftLinearGrammar.language ↔
+        Mathling.Grammar.LinearGrammar.LinearGenerates
+          g.toFiniteLeftLinearGrammar.toLinear
+          (⟨g.start, hstart⟩ : FiniteNT g) w := by
+      rw [← Mathling.Grammar.LeftLinearGrammar.toLinear_language]
+      simpa [toFiniteLeftLinearGrammar] using
+        (Mathling.Grammar.LinearGrammar.linearGenerates_iff
+          g.toFiniteLeftLinearGrammar.toLinear w).symm
+    _ ↔ g.Generates g.start w := by
+      constructor
+      · exact generates_ofFinite
+      · intro h
+        simpa using generates_toFinite h
+    _ ↔ g.Accepts w := g.accepts_iff_generates.symm
+    _ ↔ w ∈ g.language := Iff.rfl
+
+@[important, grind .] public theorem language_isRegular
+    (g : Grammar T) : g.language.IsRegular := by
+  rw [← g.toFiniteLeftLinearGrammar_language]
+  exact g.toFiniteLeftLinearGrammar.language_isRegular
+
+end Grammar
+end Mathling.Lambek.ProductFree.Left.Shallow
+\`\`\`
 
 <!--
 vim: set filetype=markdown :

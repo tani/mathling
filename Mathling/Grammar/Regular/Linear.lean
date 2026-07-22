@@ -300,7 +300,7 @@ variable {T : Type*}
 
 ```lean
 /-- Production trees and context-free derivations agree for linear grammars. -/
-@[grind .] theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
+@[grind .] public theorem linearGenerates_iff (g : LinearGrammar T) (w : List T) :
     LinearGenerates g g.cfg.initial w ↔ w ∈ g.language := by
   constructor
   · exact generates_derives g
