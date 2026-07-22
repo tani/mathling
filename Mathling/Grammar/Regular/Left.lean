@@ -71,9 +71,7 @@ certificate. -/
 
 ```lean
 /-- Forget that a left-linear grammar is left-linear. -/
-/- Exposed because the public language-preservation theorem reduces the
-underlying context-free grammar on both sides of the equality. -/
-@[expose] public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
+public abbrev toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
   cfg := g.cfg
   linear r hr := by
     rcases g.leftLinear r hr with h | ⟨a, h⟩ | ⟨A, a, h⟩ <;>
@@ -184,7 +182,7 @@ public def reverseRightLinear (g : LeftLinearGrammar T) : RightLinearGrammar T w
 
 ```lean
 /-- A left-linear grammar with finitely many nonterminals generates a regular language. -/
-@[grind .] theorem language_isRegular (g : LeftLinearGrammar T) [Finite g.cfg.NT] :
+@[grind .] public theorem language_isRegular (g : LeftLinearGrammar T) [Finite g.cfg.NT] :
     g.language.IsRegular := by
   letI := Fintype.ofFinite g.cfg.NT
   letI : Fintype g.reverseRightLinear.cfg.NT := by

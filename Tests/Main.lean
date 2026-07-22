@@ -483,7 +483,7 @@ public def main : IO Unit := Mathling.Tests.run
 この回帰テストは、語彙受理、三つの具体的な順方向変換、および各変換の言語保存定理が
 公開 API としてテストターゲットから利用できることを固定する。
 
-\`\`\`lean
+```lean
 namespace Mathling.Tests
 
 example (g : Mathling.Lambek.ProductFree.Shallow.Grammar Unit) :
@@ -527,7 +527,7 @@ example (g : Mathling.Lambek.ProductFree.Right.Shallow.Grammar Unit) :
   g.language_isRegular
 
 end Mathling.Tests
-\`\`\`
+```
 <!--
 vim: set filetype=markdown :
 Local Variables:

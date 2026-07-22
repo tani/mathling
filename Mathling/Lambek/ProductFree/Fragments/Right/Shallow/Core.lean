@@ -143,7 +143,7 @@ namespace Sequent
 公理規則は翻訳先の公理そのものである。
 
 ```lean
-@[grind .] theorem ax : Sequent [A] A := by
+@[grind .] public theorem ax : Sequent [A] A := by
   simpa [Sequent, ctxToProductFree, Tp.toProductFree] using
     (Mathling.Lambek.ProductFree.Sequent.ax :
       Mathling.Lambek.ProductFree.Sequent [A.toProductFree] A.toProductFree)
@@ -174,7 +174,7 @@ namespace Sequent
 左導入規則も翻訳先からそのまま再利用する。
 
 ```lean
-@[grind =>] theorem rdiv_l
+@[grind =>] public theorem rdiv_l
   (h_arg : Sequent Δ (Tp.atom A))
   (h_main : Sequent (Γ ++ [Tp.atom B] ++ Λ) C) :
   Sequent (Γ ++ [Tp.rdiv B A] ++ Δ ++ Λ) C := by

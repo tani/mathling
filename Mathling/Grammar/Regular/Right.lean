@@ -79,10 +79,8 @@ certificate. -/
 
 ```lean
 /-- Forget that a right-linear grammar is right-linear. -/
-/- Exposed because the exported language-preservation theorem observes the
-underlying context-free grammar definitionally. -/
 
-@[expose] public def toLinear (g : RightLinearGrammar T) : LinearGrammar T where
+public abbrev toLinear (g : RightLinearGrammar T) : LinearGrammar T where
   cfg := g.cfg
   linear r hr := by
     rcases g.rightLinear r hr with h | ⟨a, h⟩ | ⟨a, B, h⟩ <;>
