@@ -116,10 +116,8 @@ public def list_degree : List Tp → Nat
 
 ```lean
 @[grind =]
-```
 
-```lean
-lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
+private lemma list_degree_traversible : list_degree (Γ ++ Δ) = list_degree Γ + list_degree Δ := by
   induction Γ <;> grind
 ```
 
@@ -138,10 +136,8 @@ public lemma nonempty_premises (h : Γ ⇒ A) : Γ ≠ [] := by
 
 ```lean
 @[grind =>]
-```
 
-```lean
-lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
+private lemma nonempty_append (h : Γ ≠ []) : Δ ++ Γ ++ Λ ≠ [] := by
   grind only [List.append_eq_nil_iff]
 ```
 
@@ -333,9 +329,7 @@ $Δ, Γ, Λ ⇒ B$ の証明をカットフリー体系の規則のみで具体�
 
 ```lean
 set_option maxHeartbeats 1000000 in
-```
 
-```lean
 @[important, grind =>]
 public theorem cut_admissible
   (d_left : Γ ⇒ A)
@@ -362,14 +356,16 @@ public theorem cut_admissible
           have h_deg_lt : m < deg := by grind
           have d_permuted_inner : [C] ++ Δ ++ [ A₁ ⧹ A₂ ] ++ Λ ⇒ D := by grind
           have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by grind
-          grind
+          apply Sequent.ldiv_r (nonempty_append h_ne_L)
+          simpa only [List.append_assoc] using d_cut_result
         | rdiv_r h_ne_R d_inner_R =>
           rename_i C D
           let m := list_degree (Δ ++ Γ ++ Λ ++ [C]) + tp_degree (A₁ ⧹ A₂) + tp_degree D
           have h_deg_lt : m < deg := by grind
           have d_permuted_inner : Δ ++ [ A₁ ⧹ A₂ ] ++ Λ ++ [C] ⇒ D := by grind
           have d_cut_result : Δ ++ Γ ++ Λ ++ [C] ⇒ D := by grind
-          grind
+          apply Sequent.rdiv_r (nonempty_append h_ne_L)
+          simpa only [List.append_assoc] using d_cut_result
         | ldiv_l d_arg d_main =>
           rename_i Δ_arg A_arg Γ_L B_res Γ_R
           rcases list_split_4_cases d_right_eq_x
@@ -444,7 +440,8 @@ public theorem cut_admissible
             grind only [list_degree, tp_degree, list_degree_traversible]
           have d_permuted_inner : [C] ++ Δ ++ [ A₂ ⧸ A₁ ] ++ Λ ⇒ D := by grind
           have d_cut_result : [C] ++ Δ ++ Γ ++ Λ ⇒ D := by grind
-          grind
+          apply Sequent.ldiv_r (nonempty_append h_ne_L)
+          simpa only [List.append_assoc] using d_cut_result
         | rdiv_r h_ne_R d_inner_R =>
           rename_i C D
           let m := list_degree (Δ ++ Γ ++ Λ ++ [C]) + tp_degree ( A₂ ⧸ A₁ ) + tp_degree D
@@ -452,7 +449,8 @@ public theorem cut_admissible
             grind only [list_degree, tp_degree, list_degree_traversible]
           have d_permuted_inner : Δ ++ [ A₂ ⧸ A₁ ] ++ Λ ++ [C] ⇒ D := by grind
           have d_cut_result : Δ ++ Γ ++ Λ ++ [C] ⇒ D := by grind
-          grind
+          apply Sequent.rdiv_r (nonempty_append h_ne_L)
+          simpa only [List.append_assoc] using d_cut_result
         | ldiv_l d_arg d_main =>
           rename_i Δ_arg A_arg Γ_L B_res Γ_R
           rcases list_split_4_cases d_right_eq_x

@@ -10,6 +10,7 @@
     public import Mathling.Lambek.ProductFree.Fragments.Left.Shallow.Decision
     public import Mathling.Lambek.ProductFree.Fragments.Shallow.Core
     public import Mathling.Lambek.ProductFree.Fragments.Shallow.Decision
+    public import Mathling.Lambek.ProductFree.Fragments.Language
 
     import LiterateLean
     open scoped LiterateLean

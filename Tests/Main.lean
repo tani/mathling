@@ -5,6 +5,7 @@
     import Mathling.Grammar.Regular.Regex
     import Mathling.Grammar.Regular.Linear
     import Mathling.Grammar.Deterministic
+    import Mathling.Lambek.ProductFree.Fragments.Language
 
     import LiterateLean
     open scoped LiterateLean
@@ -475,6 +476,32 @@ Lake の実行可能ターゲットが期待する `main : IO Unit` を、テス
 
 ```lean
 public def main : IO Unit := Mathling.Tests.run
+```
+
+## Shallow Lambek language-class characterizations
+
+These type-level regressions keep the epsilon-free hypotheses and the three
+public existence equivalences available through the test target.
+
+```lean
+namespace Mathling.Tests
+
+example {L : Language Unit} (hε : [] ∉ L) :
+    L.IsLinear ↔
+      ∃ g : Mathling.Lambek.ProductFree.Shallow.Grammar Unit, g.language = L :=
+  Language.isLinear_iff_exists_shallowGrammar hε
+
+example {L : Language Unit} (hε : [] ∉ L) :
+    L.IsRegular ↔
+      ∃ g : Mathling.Lambek.ProductFree.Left.Shallow.Grammar Unit, g.language = L :=
+  Mathling.Grammar.Language.isRegular_iff_exists_leftShallowGrammar hε
+
+example {L : Language Unit} (hε : [] ∉ L) :
+    L.IsRegular ↔
+      ∃ g : Mathling.Lambek.ProductFree.Right.Shallow.Grammar Unit, g.language = L :=
+  Mathling.Grammar.Language.isRegular_iff_exists_rightShallowGrammar hε
+
+end Mathling.Tests
 ```
 
 <!--

@@ -71,7 +71,9 @@ certificate. -/
 
 ```lean
 /-- Forget that a left-linear grammar is left-linear. -/
-public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
+/- Exposed because the public language-preservation theorem reduces the
+underlying context-free grammar on both sides of the equality. -/
+@[expose] public def toLinear (g : LeftLinearGrammar T) : LinearGrammar T where
   cfg := g.cfg
   linear r hr := by
     rcases g.leftLinear r hr with h | ⟨a, h⟩ | ⟨A, a, h⟩ <;>
